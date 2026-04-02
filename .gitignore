@@ -1,0 +1,25 @@
+# Dart
+.dart_tool/
+build/
+.packages
+pubspec.lock
+
+# Generated code
+*.g.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Claude Code local config
+.claude/
