@@ -37,6 +37,7 @@ Only pause to ask for confirmation when:
 - You genuinely don't understand what's being asked
 - Your partner specifically asks "how should I approach X?" (answer the question, don't jump to
   implementation)
+- The request sounds like discussion or planning ("let's think about X", "what do you think about X") — confirm whether Milan wants to discuss or implement before writing any code
 
 ## Spawning agents
 
