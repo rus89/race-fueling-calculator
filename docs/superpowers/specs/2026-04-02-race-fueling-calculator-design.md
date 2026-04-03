@@ -174,7 +174,7 @@ After plan generation, a validation pass produces warnings:
 ### Two-tier system
 
 1. **Built-in defaults:** ~20-30 popular products bundled as a JSON asset in `packages/core`. Read-only, versioned with the app.
-2. **User products:** stored in `~/.race-fueling/products.json`. Users can add custom products or override built-in defaults. User entries take precedence when names match.
+2. **User products:** stored in `~/.race-fueling/products.json`. Users can add custom products or override built-in defaults. User entries take precedence when IDs match.
 
 ### CLI commands
 

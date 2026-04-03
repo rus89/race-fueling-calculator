@@ -2,8 +2,6 @@
 # ABOUTME: Pre-commit hook that runs dart analyze on staged Dart files.
 # ABOUTME: Skips gracefully if the Dart workspace is not yet set up.
 
-set -e
-
 # Check if any Dart files are staged
 DART_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.dart$' || true)
 
@@ -18,10 +16,6 @@ if [ ! -d ".dart_tool" ]; then
 fi
 
 echo "Running dart analyze..."
-dart analyze --fatal-infos
-if [ $? -ne 0 ]; then
-  echo "dart analyze found issues. Fix them before committing."
-  exit 1
-fi
+dart analyze --fatal-infos || { echo "dart analyze found issues. Fix them before committing."; exit 1; }
 
 echo "Pre-commit checks passed."
