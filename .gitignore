@@ -4,8 +4,6 @@ build/
 .packages
 pubspec.lock
 
-# Generated code
-*.g.dart
 
 # IDE
 .idea/
