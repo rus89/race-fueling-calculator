@@ -35,10 +35,9 @@ List<TimeSlot> _buildTimeBased(RaceConfig config) {
   for (final station in config.aidStations) {
     final stationMin = station.timeMinutes;
     if (stationMin == null) continue;
-    final exists = slots.any((s) => s.timeMark.inMinutes == stationMin);
-    if (exists) {
+    final idx = slots.indexWhere((s) => s.timeMark.inMinutes == stationMin);
+    if (idx >= 0) {
       // Mark existing slot as aid station
-      final idx = slots.indexWhere((s) => s.timeMark.inMinutes == stationMin);
       slots[idx] = TimeSlot(
         timeMark: Duration(minutes: stationMin),
         isAidStation: true,
@@ -62,7 +61,8 @@ List<TimeSlot> _buildDistanceBased(RaceConfig config) {
   final paceMinPerKm = totalKm > 0 ? totalMin / totalKm : 0.0;
   final slots = <TimeSlot>[];
 
-  for (var km = intervalKm; km <= totalKm; km += intervalKm) {
+  for (var i = 1; i * intervalKm <= totalKm; i++) {
+    final km = i * intervalKm;
     slots.add(TimeSlot(
       timeMark: Duration(minutes: (km * paceMinPerKm).round()),
       distanceMark: km,
@@ -72,9 +72,9 @@ List<TimeSlot> _buildDistanceBased(RaceConfig config) {
   for (final station in config.aidStations) {
     final stationKm = station.distanceKm;
     if (stationKm == null) continue;
-    final exists = slots.any((s) => s.distanceMark == stationKm);
-    if (exists) {
-      final idx = slots.indexWhere((s) => s.distanceMark == stationKm);
+    final idx =
+        slots.indexWhere((s) => (s.distanceMark! - stationKm).abs() < 0.001);
+    if (idx >= 0) {
       slots[idx] = TimeSlot(
         timeMark: Duration(minutes: (stationKm * paceMinPerKm).round()),
         distanceMark: stationKm,
