@@ -74,6 +74,8 @@ List<double> _distributeCustom(List<TimeSlot> slots, RaceConfig config) {
 
 List<double> _distributeByGapMinutes(
     List<TimeSlot> slots, List<double> gPerMinRates) {
+  assert(slots.length == gPerMinRates.length,
+      '_distributeByGapMinutes: slots and gPerMinRates must have equal length');
   final targets = <double>[];
   var prevMin = 0;
 
