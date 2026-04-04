@@ -128,23 +128,31 @@ List<Warning> _checkGaps(List<PlanEntry> entries) {
 
 List<Warning> _checkRatio(List<PlanEntry> entries, Duration raceDuration) {
   final warnings = <Warning>[];
-  final totalGlucose = entries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
-  final totalFructose = entries.fold(0.0, (sum, e) => sum + e.carbsFructose);
-  final totalCarbs = totalGlucose + totalFructose;
-  final totalHours = raceDuration.inMinutes / 60.0;
-  final gPerHr = totalCarbs / totalHours;
+  final totalMin = raceDuration.inMinutes;
 
-  // Only check ratio if above 60g/hr where dual-source matters
-  if (gPerHr > 50 && totalFructose > 0) {
-    final ratio = totalFructose / totalGlucose;
-    // Optimal: 1:0.8 (glucose:fructose) -> ratio of fructose/glucose = 0.8
-    // Acceptable range: 0.6 to 1.0
-    if (ratio < 0.6 || ratio > 1.0) {
-      warnings.add(Warning(
-        severity: Severity.advisory,
-        message: 'Glucose:fructose ratio is 1:${ratio.toStringAsFixed(1)} '
-            '(optimal range: 1:0.6 to 1:1.0 for high absorption).',
-      ));
+  for (var startMin = 0; startMin < totalMin; startMin += 20) {
+    final endMin = startMin + 60;
+    final hourEntries = entries.where((e) =>
+        e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin);
+
+    final hourGlucose = hourEntries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
+    final hourFructose =
+        hourEntries.fold(0.0, (sum, e) => sum + e.carbsFructose);
+    final hourCarbs = hourGlucose + hourFructose;
+
+    // Only check ratio if above 50g/hr where dual-source matters
+    if (hourCarbs > 50 && hourFructose > 0 && hourGlucose > 0) {
+      final ratio = hourFructose / hourGlucose;
+      // Acceptable range: 1:0.6 to 1:1.0 (fructose/glucose)
+      if (ratio < 0.6 || ratio > 1.0) {
+        warnings.add(Warning(
+          severity: Severity.advisory,
+          message: 'Glucose:fructose ratio is 1:${ratio.toStringAsFixed(1)} '
+              'at $startMin-${endMin}min '
+              '(optimal range: 1:0.6 to 1:1.0 for high absorption).',
+        ));
+        break; // One warning is enough
+      }
     }
   }
 

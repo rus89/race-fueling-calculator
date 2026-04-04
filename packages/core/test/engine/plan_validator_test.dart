@@ -110,6 +110,46 @@ void main() {
       );
     });
 
+    test('critical: caffeine exceeds 6mg/kg body weight', () {
+      // 60kg athlete, 370mg caffeine = 6.17mg/kg (above 6mg/kg threshold)
+      // 370mg is under the absolute 400mg limit, so only per-kg check fires
+      final lightProfile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 60.0,
+      );
+      final entries = [
+        _entry(minutes: 20),
+        PlanEntry(
+          timeMark: Duration(minutes: 40),
+          products: [],
+          carbsGlucose: 20,
+          carbsFructose: 10,
+          carbsTotal: 30,
+          cumulativeCarbs: 0,
+          cumulativeCaffeine: 200,
+          waterMl: 0,
+        ),
+        PlanEntry(
+          timeMark: Duration(minutes: 60),
+          products: [],
+          carbsGlucose: 20,
+          carbsFructose: 10,
+          carbsTotal: 30,
+          cumulativeCarbs: 0,
+          cumulativeCaffeine: 370,
+          waterMl: 0,
+        ),
+      ];
+
+      final warnings = validatePlan(entries, lightProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) =>
+            w.severity == Severity.critical && w.message.contains('caffeine')),
+        true,
+      );
+    });
+
     test('advisory: gap >30 min with no fuel', () {
       final entries = [
         _entry(minutes: 20, glucose: 15, fructose: 5),
