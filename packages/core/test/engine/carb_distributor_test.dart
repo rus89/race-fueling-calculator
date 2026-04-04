@@ -1,5 +1,5 @@
 // ABOUTME: Tests for carb distribution across timeline slots for all strategy modes.
-// ABOUTME: Verifies steady, front-load, and custom curve distributions.
+// ABOUTME: Verifies steady, front-load, back-load, and custom curve distributions.
 import 'package:test/test.dart';
 import 'package:race_fueling_core/src/engine/carb_distributor.dart';
 import 'package:race_fueling_core/src/engine/timeline_builder.dart';
@@ -79,6 +79,29 @@ void main() {
       expect(targets[0], closeTo(22.0, 0.5));
       // Last third (slots 6-8): ~18g each (20*0.9)
       expect(targets[8], closeTo(18.0, 0.5));
+    });
+  });
+
+  group('distributeCarbs — back-load', () {
+    test('first third gets ~90%, last third gets ~110%', () {
+      final slots = List.generate(
+          9, (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)));
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 3),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.backLoad,
+        selectedProducts: [],
+      );
+
+      final targets = distributeCarbs(slots, config);
+
+      // First third (slots 0-2): ~18g each (20*0.9)
+      expect(targets[0], closeTo(18.0, 0.5));
+      // Last third (slots 6-8): ~22g each (20*1.1)
+      expect(targets[8], closeTo(22.0, 0.5));
     });
   });
 
