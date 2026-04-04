@@ -22,3 +22,31 @@ Core plan generation + terminal output only. Exports (markdown, CSV, PDF stem ca
 
 ### Milan's context
 XCM mountain bike racer, progressing gut training from 60g→90g carbs/hour with maltodextrin/fructose. Building this for personal use first, then broader endurance community.
+
+## 2026-04-04 — Task 2.1: Timeline Builder Implementation
+
+### Completed
+Implemented `buildTimeline()` function and TimeSlot class for both time-based and distance-based race modes.
+
+**Files created:**
+- `packages/core/lib/src/engine/timeline_builder.dart` — Core timeline building logic with TimeSlot class
+- `packages/core/test/engine/timeline_builder_test.dart` — 3 comprehensive tests covering time-based scenarios
+
+**Key implementation details:**
+- `TimeSlot` class holds timeMark (Duration), distanceMark (double?), and isAidStation flag
+- `buildTimeline()` dispatches to time-based or distance-based builders based on config.timelineMode
+- Time-based: generates slots at regular intervalMinutes, stops at or before race duration
+- Distance-based: calculates constant pace (totalMin / totalKm) and maps distance intervals to time
+- Aid stations are inserted as additional slots or mark existing interval slots as aid points
+- All slots are sorted by timeMark before return
+
+**Testing:**
+- All 3 tests pass (time-based intervals, boundary handling, aid station insertion)
+- Pre-existing model tests (22) still pass
+- dart analyze shows no issues
+- Committed to feat/v1-phase2-engine branch
+
+**Notes:**
+- Implementation matches spec exactly as provided in task
+- No unexpected complexity or edge cases discovered during implementation
+- Ready for next task (Task 2.2 — distance-based tests)
