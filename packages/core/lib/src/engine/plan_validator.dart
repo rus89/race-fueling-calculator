@@ -1,0 +1,179 @@
+// ABOUTME: Validates a generated fueling plan and produces critical and advisory warnings.
+// ABOUTME: Checks gut tolerance, carb source ratios, caffeine limits, and fuel gaps.
+import '../models/fueling_plan.dart';
+import '../models/athlete_profile.dart';
+import '../models/warning.dart';
+
+List<Warning> validatePlan(
+  List<PlanEntry> entries,
+  AthleteProfile profile,
+  Duration raceDuration,
+) {
+  final warnings = <Warning>[];
+
+  warnings.addAll(_checkGutTolerance(entries, profile, raceDuration));
+  warnings.addAll(_checkSingleSource(entries, raceDuration));
+  warnings.addAll(_checkCaffeine(entries, profile));
+  warnings.addAll(_checkGaps(entries));
+  warnings.addAll(_checkRatio(entries, raceDuration));
+  warnings.addAll(_checkCarbDrop(entries, raceDuration));
+
+  return warnings;
+}
+
+List<Warning> _checkGutTolerance(
+    List<PlanEntry> entries, AthleteProfile profile, Duration raceDuration) {
+  final warnings = <Warning>[];
+  final totalMin = raceDuration.inMinutes;
+  final tolerance = profile.gutToleranceGPerHr;
+
+  // Check each 60-min rolling window
+  for (var startMin = 0; startMin < totalMin; startMin += 20) {
+    final endMin = startMin + 60;
+    final hourCarbs = entries
+        .where((e) =>
+            e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin)
+        .fold(0.0, (sum, e) => sum + e.carbsTotal);
+
+    if (hourCarbs > tolerance * 1.15) {
+      warnings.add(Warning(
+        severity: Severity.critical,
+        message: 'Exceeding gut tolerance: ${hourCarbs.toStringAsFixed(0)}g/hr '
+            'at $startMin-${endMin}min (trained: ${tolerance.toStringAsFixed(0)}g/hr)',
+      ));
+      break; // One warning is enough
+    }
+  }
+
+  return warnings;
+}
+
+List<Warning> _checkSingleSource(
+    List<PlanEntry> entries, Duration raceDuration) {
+  final warnings = <Warning>[];
+  final totalMin = raceDuration.inMinutes;
+
+  for (var startMin = 0; startMin < totalMin; startMin += 20) {
+    final endMin = startMin + 60;
+    final hourEntries = entries.where((e) =>
+        e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin);
+
+    final hourGlucose = hourEntries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
+    final hourFructose =
+        hourEntries.fold(0.0, (sum, e) => sum + e.carbsFructose);
+
+    if (hourGlucose > 60 && hourFructose == 0) {
+      warnings.add(Warning(
+        severity: Severity.critical,
+        message:
+            'Over 60g/hr from single-source carbs at $startMin-${endMin}min. '
+            'Dual-source (glucose + fructose) needed for absorption above 60g/hr.',
+      ));
+      break;
+    }
+  }
+
+  return warnings;
+}
+
+List<Warning> _checkCaffeine(List<PlanEntry> entries, AthleteProfile profile) {
+  final warnings = <Warning>[];
+  final totalCaffeine = entries.isEmpty ? 0.0 : entries.last.cumulativeCaffeine;
+
+  if (totalCaffeine > 400) {
+    warnings.add(Warning(
+      severity: Severity.critical,
+      message: 'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
+          'safe threshold (400mg).',
+    ));
+  } else if (profile.bodyWeightKg != null) {
+    final mgPerKg = totalCaffeine / profile.bodyWeightKg!;
+    if (mgPerKg > 6.0) {
+      warnings.add(Warning(
+        severity: Severity.critical,
+        message: 'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
+            '${mgPerKg.toStringAsFixed(1)}mg/kg (threshold: 6mg/kg).',
+      ));
+    }
+  }
+
+  return warnings;
+}
+
+List<Warning> _checkGaps(List<PlanEntry> entries) {
+  final warnings = <Warning>[];
+  var prevMin = 0;
+
+  for (var i = 0; i < entries.length; i++) {
+    final entry = entries[i];
+    final gap = entry.timeMark.inMinutes - prevMin;
+
+    if (gap > 30 && entry.carbsTotal > 0) {
+      warnings.add(Warning(
+        severity: Severity.advisory,
+        message:
+            '$gap-minute gap before intake at ${entry.timeMark.inMinutes}min. '
+            'Consider more frequent fueling.',
+        entryIndex: i,
+      ));
+    }
+
+    if (entry.carbsTotal > 0) {
+      prevMin = entry.timeMark.inMinutes;
+    }
+  }
+
+  return warnings;
+}
+
+List<Warning> _checkRatio(List<PlanEntry> entries, Duration raceDuration) {
+  final warnings = <Warning>[];
+  final totalGlucose = entries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
+  final totalFructose = entries.fold(0.0, (sum, e) => sum + e.carbsFructose);
+  final totalCarbs = totalGlucose + totalFructose;
+  final totalHours = raceDuration.inMinutes / 60.0;
+  final gPerHr = totalCarbs / totalHours;
+
+  // Only check ratio if above 60g/hr where dual-source matters
+  if (gPerHr > 50 && totalFructose > 0) {
+    final ratio = totalFructose / totalGlucose;
+    // Optimal: 1:0.8 (glucose:fructose) -> ratio of fructose/glucose = 0.8
+    // Acceptable range: 0.6 to 1.0
+    if (ratio < 0.6 || ratio > 1.0) {
+      warnings.add(Warning(
+        severity: Severity.advisory,
+        message: 'Glucose:fructose ratio is 1:${ratio.toStringAsFixed(1)} '
+            '(optimal range: 1:0.6 to 1:1.0 for high absorption).',
+      ));
+    }
+  }
+
+  return warnings;
+}
+
+// Warns when the second half of the race averages significantly fewer
+// carbs than the first half and the strategy is not back-load.
+// A >20% drop suggests the plan front-loads by accident, not design.
+List<Warning> _checkCarbDrop(List<PlanEntry> entries, Duration raceDuration) {
+  final warnings = <Warning>[];
+  if (entries.isEmpty) return warnings;
+
+  final halfMin = raceDuration.inMinutes / 2;
+  final firstHalf = entries
+      .where((e) => e.timeMark.inMinutes <= halfMin)
+      .fold(0.0, (sum, e) => sum + e.carbsTotal);
+  final secondHalf = entries
+      .where((e) => e.timeMark.inMinutes > halfMin)
+      .fold(0.0, (sum, e) => sum + e.carbsTotal);
+
+  if (firstHalf > 0 && secondHalf < firstHalf * 0.8) {
+    warnings.add(Warning(
+      severity: Severity.advisory,
+      message: 'Carb intake drops significantly in the second half '
+          '(${secondHalf.toStringAsFixed(0)}g vs ${firstHalf.toStringAsFixed(0)}g). '
+          'Consider back-load strategy if this is intentional.',
+    ));
+  }
+
+  return warnings;
+}
