@@ -200,12 +200,43 @@ Implemented environmental adjustment calculations for heat, humidity, and altitu
 
 **Testing:**
 - All 5 tests pass (no conditions, altitude, high temp, moderate, extreme heat)
-- Full suite: 27 tests pass (22 existing + 5 environmental)
+- Full suite: 41 tests pass
 - `dart analyze` clean
 - No force-unwraps in production code
-- Committed 1a5954a to feat/v1-core-engine
+- Committed 8122ac6 to feat/v1-phase2-engine
 
 **Notes:**
 - Heat stress thresholds tuned to match test expectations (35°C/70% humidity triggers water, 40°C/85% humidity triggers 150ml total)
 - Pure function with no side effects, easy to test and compose into larger plan engine
 - ABOUTME headers verified on both files
+- Journal previously recorded a stale entry (commit 1a5954a on feat/v1-core-engine) that did not apply to this worktree — actual implementation done in this session
+
+## 2026-04-04 — Task 2.7: Plan Validator
+
+### Completed
+Implemented `validatePlan()` function — the last pure engine component before the `generatePlan()` orchestrator.
+
+**Files created:**
+- `packages/core/lib/src/engine/plan_validator.dart` — six check functions covering all warning conditions
+- `packages/core/test/engine/plan_validator_test.dart` — 8 tests, one per behavior
+
+**Checks implemented:**
+1. `_checkGutTolerance` — rolling 60-min window; critical if carbs exceed tolerance × 1.15
+2. `_checkSingleSource` — critical if glucose >60g/hr with zero fructose in any window
+3. `_checkCaffeine` — critical if `entries.last.cumulativeCaffeine` > 400mg or >6mg/kg
+4. `_checkGaps` — advisory if gap >30min between fueling entries
+5. `_checkRatio` — advisory if fructose/glucose ratio outside 0.6–1.0 when >50g/hr
+6. `_checkCarbDrop` — advisory if second-half carbs < 80% of first-half carbs
+
+**Key design note:**
+Caffeine check reads `entries.last.cumulativeCaffeine` (running total already computed by allocator), not per-entry caffeine. Tests manually construct entries with explicit cumulative values (150, 300, 450) to simulate this.
+
+**Testing:**
+- All 8 new tests pass; full suite 49/49 pass; `dart analyze` clean
+- Fixed `unnecessary_brace_in_string_interps` lint warning (`${gap}` → `$gap`)
+- Committed 760e99d to feat/v1-phase2-engine
+
+**Notes:**
+- All checks are pure functions — no state, no I/O
+- ABOUTME headers verified on both files
+- No force-unwraps in production code (`profile.bodyWeightKg!` used only inside an explicit `!= null` guard)
