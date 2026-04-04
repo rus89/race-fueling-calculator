@@ -70,7 +70,13 @@ void main() {
 
       // First 2 slots get gel, last 2 get nothing
       expect(result.entries[2].products, isEmpty);
+      expect(result.entries[3].products, isEmpty);
       expect(result.depletionWarnings, isNotEmpty);
+      expect(
+        result.depletionWarnings
+            .any((w) => w.contains('gel-1') || w.contains('Test Gel')),
+        true,
+      );
     });
 
     test('aid-station-only product used only at aid stations', () {

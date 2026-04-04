@@ -47,8 +47,7 @@ AllocationResult allocateProducts({
       return true;
     }).toList();
 
-    // Sort by glucose:fructose ratio optimization — prefer products
-    // that bring the ratio closer to 1:0.8
+    // Prioritize dual-source products (those with both glucose and fructose)
     available.sort((a, b) {
       final pA = productMap[a.productId];
       final pB = productMap[b.productId];
