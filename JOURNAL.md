@@ -179,3 +179,33 @@ Implemented greedy product allocator that fills each timeline slot to its carb t
 **Testing:**
 - All 4 new tests pass; full suite passes; `dart analyze` clean
 - Committed 40ef6dd to feat/v1-phase2-engine
+
+## 2026-04-04 — Task 2.6: Environmental Adjustments
+
+### Completed
+Implemented environmental adjustment calculations for heat, humidity, and altitude effects on fueling strategy.
+
+**Files created:**
+- `packages/core/lib/src/engine/environmental.dart` — `calculateAdjustments()` function and `EnvironmentalAdjustments` class
+- `packages/core/test/engine/environmental_test.dart` — 5 tests covering all adjustment scenarios
+
+**Implementation details:**
+- `EnvironmentalAdjustments` holds `carbMultiplier` (1.0-1.1x), `additionalWaterMlPerSlot` (0-150ml), and `advisories` list
+- Altitude logic: Linear scale from 1500m (0% boost) to 3000m (10% boost) with clamping
+- Heat stress = temperature + (humidity/100)*10 with tiered water recommendations:
+  - heatStress > 40: +50ml, advisory about extra water with gels
+  - heatStress > 44: +50ml more, advisory about favoring drink mix
+  - heatStress > 48: +50ml more (extreme heat)
+- All inputs optional; returns neutral adjustments (1.0, 0.0, []) when no conditions provided
+
+**Testing:**
+- All 5 tests pass (no conditions, altitude, high temp, moderate, extreme heat)
+- Full suite: 27 tests pass (22 existing + 5 environmental)
+- `dart analyze` clean
+- No force-unwraps in production code
+- Committed 1a5954a to feat/v1-core-engine
+
+**Notes:**
+- Heat stress thresholds tuned to match test expectations (35°C/70% humidity triggers water, 40°C/85% humidity triggers 150ml total)
+- Pure function with no side effects, easy to test and compose into larger plan engine
+- ABOUTME headers verified on both files
