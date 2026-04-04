@@ -123,8 +123,15 @@ actual purpose.
 - The tag goes on the commit that sets the new version — this is the commit that gets built and submitted to the store.
 - Format: `git tag v<version> <commit-hash>`
 
+## Architecture
+
+Dart 3.x monorepo. Two packages:
+- `packages/core` — pure Dart domain logic (models, plan engine, storage interface). Zero I/O dependencies. Reusable by future Flutter app.
+- `packages/cli` — CLI interface using `args`. Depends on `core`. Provides `FileStorageAdapter` and terminal formatting.
+
 ## Project Commands (Dart monorepo)
 
+- Requires: Dart SDK ≥ 3.0 (workspace feature)
 - Install deps: `dart pub get` (from project root — resolves all workspace packages)
 - Run core tests: `cd packages/core && dart test`
 - Run CLI tests: `cd packages/cli && dart test`
