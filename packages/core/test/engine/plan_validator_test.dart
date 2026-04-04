@@ -33,13 +33,13 @@ void main() {
   group('validatePlan', () {
     test('no warnings for a clean plan', () {
       final entries = [
-        _entry(minutes: 20, glucose: 13, fructose: 7),
-        _entry(minutes: 40, glucose: 13, fructose: 7),
-        _entry(minutes: 60, glucose: 13, fructose: 7),
+        _entry(minutes: 20, glucose: 12, fructose: 8),
+        _entry(minutes: 40, glucose: 12, fructose: 8),
+        _entry(minutes: 60, glucose: 12, fructose: 8),
       ];
 
       final warnings = validatePlan(entries, profile, Duration(hours: 1));
-      expect(warnings.where((w) => w.severity == Severity.critical), isEmpty);
+      expect(warnings, isEmpty);
     });
 
     test('critical: gut tolerance exceeded by >15%', () {
@@ -177,6 +177,11 @@ void main() {
         warnings.any((w) => w.message.contains('second half')),
         false,
       );
+    });
+
+    test('empty plan produces no warnings', () {
+      final warnings = validatePlan([], profile, Duration(hours: 2));
+      expect(warnings, isEmpty);
     });
   });
 }
