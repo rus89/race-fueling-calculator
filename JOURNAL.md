@@ -50,3 +50,25 @@ Implemented `buildTimeline()` function and TimeSlot class for both time-based an
 - Implementation matches spec exactly as provided in task
 - No unexpected complexity or edge cases discovered during implementation
 - Ready for next task (Task 2.2 — distance-based tests)
+
+## 2026-04-04 — Task 2.2: Timeline Builder — Distance-Based Tests
+
+### Completed
+Added distance-based tests to verify `buildTimeline()` functionality for distance mode. Also applied defensive null-check fix flagged by code quality reviewer.
+
+**Tests added to `packages/core/test/engine/timeline_builder_test.dart`:**
+1. "100km race with 10km intervals produces 10 slots" — validates slot count, distanceMark values, and time calculations (5h/100km = 3min/km)
+2. "aid station at 45km inserts between 40km and 50km" — validates aid station insertion creates new slot with correct distance and time marks
+
+**Implementation fix in `packages/core/lib/src/engine/timeline_builder.dart`:**
+- Changed aid station matching predicate in `_buildDistanceBased` from `(s.distanceMark! - stationKm).abs() < 0.001` to `s.distanceMark != null && (s.distanceMark! - stationKm).abs() < 0.001`
+- This prevents force-unwrapping of nullable distanceMark field, making code defensive against null values even though they shouldn't occur in practice
+
+**Testing:**
+- All 27 tests pass (22 existing model tests + 3 time-based timeline tests + 2 new distance-based tests)
+- dart analyze shows no issues
+- Committed commit e5e558f to feat/v1-phase2-engine
+
+**Notes:**
+- Distance-based implementation was already complete from Task 2.1; this task added the missing test coverage
+- Defensive null-check is simple and improves code robustness without changing behavior
