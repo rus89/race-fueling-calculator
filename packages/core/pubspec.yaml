@@ -1,0 +1,17 @@
+name: race_fueling_core
+description: Core domain logic for the Race Fueling Calculator
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  equatable: ^2.0.7
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  test: ^1.25.8
+  json_serializable: ^6.8.0
+  build_runner: ^2.4.13
+  lints: ^5.1.1

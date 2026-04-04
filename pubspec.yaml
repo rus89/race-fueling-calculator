@@ -1,0 +1,6 @@
+name: race_fueling_calculator
+environment:
+  sdk: ^3.6.0
+workspace:
+  - packages/core
+  - packages/cli
