@@ -1,5 +1,5 @@
 // ABOUTME: Tests for carb distribution across timeline slots for all strategy modes.
-// ABOUTME: Verifies steady, front-load, back-load, and custom curve distributions.
+// ABOUTME: Verifies steady, front-load, and custom curve distributions.
 import 'package:test/test.dart';
 import 'package:race_fueling_core/src/engine/carb_distributor.dart';
 import 'package:race_fueling_core/src/engine/timeline_builder.dart';
