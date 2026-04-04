@@ -129,6 +129,19 @@ Dart 3.x monorepo. Two packages:
 - `packages/core` — pure Dart domain logic (models, plan engine, storage interface). Zero I/O dependencies. Reusable by future Flutter app.
 - `packages/cli` — CLI interface using `args`. Depends on `core`. Provides `FileStorageAdapter` and terminal formatting.
 
+## Implementation Status
+
+No Dart packages have been created yet. Before any implementation work:
+- Read the implementation plan: `docs/superpowers/plans/v1.md`
+- Read the design spec: `docs/superpowers/specs/2026-04-02-race-fueling-calculator-design.md`
+
+The package directories (`packages/core/`, `packages/cli/`) must be created as part of implementation.
+
+## Custom Claude Tooling
+
+- **`tdd-dart` skill** — invoke with the Skill tool before writing any Dart implementation code
+- **`dart-quality-reviewer` subagent** — run before merging any branch to main; checks ABOUTME headers, force-unwrap usage, TDD coverage, naming rules
+
 ## Project Commands (Dart monorepo)
 
 - Requires: Dart SDK ≥ 3.0 (workspace feature)
