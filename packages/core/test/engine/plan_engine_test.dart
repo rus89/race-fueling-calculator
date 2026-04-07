@@ -50,6 +50,20 @@ void main() {
     });
 
     test('altitude adjustment increases total carbs vs flat race', () {
+      // Use a fine-grained product (1g/serving) so the altitude carb multiplier
+      // produces a measurable difference after integer ceiling arithmetic.
+      // With 25g gels, both 20g and 21.33g ceil to 1 gel — the adjustment is invisible.
+      final powder = Product(
+        id: 'powder-1',
+        name: 'Drink Mix',
+        type: ProductType.liquid,
+        carbsPerServing: 1.0,
+        glucoseGrams: 0.6,
+        fructoseGrams: 0.4,
+        caffeineMg: 0.0,
+        waterRequiredMl: 10.0,
+      );
+
       final configFlat = RaceConfig(
         name: 'Flat',
         duration: Duration(hours: 2),
@@ -57,7 +71,9 @@ void main() {
         intervalMinutes: 20,
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
-        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 10)],
+        selectedProducts: [
+          ProductSelection(productId: 'powder-1', quantity: 300)
+        ],
       );
       final configMountain = RaceConfig(
         name: 'Mountain',
@@ -66,15 +82,17 @@ void main() {
         intervalMinutes: 20,
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
-        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 10)],
+        selectedProducts: [
+          ProductSelection(productId: 'powder-1', quantity: 300)
+        ],
         altitudeM: 2500,
       );
 
-      final planFlat = generatePlan(configFlat, profile, [gel]);
-      final planMountain = generatePlan(configMountain, profile, [gel]);
+      final planFlat = generatePlan(configFlat, profile, [powder]);
+      final planMountain = generatePlan(configMountain, profile, [powder]);
 
       expect(planMountain.summary.totalCarbs,
-          greaterThanOrEqualTo(planFlat.summary.totalCarbs));
+          greaterThan(planFlat.summary.totalCarbs));
       expect(planMountain.summary.environmentalNotes, isNotEmpty);
     });
 
