@@ -27,6 +27,6 @@ Map<String, dynamic> validateSchemaVersion(
         'Schema version $version is newer than supported version $currentVersion. '
         'Please update the app.');
   }
-  // Future: add migration logic for version < currentVersion
+  // TODO(migration): add migration logic for version < currentVersion
   return json;
 }

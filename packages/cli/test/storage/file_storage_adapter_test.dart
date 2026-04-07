@@ -119,5 +119,12 @@ void main() {
       final loaded = await adapter.loadPlan('delete-me');
       expect(loaded, isNull);
     });
+
+    test('deletePlan on non-existent plan does not throw', () async {
+      await expectLater(
+        adapter.deletePlan('does-not-exist'),
+        completes,
+      );
+    });
   });
 }

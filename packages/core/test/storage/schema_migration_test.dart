@@ -26,5 +26,20 @@ void main() {
         throwsA(isA<SchemaVersionException>()),
       );
     });
+
+    test('non-integer version throws', () {
+      final json = {'schema_version': '1', 'data': 'test'};
+      expect(
+        () => validateSchemaVersion(json, currentVersion: 1),
+        throwsA(isA<SchemaVersionException>()),
+      );
+    });
+
+    test('older version passes through unchanged', () {
+      // Migration logic is not yet implemented; older versions pass through.
+      final json = {'schema_version': 0, 'data': 'test'};
+      final result = validateSchemaVersion(json, currentVersion: 1);
+      expect(result, json);
+    });
   });
 }
