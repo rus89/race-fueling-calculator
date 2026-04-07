@@ -280,3 +280,108 @@ Caffeine check reads `entries.last.cumulativeCaffeine` (running total already co
 - All checks are pure functions — no state, no I/O
 - ABOUTME headers verified on both files
 - No force-unwraps in production code (`profile.bodyWeightKg!` used only inside an explicit `!= null` guard)
+
+## 2026-04-07 — Phase 5: Storage Layer
+
+### Completed
+Implemented the storage layer: schema validation in core and file-based persistence in CLI.
+
+**Task 5.1 — StorageAdapter interface + schema migration (core package):**
+- `packages/core/lib/src/storage/schema_migration.dart` — `validateSchemaVersion()` + `SchemaVersionException`
+- `packages/core/lib/src/storage/storage_adapter.dart` — abstract `StorageAdapter` interface
+- `packages/core/test/storage/schema_migration_test.dart` — 3 tests (pass-through, missing version, future version)
+- Barrel exports updated
+
+**Task 5.2 — FileStorageAdapter (cli package):**
+- `packages/cli/lib/src/storage/file_storage_adapter.dart` — full implementation
+- `packages/cli/test/storage/file_storage_adapter_test.dart` — 9 tests with real file I/O via temp dirs
+- Barrel export updated
+
+**Design notes:**
+- `AthleteProfile` and `RaceConfig` embed `schema_version` directly in their JSON (via `@JsonKey`), so `saveProfile`/`savePlan` can write model JSON directly and `loadProfile`/`loadPlan` can validate before passing to `fromJson`
+- `saveUserProducts` wraps products in an envelope (`{schema_version, products: [...]}`) because `List<Product>` has no natural home for the version field
+- Temp dir pattern in tests (setUp/tearDown) gives full file I/O coverage without polluting the real `~/.race-fueling/`
+
+**Testing:**
+- 73/73 tests pass across both packages; `dart analyze` clean on both
+
+**Next:** Phase 6 — CLI Commands
+
+## Known Issues — Address After Phase 8
+
+Catalogued during full code quality review (2026-04-07). Do not fix mid-stream; address in a dedicated cleanup pass after all phases are done.
+
+### Correctness Bugs (High Priority)
+
+1. **Product allocator over-allocates via `.ceil()`** (`product_allocator.dart:70`)
+   - `((target - carbsAssigned) / product.carbsPerServing).ceil()` rounds UP on every slot
+   - A 20g target with a 25g product always assigns 25g — compounds across a long race
+   - Can trigger false gut tolerance warnings. Fix: round-to-nearest or flag overage >20%
+
+2. **Zero interval causes infinite loop** (`timeline_builder.dart`)
+   - If `intervalMinutes` is explicitly set to 0, `for (var min = 0; min <= totalMin; min += 0)` never exits
+   - No guard against this. Fix: validate interval > 0 at entry point
+
+3. **Custom carb curve incomplete → silent fallback** (`carb_distributor.dart`)
+   - If curve segments don't cover full race duration, falls back to base rate silently
+   - No warning emitted. Fix: detect uncovered duration and emit advisory
+
+4. **Altitude multiplier doesn't affect actual allocation** (`plan_engine.dart:30`)
+   - Multiplier only adjusts the target rate passed to `distributeCarbs()`, not actual product quantities
+   - If insufficient product quantity exists, the adjustment is invisible in the final plan
+   - Fix: apply environmental multipliers before allocation, not just to the input rate
+
+5. **Zero distance causes nonsensical timeline** (`timeline_builder.dart:61`)
+   - `paceMinPerKm = totalKm > 0 ? totalMin / totalKm : 0.0` — if distance is 0, all slots get `timeMark = Duration(0)`
+   - Allocator still runs, producing a broken plan with no warnings
+
+### Domain Logic Errors (High Priority)
+
+6. **Heat index formula is made up** (`environmental.dart:38`)
+   - `heatStress = temperature + (humidity / 100) * 10` is not a real formula
+   - At 35°C/80% humidity: formula gives 43, real heat index is ~52°C
+   - Thresholds (40, 44, 48) were tuned to pass tests, not physiology
+   - Fix: use standard WBGT or Rothfusz heat index approximation, re-derive thresholds
+
+7. **Altitude formula is linear, physiology is not** (`environmental.dart:26-32`)
+   - Linear scale 1500m→3000m giving 0%→10% boost is oversimplified
+   - Real O₂ availability drops exponentially; above 3000m the formula gives no further adjustment
+   - Acceptable for V1 but should be flagged with a `// TODO(accuracy):` comment
+
+8. **G:F ratio range [0.6, 1.0] may not match current guidelines** (`plan_validator.dart:145`)
+   - Current sports nutrition (2024) often recommends 2:1 glucose:fructose
+   - `fructose/glucose` range of [0.6, 1.0] means glucose:fructose of [1:0.6 to 1:1], narrower than guidelines
+   - Fix: verify against current research, add citation comment
+
+9. **Caffeine threshold is one-size-fits-all** (`plan_validator.dart:83-98`)
+   - 400mg absolute cap and 6mg/kg are hardcoded with no athlete-level override
+   - Acceptable for V1 but AthleteProfile has no sensitivity field
+
+### Test Coverage Gaps (Medium Priority)
+
+10. **Plan engine tests cover only happy paths** (`plan_engine_test.dart`)
+    - Missing: empty product list, zero-duration race, fructose-only products, negative carb rate, all products filtered by aid-station constraints
+
+11. **Validator reports only first violation per category** (`plan_validator.dart`)
+    - `break` after first warning means a plan with 3 gut-tolerance violations only reports one
+    - Fix: remove breaks, collect all violations
+
+12. **Allocator tests never assert cumulative carbs/caffeine** (`product_allocator_test.dart`)
+    - `cumulativeCarbs` and `cumulativeCaffeine` fields are never verified in any test
+
+13. **Validator tests check warning presence, not count** (`plan_validator_test.dart`)
+    - `warnings.any(...)` passes even if the same warning is emitted 10 times
+
+### Architecture Issues (Medium Priority)
+
+14. **Circular distributor/allocator responsibility**
+    - Distributor outputs fractional targets; allocator rounds up; validator reacts to damage
+    - Allocator should report overfill delta so caller can decide, not silently overdeliver
+
+15. **Gap computation is implicit** (`timeline_builder.dart` / `carb_distributor.dart`)
+    - Distributor relies on `slots[i].timeMark - slots[i-1].timeMark` being stable and sorted
+    - No contract enforces this. Fix: either make gap explicit in TimeSlot or add a `computeGaps()` helper
+
+16. **Product library merge has no conflict validation** (`product_library.dart`)
+    - User override replaces built-in by ID, but if user's product is missing glucose/fructose, the ratio changes silently
+    - Fix: warn if user product is missing fields that the built-in had
