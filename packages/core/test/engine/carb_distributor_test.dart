@@ -23,7 +23,7 @@ void main() {
         selectedProducts: [],
       );
 
-      final targets = distributeCarbs(slots, config);
+      final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);
 
       expect(targets.length, 3);
       expect(targets[0], closeTo(20.0, 0.1));
@@ -49,7 +49,7 @@ void main() {
         selectedProducts: [],
       );
 
-      final targets = distributeCarbs(slots, config);
+      final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);
 
       // Each slot's target is proportional to its time gap
       expect(targets[0], closeTo(20.0, 0.1)); // 20min gap
@@ -73,7 +73,7 @@ void main() {
         selectedProducts: [],
       );
 
-      final targets = distributeCarbs(slots, config);
+      final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);
 
       // First third (slots 0-2): ~22g each (20*1.1)
       expect(targets[0], closeTo(22.0, 0.5));
@@ -96,7 +96,7 @@ void main() {
         selectedProducts: [],
       );
 
-      final targets = distributeCarbs(slots, config);
+      final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);
 
       // First third (slots 0-2): ~18g each (20*0.9)
       expect(targets[0], closeTo(18.0, 0.5));
@@ -127,7 +127,7 @@ void main() {
         ],
       );
 
-      final targets = distributeCarbs(slots, config);
+      final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);
 
       // First 60 min: 80g/hr -> 40g per 30min slot
       expect(targets[0], closeTo(40.0, 0.5));

@@ -3,27 +3,29 @@
 import '../models/race_config.dart';
 import 'timeline_builder.dart';
 
-List<double> distributeCarbs(List<TimeSlot> slots, RaceConfig config) {
+List<double> distributeCarbs(
+    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
   switch (config.strategy) {
     case Strategy.steady:
-      return _distributeSteady(slots, config);
+      return _distributeSteady(slots, targetCarbsGPerHr);
     case Strategy.frontLoad:
-      return _distributeFrontLoad(slots, config);
+      return _distributeFrontLoad(slots, config, targetCarbsGPerHr);
     case Strategy.backLoad:
-      return _distributeBackLoad(slots, config);
+      return _distributeBackLoad(slots, config, targetCarbsGPerHr);
     case Strategy.custom:
-      return _distributeCustom(slots, config);
+      return _distributeCustom(slots, config, targetCarbsGPerHr);
   }
 }
 
-List<double> _distributeSteady(List<TimeSlot> slots, RaceConfig config) {
-  final gPerMin = config.targetCarbsGPerHr / 60.0;
+List<double> _distributeSteady(List<TimeSlot> slots, double targetCarbsGPerHr) {
+  final gPerMin = targetCarbsGPerHr / 60.0;
   return _distributeByGapMinutes(slots, List.filled(slots.length, gPerMin));
 }
 
-List<double> _distributeFrontLoad(List<TimeSlot> slots, RaceConfig config) {
+List<double> _distributeFrontLoad(
+    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
   final totalMin = config.duration.inMinutes;
-  final gPerMin = config.targetCarbsGPerHr / 60.0;
+  final gPerMin = targetCarbsGPerHr / 60.0;
 
   return _distributeByGapMinutes(
       slots,
@@ -35,9 +37,10 @@ List<double> _distributeFrontLoad(List<TimeSlot> slots, RaceConfig config) {
       }).toList());
 }
 
-List<double> _distributeBackLoad(List<TimeSlot> slots, RaceConfig config) {
+List<double> _distributeBackLoad(
+    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
   final totalMin = config.duration.inMinutes;
-  final gPerMin = config.targetCarbsGPerHr / 60.0;
+  final gPerMin = targetCarbsGPerHr / 60.0;
 
   return _distributeByGapMinutes(
       slots,
@@ -49,14 +52,15 @@ List<double> _distributeBackLoad(List<TimeSlot> slots, RaceConfig config) {
       }).toList());
 }
 
-List<double> _distributeCustom(List<TimeSlot> slots, RaceConfig config) {
+List<double> _distributeCustom(
+    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
   final curve = config.customCurve ?? [];
   final gPerMinRates = <double>[];
 
   for (final slot in slots) {
     final slotMin = slot.timeMark.inMinutes;
     var cumulativeMin = 0;
-    var rate = config.targetCarbsGPerHr / 60.0; // fallback
+    var rate = targetCarbsGPerHr / 60.0; // fallback
 
     for (final segment in curve) {
       cumulativeMin += segment.durationMinutes;
