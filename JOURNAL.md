@@ -234,6 +234,23 @@ Instead of copying the full `RaceConfig` just to apply the altitude multiplier (
 
 **Next:** Phase 4 — Built-in Products & Product Library (Tasks 4.1 and 4.2)
 
+## 2026-04-07 — Phase 3: Code Review & Test Fixes
+
+### Completed
+Code-reviewed Phase 3 (first time it was reviewed). Two Important issues found and fixed.
+
+**Issue 1 — Altitude test assertion too weak:**
+The test used `greaterThanOrEqualTo` which couldn't catch a regression where `carbMultiplier` silently reverted to 1.0. Root cause: 25g gels absorb the ~6.7% altitude boost through ceiling arithmetic — both flat and mountain plans produced 150g (6 slots × 1 gel each). Fixed by switching to a 1g/serving liquid product so the adjustment produces a measurable difference (120g vs 132g), then tightening to `greaterThan`. Committed eb87ca2.
+
+**Issue 2 — Depletion warning severity verified:**
+Reviewer flagged that all `depletionWarnings` are mapped to `Severity.critical` — confirmed this is correct. The list contains exactly two cases: (a) product ID not found in library (plan can't execute as written), (b) product depleted before last slot (athlete runs out mid-race). Both are race-critical. No code change needed.
+
+**Pre-existing bug logged (not fixed here):**
+`plan_validator.dart:111` — `_checkGaps` only fires if the slot WITH the gap also has carbs. A depleted slot with a 35+ min gap won't trigger the warning. Fix deferred to its own task.
+
+**Lesson learned:**
+Integer ceiling in product allocation can mask multiplier effects. When writing integration tests that check environmental adjustments, always verify the product granularity is fine enough that the multiplier produces observable output differences.
+
 ## 2026-04-04 — Task 2.7: Plan Validator
 
 ### Completed
