@@ -211,6 +211,29 @@ Implemented environmental adjustment calculations for heat, humidity, and altitu
 - ABOUTME headers verified on both files
 - Journal previously recorded a stale entry (commit 1a5954a on feat/v1-core-engine) that did not apply to this worktree — actual implementation done in this session
 
+## 2026-04-07 — Phase 3: Plan Engine Integration (Task 3.1)
+
+### Completed
+Implemented `generatePlan()` — the orchestrator that wires all Phase 2 components into a single pipeline.
+
+**Files created:**
+- `packages/core/lib/src/engine/plan_engine.dart` — 7-step pipeline: env adjustments → timeline → carb distribution → allocation → water adjustment → validation → summary
+- `packages/core/test/engine/plan_engine_test.dart` — 3 integration tests
+
+**Files modified:**
+- `packages/core/lib/src/engine/carb_distributor.dart` — refactored `distributeCarbs()` to accept explicit `double targetCarbsGPerHr` param
+- `packages/core/test/engine/carb_distributor_test.dart` — updated call sites to pass rate explicitly
+- `packages/core/lib/core.dart` — added barrel exports for `plan_engine`, `TimeSlot`, `EnvironmentalAdjustments`
+
+**Key design decision:**
+Instead of copying the full `RaceConfig` just to apply the altitude multiplier (as the original plan suggested), refactored `distributeCarbs()` to accept an explicit rate. This keeps `generatePlan()` clean: `adjustedRate = config.targetCarbsGPerHr * adjustments.carbMultiplier`. Milan approved.
+
+**Testing:**
+- 54/54 tests pass; `dart analyze` clean
+- Committed 2f66bec on feat/v1-phase3-engine
+
+**Next:** Phase 4 — Built-in Products & Product Library (Tasks 4.1 and 4.2)
+
 ## 2026-04-04 — Task 2.7: Plan Validator
 
 ### Completed
