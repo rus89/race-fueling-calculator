@@ -32,6 +32,19 @@ class AthleteProfile extends Equatable {
 
   Map<String, dynamic> toJson() => _$AthleteProfileToJson(this);
 
+  AthleteProfile copyWith({
+    double? gutToleranceGPerHr,
+    UnitSystem? unitSystem,
+    double? bodyWeightKg,
+  }) {
+    return AthleteProfile(
+      gutToleranceGPerHr: gutToleranceGPerHr ?? this.gutToleranceGPerHr,
+      unitSystem: unitSystem ?? this.unitSystem,
+      bodyWeightKg: bodyWeightKg ?? this.bodyWeightKg,
+      schemaVersion: schemaVersion,
+    );
+  }
+
   @override
   List<Object?> get props => [gutToleranceGPerHr, unitSystem, bodyWeightKg];
 }

@@ -66,6 +66,60 @@ void main() {
       final restored = Product.fromJson(json);
       expect(restored, equals(product));
     });
+
+    test('copyWith with no args returns an equal instance', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(), equals(product));
+    });
+
+    test('copyWith updates a single field', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        caffeineMg: 40.0,
+      );
+      final updated = product.copyWith(caffeineMg: 80.0);
+      expect(updated.caffeineMg, 80.0);
+      expect(updated.id, 'gel-1');
+      expect(updated.carbsPerServing, 25.0);
+    });
+
+    test('copyWith preserves isBuiltIn flag', () {
+      final builtIn = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        isBuiltIn: true,
+      );
+      final updated = builtIn.copyWith(name: 'Renamed Gel');
+      expect(updated.isBuiltIn, true);
+    });
+
+    test('copyWith can promote a built-in to a user override', () {
+      final builtIn = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        isBuiltIn: true,
+      );
+      final override = builtIn.copyWith(
+        id: 'user-gel-1',
+        isBuiltIn: false,
+        carbsPerServing: 30.0,
+      );
+      expect(override.id, 'user-gel-1');
+      expect(override.isBuiltIn, false);
+      expect(override.carbsPerServing, 30.0);
+    });
   });
 
   group('ProductType', () {

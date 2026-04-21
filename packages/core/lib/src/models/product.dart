@@ -48,6 +48,34 @@ class Product extends Equatable {
 
   Map<String, dynamic> toJson() => _$ProductToJson(this);
 
+  Product copyWith({
+    String? id,
+    String? name,
+    String? brand,
+    ProductType? type,
+    double? carbsPerServing,
+    double? glucoseGrams,
+    double? fructoseGrams,
+    double? caffeineMg,
+    double? waterRequiredMl,
+    String? servingDescription,
+    bool? isBuiltIn,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      brand: brand ?? this.brand,
+      type: type ?? this.type,
+      carbsPerServing: carbsPerServing ?? this.carbsPerServing,
+      glucoseGrams: glucoseGrams ?? this.glucoseGrams,
+      fructoseGrams: fructoseGrams ?? this.fructoseGrams,
+      caffeineMg: caffeineMg ?? this.caffeineMg,
+      waterRequiredMl: waterRequiredMl ?? this.waterRequiredMl,
+      servingDescription: servingDescription ?? this.servingDescription,
+      isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

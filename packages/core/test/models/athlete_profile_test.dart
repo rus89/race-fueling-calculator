@@ -35,5 +35,36 @@ void main() {
       final restored = AthleteProfile.fromJson(json);
       expect(restored, equals(profile));
     });
+
+    test('copyWith with no args returns an equal instance', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      expect(profile.copyWith(), equals(profile));
+    });
+
+    test('copyWith updates a single field', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final updated = profile.copyWith(gutToleranceGPerHr: 90.0);
+      expect(updated.gutToleranceGPerHr, 90.0);
+      expect(updated.unitSystem, UnitSystem.metric);
+      expect(updated.bodyWeightKg, 70.0);
+    });
+
+    test('copyWith preserves nullable bodyWeightKg when omitted', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final updated = profile.copyWith(unitSystem: UnitSystem.imperial);
+      expect(updated.bodyWeightKg, 70.0);
+    });
   });
 }

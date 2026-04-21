@@ -87,5 +87,63 @@ void main() {
       final restored = RaceConfig.fromJson(json);
       expect(restored, equals(config));
     });
+
+    test('copyWith with no args returns an equal instance', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [
+          ProductSelection(productId: 'gel-1', quantity: 6),
+        ],
+      );
+      expect(config.copyWith(), equals(config));
+    });
+
+    test('copyWith appends a ProductSelection', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [
+          ProductSelection(productId: 'gel-1', quantity: 6),
+        ],
+      );
+      final updated = config.copyWith(
+        selectedProducts: [
+          ...config.selectedProducts,
+          ProductSelection(productId: 'gel-2', quantity: 3),
+        ],
+      );
+      expect(updated.selectedProducts.length, 2);
+      expect(updated.selectedProducts.last.productId, 'gel-2');
+      expect(updated.name, 'Test');
+    });
+
+    test('copyWith preserves aidStations and nullable fields when omitted', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 75.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [AidStation(distanceKm: 40.0)],
+        altitudeM: 2000.0,
+      );
+      final updated = config.copyWith(targetCarbsGPerHr: 90.0);
+      expect(updated.aidStations.length, 1);
+      expect(updated.altitudeM, 2000.0);
+      expect(updated.distanceKm, 100.0);
+      expect(updated.targetCarbsGPerHr, 90.0);
+    });
   });
 }
