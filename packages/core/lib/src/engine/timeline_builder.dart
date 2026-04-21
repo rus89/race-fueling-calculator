@@ -72,8 +72,10 @@ List<TimeSlot> _buildDistanceBased(RaceConfig config) {
   for (final station in config.aidStations) {
     final stationKm = station.distanceKm;
     if (stationKm == null) continue;
-    final idx = slots.indexWhere((s) =>
-        s.distanceMark != null && (s.distanceMark! - stationKm).abs() < 0.001);
+    final idx = slots.indexWhere((s) {
+      final d = s.distanceMark;
+      return d != null && (d - stationKm).abs() < 0.001;
+    });
     if (idx >= 0) {
       slots[idx] = TimeSlot(
         timeMark: Duration(minutes: (stationKm * paceMinPerKm).round()),

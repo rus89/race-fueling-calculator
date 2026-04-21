@@ -86,14 +86,18 @@ List<Warning> _checkCaffeine(List<PlanEntry> entries, AthleteProfile profile) {
       message: 'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
           'safe threshold (400mg).',
     ));
-  } else if (profile.bodyWeightKg != null) {
-    final mgPerKg = totalCaffeine / profile.bodyWeightKg!;
-    if (mgPerKg > 6.0) {
-      warnings.add(Warning(
-        severity: Severity.critical,
-        message: 'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
-            '${mgPerKg.toStringAsFixed(1)}mg/kg (threshold: 6mg/kg).',
-      ));
+  } else {
+    final kg = profile.bodyWeightKg;
+    if (kg != null) {
+      final mgPerKg = totalCaffeine / kg;
+      if (mgPerKg > 6.0) {
+        warnings.add(Warning(
+          severity: Severity.critical,
+          message:
+              'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
+              '${mgPerKg.toStringAsFixed(1)}mg/kg (threshold: 6mg/kg).',
+        ));
+      }
     }
   }
 
