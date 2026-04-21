@@ -5,15 +5,17 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:race_fueling_core/core.dart';
 
+String resolveDefaultBaseDir(Map<String, String> env) {
+  final fuelHome = env['FUEL_HOME'];
+  if (fuelHome != null && fuelHome.isNotEmpty) return fuelHome;
+  return p.join(env['HOME'] ?? '.', '.race-fueling');
+}
+
 class FileStorageAdapter implements StorageAdapter {
   final String baseDir;
 
   FileStorageAdapter({String? baseDir})
-      : baseDir = baseDir ??
-            p.join(
-              Platform.environment['HOME'] ?? '.',
-              '.race-fueling',
-            );
+      : baseDir = baseDir ?? resolveDefaultBaseDir(Platform.environment);
 
   String get _profilePath => p.join(baseDir, 'profile.json');
   String get _productsPath => p.join(baseDir, 'products.json');
