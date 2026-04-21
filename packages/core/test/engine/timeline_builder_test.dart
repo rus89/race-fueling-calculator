@@ -139,12 +139,15 @@ void main() {
           targetCarbsGPerHr: 60.0,
           strategy: Strategy.steady,
           selectedProducts: [],
+          aidStations: [AidStation(distanceKm: 50.0)],
         );
-        // Desired: either throws ArgumentError or returns [].
-        // Actual: paceMinPerKm falls back to 0, loop exits with 0 slots (OK here),
-        // but aid stations at any distance collapse to timeMark 0.
+        // Desired: either throws ArgumentError, returns [], or places the aid
+        // station at a sensible timeMark derived from a defaulted pace.
+        // Actual: paceMinPerKm falls back to 0, so the aid station collapses
+        // to timeMark 0 — that's the bug this test will catch when unskipped.
         final slots = buildTimeline(config);
-        expect(slots, isEmpty);
+        final aidSlots = slots.where((s) => s.isAidStation).toList();
+        expect(aidSlots, isEmpty);
       },
       skip: 'KI-5: zero distance yields nonsensical timeline; fix in Phase 8',
     );

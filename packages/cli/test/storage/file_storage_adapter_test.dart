@@ -160,4 +160,11 @@ void main() {
       expect(resolved, p.join('/home/user', '.race-fueling'));
     });
   });
+
+  group('FileStorageAdapter default construction', () {
+    test('constructs without args and resolves a .race-fueling baseDir', () {
+      final adapter = FileStorageAdapter();
+      expect(adapter.baseDir, contains('.race-fueling'));
+    });
+  });
 }

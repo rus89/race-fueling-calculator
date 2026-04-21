@@ -185,5 +185,31 @@ void main() {
       final restored = AthleteProfile.fromJson(profile.toJson());
       expect(restored, equals(profile));
     });
+
+    test('copyWith preserves schemaVersion', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      );
+      expect(profile.copyWith().schemaVersion, profile.schemaVersion);
+    });
+
+    test('copyWith preserves bodyWeightKg when null is passed explicitly', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      expect(profile.copyWith(bodyWeightKg: null).bodyWeightKg, 70.0);
+    });
+
+    test('copyWith updates unitSystem to imperial', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      );
+      expect(profile.copyWith(unitSystem: UnitSystem.imperial).unitSystem,
+          UnitSystem.imperial);
+    });
   });
 }
