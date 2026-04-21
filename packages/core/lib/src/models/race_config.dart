@@ -2,6 +2,7 @@
 // ABOUTME: Includes strategy, timeline mode, product selections, and environmental conditions.
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'duration_converter.dart';
 
 part 'race_config.g.dart';
 
@@ -82,7 +83,7 @@ class CurveSegment extends Equatable {
 @JsonSerializable(explicitToJson: true)
 class RaceConfig extends Equatable {
   final String name;
-  @JsonKey(fromJson: _durationFromJson, toJson: _durationToJson)
+  @JsonKey(fromJson: durationFromJson, toJson: durationToJson)
   final Duration duration;
   final double? distanceKm;
   final TimelineMode timelineMode;
@@ -140,6 +141,3 @@ class RaceConfig extends Equatable {
         altitudeM,
       ];
 }
-
-Duration _durationFromJson(int minutes) => Duration(minutes: minutes);
-int _durationToJson(Duration duration) => duration.inMinutes;

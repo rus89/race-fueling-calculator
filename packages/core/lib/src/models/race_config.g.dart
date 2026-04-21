@@ -44,7 +44,7 @@ Map<String, dynamic> _$CurveSegmentToJson(CurveSegment instance) =>
 
 RaceConfig _$RaceConfigFromJson(Map<String, dynamic> json) => RaceConfig(
       name: json['name'] as String,
-      duration: _durationFromJson((json['duration'] as num).toInt()),
+      duration: durationFromJson((json['duration'] as num).toInt()),
       distanceKm: (json['distanceKm'] as num?)?.toDouble(),
       timelineMode: $enumDecode(_$TimelineModeEnumMap, json['timelineMode']),
       intervalMinutes: (json['intervalMinutes'] as num?)?.toInt(),
@@ -70,7 +70,7 @@ RaceConfig _$RaceConfigFromJson(Map<String, dynamic> json) => RaceConfig(
 Map<String, dynamic> _$RaceConfigToJson(RaceConfig instance) =>
     <String, dynamic>{
       'name': instance.name,
-      'duration': _durationToJson(instance.duration),
+      'duration': durationToJson(instance.duration),
       'distanceKm': instance.distanceKm,
       'timelineMode': _$TimelineModeEnumMap[instance.timelineMode]!,
       'intervalMinutes': instance.intervalMinutes,
