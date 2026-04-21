@@ -66,5 +66,57 @@ void main() {
       final updated = profile.copyWith(unitSystem: UnitSystem.imperial);
       expect(updated.bodyWeightKg, 70.0);
     });
+
+    test('rejects zero gut tolerance', () {
+      expect(
+        () => AthleteProfile(
+          gutToleranceGPerHr: 0,
+          unitSystem: UnitSystem.metric,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('rejects negative gut tolerance', () {
+      expect(
+        () => AthleteProfile(
+          gutToleranceGPerHr: -10,
+          unitSystem: UnitSystem.metric,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('rejects zero body weight when provided', () {
+      expect(
+        () => AthleteProfile(
+          gutToleranceGPerHr: 60,
+          unitSystem: UnitSystem.metric,
+          bodyWeightKg: 0,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('rejects negative body weight when provided', () {
+      expect(
+        () => AthleteProfile(
+          gutToleranceGPerHr: 60,
+          unitSystem: UnitSystem.metric,
+          bodyWeightKg: -50,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('allows null body weight', () {
+      expect(
+        () => AthleteProfile(
+          gutToleranceGPerHr: 60,
+          unitSystem: UnitSystem.metric,
+        ),
+        returnsNormally,
+      );
+    });
   });
 }

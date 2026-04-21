@@ -25,7 +25,9 @@ class AthleteProfile extends Equatable {
     required this.unitSystem,
     this.bodyWeightKg,
     this.schemaVersion = 1,
-  });
+  })  : assert(gutToleranceGPerHr > 0, 'gutToleranceGPerHr must be positive'),
+        assert(bodyWeightKg == null || bodyWeightKg > 0,
+            'bodyWeightKg must be positive when provided');
 
   factory AthleteProfile.fromJson(Map<String, dynamic> json) =>
       _$AthleteProfileFromJson(json);
