@@ -12,6 +12,7 @@ String resolveDefaultBaseDir(Map<String, String> env) {
 }
 
 class FileStorageAdapter implements StorageAdapter {
+  @override
   final String baseDir;
 
   FileStorageAdapter({String? baseDir})

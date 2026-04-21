@@ -46,6 +46,18 @@ void main() {
     test('returns null for "abc:def"', () {
       expect(parseDuration('abc:def'), isNull);
     });
+
+    test('returns null when minutes >= 60 in colon form', () {
+      expect(parseDuration('1:60'), isNull);
+    });
+
+    test('returns null when seconds >= 60 in colon form', () {
+      expect(parseDuration('1:30:60'), isNull);
+    });
+
+    test('returns null for negative values in colon form', () {
+      expect(parseDuration('-1:30'), isNull);
+    });
   });
 
   group('promptString', () {

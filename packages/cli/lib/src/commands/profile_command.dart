@@ -10,7 +10,6 @@ import 'package:race_fueling_core/core.dart';
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
 import '../prompts/interactive.dart';
-import '../storage/file_storage_adapter.dart';
 
 /// Probes whether stdin is connected to a terminal. Defaults to
 /// `stdin.hasTerminal`; tests inject a deterministic value.
@@ -217,10 +216,9 @@ class _ProfileShowCommand extends Command<void> {
       stdout.writeln(
         'Body weight: ${profile.bodyWeightKg?.toString() ?? '(not set)'} kg',
       );
-      final baseDir = _storage is FileStorageAdapter ? _storage.baseDir : null;
-      if (baseDir != null) {
-        stdout.writeln('Config file: ${p.join(baseDir, 'profile.json')}');
-      }
+      stdout.writeln(
+        'Config file: ${p.join(_storage.baseDir, 'profile.json')}',
+      );
     });
   }
 }

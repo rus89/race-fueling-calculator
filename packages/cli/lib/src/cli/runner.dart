@@ -15,6 +15,9 @@ import 'exit_codes.dart';
 /// returning so in-process callers can compose without polluting process
 /// state across invocations.
 Future<int> runFuel(CommandRunner<void> runner, List<String> args) async {
+  // Snapshot/restore is for re-entrancy (nested runFuel calls in tests),
+  // not concurrency — exitCode is isolate-scoped and Dart tests within a
+  // file run sequentially.
   final prior = exitCode;
   exitCode = kExitSuccess;
   try {
