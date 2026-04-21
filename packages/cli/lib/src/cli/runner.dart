@@ -8,16 +8,22 @@ import 'exit_codes.dart';
 
 /// Runs [runner] with [args] and returns an exit code.
 ///
-/// Returns [kExitSuccess] when the command completes, or [kExitUsage] when
-/// the runner throws [UsageException] (unknown command, bad flag, etc.).
-/// Returns an int rather than mutating the global `exitCode` so callers
-/// (including in-process tests) can compose without polluting process state.
+/// Returns [kExitUsage] when the runner throws [UsageException] (unknown
+/// command, bad flag, etc.). Otherwise returns whatever the global
+/// `exitCode` was set to during the run (defaulting to [kExitSuccess] if
+/// untouched). The global `exitCode` is reset to its prior value before
+/// returning so in-process callers can compose without polluting process
+/// state across invocations.
 Future<int> runFuel(CommandRunner<void> runner, List<String> args) async {
+  final prior = exitCode;
+  exitCode = kExitSuccess;
   try {
     await runner.run(args);
-    return kExitSuccess;
+    return exitCode;
   } on UsageException catch (e) {
     stderr.writeln(e);
     return kExitUsage;
+  } finally {
+    exitCode = prior;
   }
 }
