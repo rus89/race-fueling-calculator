@@ -7,6 +7,7 @@ export 'src/models/product.dart';
 export 'src/models/athlete_profile.dart';
 export 'src/models/race_config.dart';
 export 'src/models/fueling_plan.dart';
+export 'src/models/duration_converter.dart';
 
 export 'src/engine/plan_engine.dart';
 export 'src/engine/timeline_builder.dart' show TimeSlot;
