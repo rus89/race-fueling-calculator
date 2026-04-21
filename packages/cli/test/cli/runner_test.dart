@@ -51,5 +51,20 @@ void main() {
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
     });
+
+    test('sequential invocations do not leak exitCode between calls', () async {
+      // First call fails via a UsageException (unknown command). The helper
+      // must restore the process's prior exitCode so the second, clean call
+      // still reports kExitSuccess.
+      late final int firstCode;
+      late final int secondCode;
+      await captureOutput(() async {
+        firstCode = await runFuel(_buildRunner(), ['unknown-command']);
+        secondCode = await runFuel(_buildRunner(), const []);
+      });
+
+      expect(firstCode, kExitUsage);
+      expect(secondCode, kExitSuccess);
+    });
   });
 }

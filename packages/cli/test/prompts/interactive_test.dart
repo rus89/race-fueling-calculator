@@ -48,6 +48,60 @@ void main() {
     });
   });
 
+  group('promptString', () {
+    test('returns the trimmed input when non-empty', () {
+      final inputs = Queue<String>()..add('hello');
+      final out = StringBuffer();
+
+      final result = promptString(
+        'Name',
+        readLine: () => inputs.isEmpty ? null : inputs.removeFirst(),
+        out: out,
+      );
+
+      expect(result, 'hello');
+    });
+
+    test('returns default when input is empty', () {
+      final inputs = Queue<String>()..add('');
+      final out = StringBuffer();
+
+      final result = promptString(
+        'Name',
+        defaultValue: 'Anon',
+        readLine: () => inputs.isEmpty ? null : inputs.removeFirst(),
+        out: out,
+      );
+
+      expect(result, 'Anon');
+    });
+
+    test('returns default on EOF (readLine returns null)', () {
+      final out = StringBuffer();
+
+      final result = promptString(
+        'Name',
+        defaultValue: 'Anon',
+        readLine: () => null,
+        out: out,
+      );
+
+      expect(result, 'Anon');
+    });
+
+    test('returns empty string when input and default both absent (EOF)', () {
+      final out = StringBuffer();
+
+      final result = promptString(
+        'Name',
+        readLine: () => null,
+        out: out,
+      );
+
+      expect(result, '');
+    });
+  });
+
   group('promptDouble', () {
     test('accepts a valid number on the first try', () {
       final inputs = Queue<String>()..add('75');
@@ -171,6 +225,25 @@ void main() {
         throwsA(isA<PromptAbortedException>()),
       );
     });
+
+    test('rejects values outside [min, max] and retries', () {
+      final inputs = Queue<String>()
+        ..add('999')
+        ..add('-1')
+        ..add('42');
+      final out = StringBuffer();
+
+      final result = promptInt(
+        'Age',
+        min: 0,
+        max: 120,
+        readLine: () => inputs.isEmpty ? null : inputs.removeFirst(),
+        out: out,
+      );
+
+      expect(result, 42);
+      expect(out.toString(), contains('between 0'));
+    });
   });
 
   group('promptDuration (interactive)', () {
@@ -200,6 +273,23 @@ void main() {
       );
 
       expect(result, const Duration(hours: 2, minutes: 45));
+    });
+
+    test('throws PromptAbortedException after 3 parse failures', () {
+      final inputs = Queue<String>()
+        ..add('banana')
+        ..add('kiwi')
+        ..add('mango');
+      final out = StringBuffer();
+
+      expect(
+        () => promptDuration(
+          'Race duration',
+          readLine: () => inputs.isEmpty ? null : inputs.removeFirst(),
+          out: out,
+        ),
+        throwsA(isA<PromptAbortedException>()),
+      );
     });
   });
 
@@ -256,6 +346,23 @@ void main() {
 
       expect(result, isTrue);
     });
+
+    test('throws PromptAbortedException after 3 invalid answers', () {
+      final inputs = Queue<String>()
+        ..add('maybe')
+        ..add('huh')
+        ..add('dunno');
+      final out = StringBuffer();
+
+      expect(
+        () => promptBool(
+          'Continue?',
+          readLine: () => inputs.isEmpty ? null : inputs.removeFirst(),
+          out: out,
+        ),
+        throwsA(isA<PromptAbortedException>()),
+      );
+    });
   });
 
   group('promptChoice', () {
@@ -308,6 +415,37 @@ void main() {
         ),
         throwsA(isA<PromptAbortedException>()),
       );
+    });
+
+    test('returns default on EOF when default is provided', () {
+      final out = StringBuffer();
+
+      final result = promptChoice<String>(
+        'Pick one',
+        ['apple', 'banana'],
+        describe: (s) => s,
+        defaultOption: 'banana',
+        readLine: () => null,
+        out: out,
+      );
+
+      expect(result, 'banana');
+    });
+
+    test('returns default on empty input when default is provided', () {
+      final inputs = Queue<String>()..add('');
+      final out = StringBuffer();
+
+      final result = promptChoice<String>(
+        'Pick one',
+        ['apple', 'banana'],
+        describe: (s) => s,
+        defaultOption: 'apple',
+        readLine: () => inputs.isEmpty ? null : inputs.removeFirst(),
+        out: out,
+      );
+
+      expect(result, 'apple');
     });
   });
 }

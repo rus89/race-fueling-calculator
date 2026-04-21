@@ -274,5 +274,101 @@ void main() {
       expect(code, kExitData);
       expect(captured.stderr, contains('No profile found'));
     });
+
+    test('rejects non-numeric --tolerance with kExitUsage', () async {
+      await storage.saveProfile(const AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      ));
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'profile',
+          'set',
+          '--tolerance',
+          'abc',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('Expected a number'));
+    });
+
+    test('rejects unknown --units value with kExitUsage', () async {
+      await storage.saveProfile(const AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      ));
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'profile',
+          'set',
+          '--units',
+          'bogus',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('--units must be one of'));
+    });
+
+    test('rejects --tolerance 0 with kExitData (invariant)', () async {
+      await storage.saveProfile(const AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      ));
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'profile',
+          'set',
+          '--tolerance',
+          '0',
+        ]);
+      });
+
+      expect(code, kExitData);
+      expect(captured.stderr, contains('gutToleranceGPerHr'));
+    });
+
+    test('rejects --weight -5 with kExitData (invariant)', () async {
+      await storage.saveProfile(const AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      ));
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'profile',
+          'set',
+          '--weight',
+          '-5',
+        ]);
+      });
+
+      expect(code, kExitData);
+      expect(captured.stderr, contains('bodyWeightKg'));
+    });
+
+    test('set with no flags exits kExitUsage with "Nothing to update"',
+        () async {
+      await storage.saveProfile(const AthleteProfile(
+        gutToleranceGPerHr: 60.0,
+        unitSystem: UnitSystem.metric,
+      ));
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), ['profile', 'set']);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('Nothing to update'));
+    });
   });
 }
