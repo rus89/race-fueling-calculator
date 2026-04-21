@@ -32,7 +32,7 @@ typedef LineReader = String? Function();
 
 String? _defaultReadLine() => stdin.readLineSync()?.trim();
 
-StringSink _resolveOut(StringSink? out) => out ?? stdout;
+StringSink _resolveOut(StringSink? out) => out ?? stderr;
 LineReader _resolveReader(LineReader? reader) => reader ?? _defaultReadLine;
 
 void _writePrompt(StringSink out, String prompt, String? defaultHint) {

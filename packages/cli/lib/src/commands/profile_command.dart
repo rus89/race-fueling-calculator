@@ -35,15 +35,17 @@ class ProfileCommand extends Command<void> {
   final String description = 'Manage your athlete profile';
 }
 
-/// Parses a tolerance flag, translating parse failures into a UsageException
-/// with an actionable message. Returns null if the flag was not supplied.
+/// Parses a tolerance flag, throwing [UsageException] on parse failure.
+/// Returns null if the flag was not supplied.
 double? _parseTolerance(ArgResults results) {
   final raw = results['tolerance'] as String?;
   if (raw == null) return null;
   final parsed = double.tryParse(raw);
   if (parsed == null) {
-    exitWith(kExitUsage, 'Expected a number for --tolerance, got "$raw"');
-    throw _FlagParseFailure();
+    throw UsageException(
+      'Expected a number for --tolerance, got "$raw"',
+      'Pass --tolerance <number between 1 and 200>.',
+    );
   }
   return parsed;
 }
@@ -53,8 +55,10 @@ double? _parseWeight(ArgResults results) {
   if (raw == null) return null;
   final parsed = double.tryParse(raw);
   if (parsed == null) {
-    exitWith(kExitUsage, 'Expected a number for --weight, got "$raw"');
-    throw _FlagParseFailure();
+    throw UsageException(
+      'Expected a number for --weight, got "$raw"',
+      'Pass --weight <body weight in kg>.',
+    );
   }
   return parsed;
 }
@@ -62,19 +66,20 @@ double? _parseWeight(ArgResults results) {
 UnitSystem? _parseUnits(ArgResults results) {
   final raw = results['units'] as String?;
   if (raw == null) return null;
+  // Imperial is accepted in the core model but not yet wired through the
+  // CLI; reject explicitly so nobody silently gets a metric fallback.
   return switch (raw) {
     'metric' => UnitSystem.metric,
-    'imperial' => UnitSystem.imperial,
+    'imperial' => throw UsageException(
+        'Imperial units are not yet supported; use --units metric for v1.',
+        'Imperial support is planned for a future release.',
+      ),
     _ => throw UsageException(
-        '--units must be one of: metric, imperial',
+        '--units must be one of: metric',
         'Got "$raw".',
       ),
   };
 }
-
-/// Internal sentinel thrown when a flag parser already reported the failure
-/// via `exitWith`; catchers ignore it and return.
-class _FlagParseFailure implements Exception {}
 
 class _ProfileSetupCommand extends Command<void> {
   _ProfileSetupCommand(this._storage, {required IsTtyProbe isTty})
@@ -82,20 +87,16 @@ class _ProfileSetupCommand extends Command<void> {
     argParser
       ..addOption(
         'tolerance',
-        help: 'Gut tolerance in grams of carbs per hour (required).',
+        help: 'Gut tolerance in g/hr (1–200).',
       )
       ..addOption(
         'units',
-        help: 'Unit system (metric or imperial, required).',
+        help: "Unit system for body weight. Only 'metric' is supported "
+            'in v1.',
       )
       ..addOption(
         'weight',
-        help: 'Body weight in kg (optional, enables caffeine safety).',
-      )
-      ..addFlag(
-        'no-weight',
-        help: 'Explicitly skip the body weight prompt.',
-        negatable: false,
+        help: 'Body weight in kg (optional, improves caffeine safety checks).',
       );
   }
 
@@ -115,38 +116,30 @@ class _ProfileSetupCommand extends Command<void> {
       throw StateError('setup invoked without parsed arguments');
     }
 
-    final double? tolerance;
-    final UnitSystem? units;
-    final double? weight;
-    try {
-      tolerance = _parseTolerance(results);
-      units = _parseUnits(results);
-      weight = _parseWeight(results);
-    } on _FlagParseFailure {
-      return;
-    }
+    final tolerance = _parseTolerance(results);
+    final units = _parseUnits(results);
+    final weight = _parseWeight(results);
 
-    final skipWeight = results['no-weight'] as bool;
-
+    // --weight is always optional; a missing value simply means the user
+    // didn't record their weight. The non-TTY path skips it silently.
     final missing = <String>[
       if (tolerance == null) '--tolerance',
       if (units == null) '--units',
-      if (weight == null && !skipWeight) '--weight',
     ];
 
     final double resolvedTolerance;
     final UnitSystem resolvedUnits;
     final double? resolvedWeight;
 
-    if (missing.isEmpty) {
-      resolvedTolerance = tolerance!;
-      resolvedUnits = units!;
+    if (tolerance != null && units != null) {
+      resolvedTolerance = tolerance;
+      resolvedUnits = units;
       resolvedWeight = weight;
     } else {
       if (!_isTty()) {
         exitWith(
           kExitNoInput,
-          'No TTY; pass --tolerance/--units/--weight flags.',
+          'No TTY; pass ${missing.join('/')} flag${missing.length == 1 ? '' : 's'}.',
         );
         return;
       }
@@ -158,13 +151,16 @@ class _ProfileSetupCommand extends Command<void> {
           return;
         }
         resolvedTolerance = promptedTolerance;
-        resolvedUnits = units ??
-            promptChoice<UnitSystem>(
-              'Units',
-              UnitSystem.values,
-              describe: (u) => u.name,
-            );
-        if (skipWeight || weight != null) {
+        // Interactive units prompt skips the question: metric is the only
+        // supported value in v1, so we tell the user and move on instead of
+        // forcing them to answer a single-option prompt.
+        if (units == null) {
+          stderr.writeln(
+            'Using metric units (imperial coming in a future version).',
+          );
+        }
+        resolvedUnits = units ?? UnitSystem.metric;
+        if (weight != null) {
           resolvedWeight = weight;
         } else {
           resolvedWeight = promptDouble(
@@ -182,21 +178,15 @@ class _ProfileSetupCommand extends Command<void> {
       }
     }
 
-    try {
-      final profile = AthleteProfile(
-        gutToleranceGPerHr: resolvedTolerance,
-        unitSystem: resolvedUnits,
-        bodyWeightKg: resolvedWeight,
-      );
+    await withFriendlyErrors(() async {
+      final profile = AthleteProfile.fromJson({
+        'gutToleranceGPerHr': resolvedTolerance,
+        'unitSystem': resolvedUnits.name,
+        if (resolvedWeight != null) 'bodyWeightKg': resolvedWeight,
+        'schema_version': 1,
+      });
       await _storage.saveProfile(profile);
-      stdout.writeln('Profile saved.');
-    } on AssertionError catch (e) {
-      exitWith(kExitData, 'Invalid profile: ${e.message}');
-    } on FormatException catch (e) {
-      exitWith(kExitData, 'Invalid profile: ${e.message}');
-    } on FileSystemException catch (e) {
-      exitWith(kExitData, 'File error: ${e.message} (${e.path ?? ''})');
-    }
+    });
   }
 }
 
@@ -213,7 +203,7 @@ class _ProfileShowCommand extends Command<void> {
 
   @override
   Future<void> run() async {
-    try {
+    await withFriendlyErrors(() async {
       final profile = await _storage.loadProfile();
       if (profile == null) {
         exitWith(
@@ -231,23 +221,19 @@ class _ProfileShowCommand extends Command<void> {
       if (baseDir != null) {
         stdout.writeln('Config file: ${p.join(baseDir, 'profile.json')}');
       }
-    } on FormatException catch (e) {
-      exitWith(kExitData, 'Invalid data: ${e.message}');
-    } on FileSystemException catch (e) {
-      exitWith(kExitData, 'File error: ${e.message} (${e.path ?? ''})');
-    }
+    });
   }
 }
 
 class _ProfileSetCommand extends Command<void> {
   _ProfileSetCommand(this._storage) {
     argParser
-      ..addOption('tolerance', help: 'New gut tolerance (g/hr)')
+      ..addOption('tolerance', help: 'New gut tolerance in g/hr (1–200).')
       ..addOption(
         'units',
-        help: 'New unit system (metric or imperial)',
+        help: "New unit system. Only 'metric' is supported in v1.",
       )
-      ..addOption('weight', help: 'New body weight (kg)');
+      ..addOption('weight', help: 'New body weight in kg.');
   }
 
   final StorageAdapter _storage;
@@ -265,50 +251,37 @@ class _ProfileSetCommand extends Command<void> {
       throw StateError('set invoked without parsed arguments');
     }
 
-    final double? tolerance;
-    final UnitSystem? units;
-    final double? weight;
-    try {
-      tolerance = _parseTolerance(results);
-      units = _parseUnits(results);
-      weight = _parseWeight(results);
-    } on _FlagParseFailure {
-      return;
-    }
+    final tolerance = _parseTolerance(results);
+    final units = _parseUnits(results);
+    final weight = _parseWeight(results);
 
-    final AthleteProfile? current;
-    try {
-      current = await _storage.loadProfile();
-    } on FormatException catch (e) {
-      exitWith(kExitData, 'Invalid data: ${e.message}');
-      return;
-    } on FileSystemException catch (e) {
-      exitWith(kExitData, 'File error: ${e.message} (${e.path ?? ''})');
-      return;
-    }
-
-    if (current == null) {
+    if (tolerance == null && units == null && weight == null) {
       exitWith(
-        kExitData,
-        "No profile found. Run 'fuel profile setup' first.",
+        kExitUsage,
+        'Nothing to update. Pass at least one of: --tolerance, --units, --weight.',
       );
       return;
     }
 
-    try {
-      final updated = current.copyWith(
-        gutToleranceGPerHr: tolerance,
-        unitSystem: units,
-        bodyWeightKg: weight,
-      );
+    await withFriendlyErrors(() async {
+      final current = await _storage.loadProfile();
+      if (current == null) {
+        exitWith(
+          kExitData,
+          "No profile found. Run 'fuel profile setup' first.",
+        );
+        return;
+      }
+
+      final merged = <String, dynamic>{
+        'gutToleranceGPerHr': tolerance ?? current.gutToleranceGPerHr,
+        'unitSystem': (units ?? current.unitSystem).name,
+        if ((weight ?? current.bodyWeightKg) != null)
+          'bodyWeightKg': weight ?? current.bodyWeightKg,
+        'schema_version': current.schemaVersion,
+      };
+      final updated = AthleteProfile.fromJson(merged);
       await _storage.saveProfile(updated);
-      stdout.writeln('Profile updated.');
-    } on AssertionError catch (e) {
-      exitWith(kExitData, 'Invalid profile: ${e.message}');
-    } on FormatException catch (e) {
-      exitWith(kExitData, 'Invalid profile: ${e.message}');
-    } on FileSystemException catch (e) {
-      exitWith(kExitData, 'File error: ${e.message} (${e.path ?? ''})');
-    }
+    });
   }
 }

@@ -58,18 +58,15 @@ void main() {
       expect(loaded.bodyWeightKg, 70.0);
     });
 
-    test('exits kExitNoInput when a required flag is missing and no TTY',
-        () async {
+    test('exits kExitNoInput when --tolerance is missing and no TTY', () async {
       late final int code;
       final captured = await captureOutput(() async {
         code = await runFuel(buildRunner(), [
           'profile',
           'setup',
-          '--tolerance',
-          '75',
           '--units',
           'metric',
-          // no --weight; stdin in the test harness has no terminal
+          // no --tolerance; stdin in the test harness has no terminal
         ]);
       });
 
@@ -139,7 +136,28 @@ void main() {
       expect(await storage.loadProfile(), isNull);
     });
 
-    test('persists without --weight when weight is not required', () async {
+    test('rejects --units imperial for v1 with kExitUsage', () async {
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'profile',
+          'setup',
+          '--tolerance',
+          '75',
+          '--units',
+          'imperial',
+          '--weight',
+          '70',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('not yet supported'));
+      expect(await storage.loadProfile(), isNull);
+    });
+
+    test('persists without --weight in non-TTY mode (no flag required)',
+        () async {
       late final int code;
       final captured = await captureOutput(() async {
         code = await runFuel(buildRunner(), [
@@ -149,16 +167,35 @@ void main() {
           '75',
           '--units',
           'metric',
-          '--no-weight',
         ]);
       });
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(captured.stdout, isEmpty);
 
       final loaded = await storage.loadProfile();
       expect(loaded, isNotNull);
       expect(loaded!.bodyWeightKg, isNull);
+    });
+
+    test('setup writes no success message to stdout', () async {
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'profile',
+          'setup',
+          '--tolerance',
+          '75',
+          '--units',
+          'metric',
+          '--weight',
+          '70',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stdout, isEmpty);
     });
   });
 
@@ -215,6 +252,7 @@ void main() {
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(captured.stdout, isEmpty);
 
       final loaded = await storage.loadProfile();
       expect(loaded!.gutToleranceGPerHr, 90.0);
