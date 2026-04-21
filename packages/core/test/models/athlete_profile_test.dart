@@ -118,5 +118,72 @@ void main() {
         returnsNormally,
       );
     });
+
+    test('rejects gut tolerance above 200 g/hr', () {
+      expect(
+        () => AthleteProfile(
+          gutToleranceGPerHr: 250,
+          unitSystem: UnitSystem.metric,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('fromJson throws FormatException when gutToleranceGPerHr is 0', () {
+      expect(
+        () => AthleteProfile.fromJson(const {
+          'gutToleranceGPerHr': 0,
+          'unitSystem': 'metric',
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException when gutToleranceGPerHr is negative',
+        () {
+      expect(
+        () => AthleteProfile.fromJson(const {
+          'gutToleranceGPerHr': -10,
+          'unitSystem': 'metric',
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException when gutToleranceGPerHr exceeds 200',
+        () {
+      expect(
+        () => AthleteProfile.fromJson(const {
+          'gutToleranceGPerHr': 250,
+          'unitSystem': 'metric',
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException when bodyWeightKg is 0', () {
+      expect(
+        () => AthleteProfile.fromJson(const {
+          'gutToleranceGPerHr': 60,
+          'unitSystem': 'metric',
+          'bodyWeightKg': 0,
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson accepts valid data and round-trips', () {
+      final profile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final restored = AthleteProfile.fromJson(profile.toJson());
+      expect(restored, equals(profile));
+    });
   });
 }

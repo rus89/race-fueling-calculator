@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:race_fueling_core/core.dart';
 
 String resolveDefaultBaseDir(Map<String, String> env) {
-  final fuelHome = env['FUEL_HOME'];
+  final fuelHome = env['FUEL_HOME']?.trim();
   if (fuelHome != null && fuelHome.isNotEmpty) return fuelHome;
   return p.join(env['HOME'] ?? '.', '.race-fueling');
 }

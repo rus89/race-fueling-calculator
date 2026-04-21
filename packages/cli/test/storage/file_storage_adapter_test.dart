@@ -152,5 +152,12 @@ void main() {
       );
       expect(resolved, p.join('/home/user', '.race-fueling'));
     });
+
+    test('ignores a whitespace-only FUEL_HOME', () {
+      final resolved = resolveDefaultBaseDir(
+        const {'FUEL_HOME': '   ', 'HOME': '/home/user'},
+      );
+      expect(resolved, p.join('/home/user', '.race-fueling'));
+    });
   });
 }

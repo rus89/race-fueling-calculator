@@ -25,12 +25,29 @@ class AthleteProfile extends Equatable {
     required this.unitSystem,
     this.bodyWeightKg,
     this.schemaVersion = 1,
-  })  : assert(gutToleranceGPerHr > 0, 'gutToleranceGPerHr must be positive'),
+  })  : assert(gutToleranceGPerHr > 0 && gutToleranceGPerHr <= 200,
+            'gutToleranceGPerHr must be in (0, 200]'),
         assert(bodyWeightKg == null || bodyWeightKg > 0,
             'bodyWeightKg must be positive when provided');
 
-  factory AthleteProfile.fromJson(Map<String, dynamic> json) =>
-      _$AthleteProfileFromJson(json);
+  factory AthleteProfile.fromJson(Map<String, dynamic> json) {
+    final gut = (json['gutToleranceGPerHr'] as num?)?.toDouble();
+    if (gut == null || gut <= 0 || gut > 200) {
+      throw FormatException(
+        'gutToleranceGPerHr must be in (0, 200] g/hr, got $gut',
+      );
+    }
+    final weightJson = json['bodyWeightKg'];
+    if (weightJson != null) {
+      final weight = (weightJson as num).toDouble();
+      if (weight <= 0) {
+        throw FormatException(
+          'bodyWeightKg must be positive when provided, got $weight',
+        );
+      }
+    }
+    return _$AthleteProfileFromJson(json);
+  }
 
   Map<String, dynamic> toJson() => _$AthleteProfileToJson(this);
 
