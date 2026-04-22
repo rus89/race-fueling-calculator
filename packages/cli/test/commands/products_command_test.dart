@@ -66,7 +66,7 @@ void main() {
       expect(captured.stdout, contains('Source: built-in'));
     });
 
-    test('lists candidates and exits kExitUsage when query is ambiguous',
+    test('lists candidates name-first with ids in parens and exits kExitUsage',
         () async {
       late final int code;
       final captured = await captureOutput(() async {
@@ -74,8 +74,13 @@ void main() {
       });
 
       expect(code, kExitUsage);
-      expect(captured.stderr, contains('Multiple products match'));
+      expect(captured.stderr, contains('Did you mean one of:'));
       expect(captured.stderr, contains('Maurten Gel 100'));
+      expect(captured.stderr, contains('(id: maurten-gel-100)'));
+      expect(
+        captured.stderr,
+        contains('Re-run with the exact name in quotes.'),
+      );
       expect(captured.stdout, isEmpty);
     });
 
