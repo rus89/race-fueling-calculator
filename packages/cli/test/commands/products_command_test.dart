@@ -274,8 +274,9 @@ void main() {
   });
 
   group('products edit', () {
-    test('creates a user override with user-<slug> id when target is built-in',
-        () async {
+    test(
+        'creates a user override with the built-in bare id when target is '
+        'built-in', () async {
       late final int code;
       final captured = await captureOutput(() async {
         code = await runFuel(buildRunner(), [
@@ -284,6 +285,10 @@ void main() {
           'Maurten Gel 100',
           '--carbs',
           '30',
+          '--glucose',
+          '17',
+          '--fructose',
+          '13',
         ]);
       });
 
@@ -292,7 +297,7 @@ void main() {
 
       final saved = await storage.loadUserProducts();
       expect(saved, hasLength(1));
-      expect(saved.first.id, 'user-maurten-gel-100');
+      expect(saved.first.id, 'maurten-gel-100');
       expect(saved.first.name, 'Maurten Gel 100');
       expect(saved.first.isBuiltIn, isFalse);
       expect(saved.first.carbsPerServing, 30.0);
