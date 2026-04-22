@@ -128,6 +128,22 @@ String _typeLabel(ProductType type) {
   };
 }
 
+/// Formats a numeric quantity without a trailing ".0" when the value is
+/// integer-valued, so confirmation lines read "45g" instead of "45.0g".
+String _numberLabel(double value) {
+  if (value == value.roundToDouble()) return value.toInt().toString();
+  return value.toString();
+}
+
+/// Looks up a built-in by id. Used to tell override-of-built-in apart from a
+/// plain user product when choosing confirmation wording.
+bool _isOverrideOfBuiltIn(String id) {
+  for (final p in builtInProducts) {
+    if (p.id == id) return true;
+  }
+  return false;
+}
+
 /// Validates carb/caffeine/water ranges and glucose+fructose consistency
 /// on the finalized product. The sum check runs unconditionally: Product's
 /// constructor defaults glucose to carbs and fructose to 0, so a freshly
@@ -362,6 +378,10 @@ class _ProductsAddCommand extends Command<void> {
         product,
       ];
       await _storage.saveUserProducts(updated);
+      stdout.writeln(
+        'Added "${product.name}" (custom ${product.type.name}, '
+        '${_numberLabel(product.carbsPerServing)}g carbs).',
+      );
     });
   }
 }
@@ -428,8 +448,13 @@ class _ProductsEditCommand extends Command<void> {
           target = product;
       }
 
+      // copyWith cannot currently clear a field back to null — passing
+      // null keeps the previous value. See TODO(clear-field) below.
       final Product updated;
-      if (target.isBuiltIn) {
+      final bool wasBuiltInBeforeEdit = target.isBuiltIn;
+      final bool wasExistingOverride =
+          !target.isBuiltIn && _isOverrideOfBuiltIn(target.id);
+      if (wasBuiltInBeforeEdit) {
         // The override keeps the built-in's id so mergeProducts shadows the
         // built-in by exact-id match. No CLI naming convention leaks into
         // core's merge logic.
@@ -468,6 +493,19 @@ class _ProductsEditCommand extends Command<void> {
         updated,
       ];
       await _storage.saveUserProducts(replaced);
+
+      final String message;
+      if (wasBuiltInBeforeEdit) {
+        message = 'Override created for "${updated.name}".';
+      } else if (wasExistingOverride) {
+        message = 'Updated override for "${updated.name}".';
+      } else {
+        message = 'Updated "${updated.name}".';
+      }
+      stdout.writeln(message);
+      // TODO(clear-field): Product.copyWith cannot clear optional fields
+      // back to null. Editing away a brand or serving description is not
+      // yet supported.
     });
   }
 }
@@ -516,9 +554,17 @@ class _ProductsRemoveCommand extends Command<void> {
             );
             return;
           }
+          final isRevert = _isOverrideOfBuiltIn(product.id);
           final updated =
               userProducts.where((p) => p.id != product.id).toList();
           await _storage.saveUserProducts(updated);
+          if (isRevert) {
+            stdout.writeln(
+              'Reverted override — "${product.name}" restored to built-in.',
+            );
+          } else {
+            stdout.writeln('Removed "${product.name}".');
+          }
       }
     });
   }
@@ -578,7 +624,13 @@ class _ProductsResetCommand extends Command<void> {
     }
 
     await withFriendlyErrors(() async {
+      final existing = await _storage.loadUserProducts();
       await _storage.saveUserProducts(const []);
+      if (existing.isEmpty) {
+        stdout.writeln('No user products to clear.');
+      } else {
+        stdout.writeln('Cleared ${existing.length} user product(s).');
+      }
     });
   }
 }

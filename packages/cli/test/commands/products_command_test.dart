@@ -355,17 +355,19 @@ void main() {
     test('updates an existing override with "Updated override" wording',
         () async {
       // First edit creates the override, second edit updates it in place.
-      await runFuel(buildRunner(), [
-        'products',
-        'edit',
-        'Maurten Gel 100',
-        '--carbs',
-        '30',
-        '--glucose',
-        '17',
-        '--fructose',
-        '13',
-      ]);
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'products',
+          'edit',
+          'Maurten Gel 100',
+          '--carbs',
+          '30',
+          '--glucose',
+          '17',
+          '--fructose',
+          '13',
+        ]);
+      });
 
       late final int code;
       final captured = await captureOutput(() async {
@@ -536,17 +538,19 @@ void main() {
 
     test('reverting an overridden built-in restores the built-in', () async {
       // Seed an override of Maurten Gel 100.
-      await runFuel(buildRunner(), [
-        'products',
-        'edit',
-        'Maurten Gel 100',
-        '--carbs',
-        '30',
-        '--glucose',
-        '17',
-        '--fructose',
-        '13',
-      ]);
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'products',
+          'edit',
+          'Maurten Gel 100',
+          '--carbs',
+          '30',
+          '--glucose',
+          '17',
+          '--fructose',
+          '13',
+        ]);
+      });
       expect(await storage.loadUserProducts(), hasLength(1));
 
       late final int code;
