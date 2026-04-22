@@ -54,22 +54,20 @@ void main() {
       expect(merged.length, 3);
     });
 
-    test('user-<id> override shadows the built-in with matching base id', () {
+    test('user-prefixed id does NOT shadow a built-in with the bare id', () {
+      // Naming convention is a CLI concern. mergeProducts must only shadow
+      // built-ins when a user product reuses the built-in's exact id.
       final userProducts = [
         Product(
             id: 'user-gel-1',
-            name: 'Built-in Gel',
+            name: 'Unrelated user product',
             type: ProductType.gel,
             carbsPerServing: 30),
       ];
       final merged = mergeProducts(builtIn, userProducts);
-      // Drink remains, the original gel-1 built-in is shadowed, and the
-      // user override is present.
-      expect(merged.length, 2);
-      expect(merged.any((p) => p.id == 'gel-1'), isFalse);
-      final override = merged.firstWhere((p) => p.id == 'user-gel-1');
-      expect(override.carbsPerServing, 30);
-      expect(override.isBuiltIn, isFalse);
+      expect(merged.length, 3);
+      expect(merged.any((p) => p.id == 'gel-1'), isTrue);
+      expect(merged.any((p) => p.id == 'user-gel-1'), isTrue);
     });
   });
 }
