@@ -1,0 +1,4 @@
+# Test files assert on `dart:io` `exitCode`, which is VM-wide (shared across
+# test-file isolates). Running test files concurrently lets one file's write
+# leak into another file's read between `await` points. Serialize instead.
+concurrency: 1
