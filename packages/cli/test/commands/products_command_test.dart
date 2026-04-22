@@ -271,6 +271,42 @@ void main() {
       expect(captured.stderr, contains('glucose'));
       expect(await storage.loadUserProducts(), isEmpty);
     });
+
+    test('a user-slug that mirrors a built-in does not shadow the built-in',
+        () async {
+      // Slug for "MaurtenGel100" is "maurtengel100"; prefixed that becomes
+      // "user-maurtengel100" — this must not collide with "maurten-gel-100".
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'products',
+          'add',
+          '--name',
+          'MaurtenGel100',
+          '--type',
+          'gel',
+          '--carbs',
+          '20',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+
+      final saved = await storage.loadUserProducts();
+      expect(saved, hasLength(1));
+      expect(saved.first.id, 'user-maurtengel100');
+
+      final merged = mergeProducts(builtInProducts, saved);
+      // Built-in Maurten Gel 100 still resolves by its exact name.
+      final gel100 = merged.firstWhere(
+        (p) => p.name == 'Maurten Gel 100',
+      );
+      expect(gel100.isBuiltIn, isTrue);
+      expect(gel100.carbsPerServing, 25.0);
+      // And the newly added user product sits alongside the built-in.
+      expect(merged.any((p) => p.id == 'user-maurtengel100'), isTrue);
+    });
   });
 
   group('products edit', () {
