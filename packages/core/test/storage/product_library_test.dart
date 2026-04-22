@@ -53,5 +53,23 @@ void main() {
       final merged = mergeProducts(builtIn, userProducts);
       expect(merged.length, 3);
     });
+
+    test('user-<id> override shadows the built-in with matching base id', () {
+      final userProducts = [
+        Product(
+            id: 'user-gel-1',
+            name: 'Built-in Gel',
+            type: ProductType.gel,
+            carbsPerServing: 30),
+      ];
+      final merged = mergeProducts(builtIn, userProducts);
+      // Drink remains, the original gel-1 built-in is shadowed, and the
+      // user override is present.
+      expect(merged.length, 2);
+      expect(merged.any((p) => p.id == 'gel-1'), isFalse);
+      final override = merged.firstWhere((p) => p.id == 'user-gel-1');
+      expect(override.carbsPerServing, 30);
+      expect(override.isBuiltIn, isFalse);
+    });
   });
 }
