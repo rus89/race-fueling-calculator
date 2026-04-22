@@ -128,14 +128,13 @@ String _typeLabel(ProductType type) {
   };
 }
 
-/// Validates carb/caffeine/water ranges and glucose+fructose consistency.
-/// The sum check only fires when the caller explicitly supplied both
-/// glucose and fructose in the current invocation; otherwise we keep
-/// whatever the source product had and trust it.
-String? _validateProduct(
-  Product product, {
-  required bool bothSugarsProvided,
-}) {
+/// Validates carb/caffeine/water ranges and glucose+fructose consistency
+/// on the finalized product. The sum check runs unconditionally: Product's
+/// constructor defaults glucose to carbs and fructose to 0, so a freshly
+/// added product with no sugars given passes (glucose+fructose == carbs).
+/// For edit, the merged product reflects inherited sugars, so the check
+/// catches the case where the caller changes carbs without updating sugars.
+String? _validateProduct(Product product) {
   if (product.carbsPerServing <= 0) {
     return '--carbs must be greater than 0, got ${product.carbsPerServing}.';
   }
@@ -145,12 +144,10 @@ String? _validateProduct(
   if (product.waterRequiredMl < 0) {
     return '--water must be >= 0, got ${product.waterRequiredMl}.';
   }
-  if (bothSugarsProvided) {
-    final sum = product.glucoseGrams + product.fructoseGrams;
-    if ((sum - product.carbsPerServing).abs() > 1.0) {
-      return 'glucose + fructose ($sum g) must equal --carbs '
-          '(${product.carbsPerServing} g) within 1 g tolerance.';
-    }
+  final sum = product.glucoseGrams + product.fructoseGrams;
+  if ((sum - product.carbsPerServing).abs() > 1.0) {
+    return 'glucose + fructose ($sum g) must equal --carbs '
+        '(${product.carbsPerServing} g) within 1 g tolerance.';
   }
   return null;
 }
@@ -340,10 +337,7 @@ class _ProductsAddCommand extends Command<void> {
       servingDescription: results['serving'] as String?,
     );
 
-    final validationError = _validateProduct(
-      product,
-      bothSugarsProvided: glucose != null && fructose != null,
-    );
+    final validationError = _validateProduct(product);
     if (validationError != null) {
       exitWith(kExitUsage, validationError);
       return;
@@ -463,10 +457,7 @@ class _ProductsEditCommand extends Command<void> {
         );
       }
 
-      final validationError = _validateProduct(
-        updated,
-        bothSugarsProvided: newGlucose != null && newFructose != null,
-      );
+      final validationError = _validateProduct(updated);
       if (validationError != null) {
         exitWith(kExitUsage, validationError);
         return;

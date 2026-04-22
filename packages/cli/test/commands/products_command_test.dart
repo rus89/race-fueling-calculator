@@ -398,6 +398,7 @@ void main() {
           name: 'Custom',
           type: ProductType.gel,
           carbsPerServing: 20.0,
+          glucoseGrams: 20.0,
         ),
       ]);
 
@@ -408,6 +409,8 @@ void main() {
           'edit',
           'Custom',
           '--carbs',
+          '35',
+          '--glucose',
           '35',
         ]);
       });
