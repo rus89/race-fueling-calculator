@@ -344,6 +344,53 @@ void main() {
       expect(gel100.isBuiltIn, isFalse);
     });
 
+    test('rejects edit when --carbs alone leaves glucose+fructose stale',
+        () async {
+      // Maurten Gel 100 ships with 14g glucose + 11g fructose = 25g. Changing
+      // only --carbs to 30 would leave the sugars stale and violate the
+      // invariant that add enforces.
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'products',
+          'edit',
+          'Maurten Gel 100',
+          '--carbs',
+          '30',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('glucose'));
+      expect(await storage.loadUserProducts(), isEmpty);
+    });
+
+    test('accepts edit that only touches unrelated fields (e.g. --caffeine)',
+        () async {
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'products',
+          'edit',
+          'Maurten Gel 100',
+          '--caffeine',
+          '50',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+
+      final saved = await storage.loadUserProducts();
+      expect(saved, hasLength(1));
+      expect(saved.first.id, 'maurten-gel-100');
+      expect(saved.first.caffeineMg, 50.0);
+      // Carbs and sugars stay at the built-in's values.
+      expect(saved.first.carbsPerServing, 25.0);
+      expect(saved.first.glucoseGrams, 14.0);
+      expect(saved.first.fructoseGrams, 11.0);
+    });
+
     test('updates a user product in place', () async {
       await storage.saveUserProducts([
         Product(
