@@ -117,6 +117,10 @@ void main() {
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(
+        captured.stdout,
+        contains('Added "My Custom Mix" (custom liquid, 45g carbs).'),
+      );
 
       final saved = await storage.loadUserProducts();
       expect(saved, hasLength(1));
@@ -330,6 +334,10 @@ void main() {
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(
+        captured.stdout,
+        contains('Override created for "Maurten Gel 100".'),
+      );
 
       final saved = await storage.loadUserProducts();
       expect(saved, hasLength(1));
@@ -342,6 +350,44 @@ void main() {
       final gel100 = merged.firstWhere((p) => p.name == 'Maurten Gel 100');
       expect(gel100.carbsPerServing, 30.0);
       expect(gel100.isBuiltIn, isFalse);
+    });
+
+    test('updates an existing override with "Updated override" wording',
+        () async {
+      // First edit creates the override, second edit updates it in place.
+      await runFuel(buildRunner(), [
+        'products',
+        'edit',
+        'Maurten Gel 100',
+        '--carbs',
+        '30',
+        '--glucose',
+        '17',
+        '--fructose',
+        '13',
+      ]);
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'products',
+          'edit',
+          'Maurten Gel 100',
+          '--caffeine',
+          '25',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+      expect(
+        captured.stdout,
+        contains('Updated override for "Maurten Gel 100".'),
+      );
+
+      final saved = await storage.loadUserProducts();
+      expect(saved, hasLength(1));
+      expect(saved.first.caffeineMg, 25.0);
     });
 
     test('rejects edit when --carbs alone leaves glucose+fructose stale',
@@ -417,11 +463,32 @@ void main() {
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(captured.stdout, contains('Updated "Custom".'));
 
       final saved = await storage.loadUserProducts();
       expect(saved, hasLength(1));
       expect(saved.first.id, 'user-custom');
       expect(saved.first.carbsPerServing, 35.0);
+    });
+
+    test('accepts edit that only touches --caffeine with an Updated line',
+        () async {
+      // Separate test from the earlier one so we can pin the stdout wording
+      // for the "created override on first edit" path when only --caffeine
+      // is touched.
+      final captured = await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'products',
+          'edit',
+          'Maurten Gel 100',
+          '--caffeine',
+          '50',
+        ]);
+      });
+      expect(
+        captured.stdout,
+        contains('Override created for "Maurten Gel 100".'),
+      );
     });
   });
 
@@ -463,7 +530,49 @@ void main() {
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(captured.stdout, contains('Removed "My Custom".'));
       expect(await storage.loadUserProducts(), isEmpty);
+    });
+
+    test('reverting an overridden built-in restores the built-in', () async {
+      // Seed an override of Maurten Gel 100.
+      await runFuel(buildRunner(), [
+        'products',
+        'edit',
+        'Maurten Gel 100',
+        '--carbs',
+        '30',
+        '--glucose',
+        '17',
+        '--fructose',
+        '13',
+      ]);
+      expect(await storage.loadUserProducts(), hasLength(1));
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'products',
+          'remove',
+          'Maurten Gel 100',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+      expect(
+        captured.stdout,
+        contains('Reverted override — "Maurten Gel 100" restored to built-in.'),
+      );
+      expect(await storage.loadUserProducts(), isEmpty);
+
+      final merged = mergeProducts(
+        builtInProducts,
+        await storage.loadUserProducts(),
+      );
+      final gel100 = merged.firstWhere((p) => p.name == 'Maurten Gel 100');
+      expect(gel100.isBuiltIn, isTrue);
+      expect(gel100.carbsPerServing, 25.0);
     });
   });
 
@@ -509,7 +618,24 @@ void main() {
 
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
+      expect(captured.stdout, contains('Cleared 1 user product(s).'));
       expect(await storage.loadUserProducts(), isEmpty);
+    });
+
+    test('with --yes and zero user products reports "No user products"',
+        () async {
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'products',
+          'reset',
+          '--yes',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+      expect(captured.stdout, contains('No user products to clear.'));
     });
   });
 }
