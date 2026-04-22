@@ -186,36 +186,25 @@ void main() {
       expect(afterForce.first.carbsPerServing, 25.0);
     });
 
-    test('rejects a built-in id collision unless --force is passed', () async {
-      // "Maurten Gel 100" slug becomes "user-maurten-gel-100"; the built-in
-      // id is "maurten-gel-100" (no user- prefix), so this specifically
-      // tests the case where a user-named product's slug would equal an
-      // existing built-in id once the user- prefix is stripped.
-      // Pick a name whose slug === an existing built-in id after prefixing.
-      // "user-banana" would collide if we had a "user-banana" built-in; we
-      // don't. Instead, we add a user product first, then re-add with the
-      // same name (existing-user-id collision already proven above). To
-      // exercise the built-in path, create a user product whose id looks
-      // like the built-in it is trying to override:
+    test('rejects non-numeric --carbs with kExitUsage', () async {
       late final int code;
       final captured = await captureOutput(() async {
         code = await runFuel(buildRunner(), [
           'products',
           'add',
           '--name',
-          'banana',
+          'Bad Carbs',
           '--type',
-          'real_food',
+          'gel',
           '--carbs',
-          '30',
+          'abc',
         ]);
       });
 
-      // 'banana' slug is 'user-banana', built-in id is 'banana'. So no
-      // collision. Instead, we test that the force flag path round-trips
-      // correctly for a normal add (no collision expected):
-      expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('Expected a number'));
+      expect(captured.stderr, contains('--carbs'));
+      expect(await storage.loadUserProducts(), isEmpty);
     });
 
     test('rejects --carbs 0 with kExitUsage and mentions --carbs', () async {
