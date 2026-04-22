@@ -9,6 +9,7 @@ import 'package:race_fueling_core/core.dart';
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
 import '../cli/tty.dart';
+import '../products/product_resolver.dart';
 import '../prompts/interactive.dart';
 
 class ProductsCommand extends Command<void> {
@@ -68,58 +69,6 @@ double? _parseDoubleFlag(ArgResults results, String flag) {
     );
   }
   return parsed;
-}
-
-/// Result of looking up a product by user-supplied query.
-sealed class _Match {
-  const _Match();
-}
-
-class _MatchSingle extends _Match {
-  const _MatchSingle(this.product);
-  final Product product;
-}
-
-class _MatchNone extends _Match {
-  const _MatchNone();
-}
-
-class _MatchMultiple extends _Match {
-  const _MatchMultiple(this.candidates);
-  final List<Product> candidates;
-}
-
-/// Looks up a product by query using the precedence rules from the spec:
-/// exact ID → exact name (case-insensitive) → unique case-insensitive
-/// substring. Returns [_MatchMultiple] when the substring match is ambiguous.
-_Match _findByQuery(List<Product> products, String query) {
-  final q = query.toLowerCase().trim();
-  if (q.isEmpty) return const _MatchNone();
-
-  for (final p in products) {
-    if (p.id == query) return _MatchSingle(p);
-  }
-  for (final p in products) {
-    if (p.name.toLowerCase() == q) return _MatchSingle(p);
-  }
-  final substringMatches =
-      products.where((p) => p.name.toLowerCase().contains(q)).toList();
-  if (substringMatches.isEmpty) return const _MatchNone();
-  if (substringMatches.length == 1) return _MatchSingle(substringMatches.first);
-  return _MatchMultiple(substringMatches);
-}
-
-void _writeCandidates(List<Product> candidates) {
-  stderr.writeln('Did you mean one of:');
-  final widest = candidates
-      .map((p) => p.name.length)
-      .fold<int>(0, (a, b) => a > b ? a : b);
-  for (final p in candidates) {
-    final paddedName = p.name.padRight(widest);
-    stderr.writeln('  $paddedName  (id: ${p.id})');
-  }
-  stderr.writeln('');
-  stderr.writeln('Re-run with the exact name in quotes.');
 }
 
 String _typeLabel(ProductType type) {
@@ -235,14 +184,14 @@ class _ProductsShowCommand extends Command<void> {
     await withFriendlyErrors(() async {
       final userProducts = await _storage.loadUserProducts();
       final all = mergeProducts(builtInProducts, userProducts);
-      final match = _findByQuery(all, query);
+      final match = resolveProduct(all, query);
       switch (match) {
-        case _MatchNone():
+        case ProductMatchNone():
           exitWith(kExitUsage, 'No product matched: $query');
-        case _MatchMultiple(:final candidates):
-          _writeCandidates(candidates);
+        case ProductMatchMultiple(:final candidates):
+          writeCandidates(stderr, candidates);
           exitCode = kExitUsage;
-        case _MatchSingle(:final product):
+        case ProductMatchSingle(:final product):
           stdout.writeln('Name: ${product.name}');
           if (product.brand != null) {
             stdout.writeln('Brand: ${product.brand}');
@@ -437,18 +386,18 @@ class _ProductsEditCommand extends Command<void> {
     await withFriendlyErrors(() async {
       final userProducts = await _storage.loadUserProducts();
       final all = mergeProducts(builtInProducts, userProducts);
-      final match = _findByQuery(all, query);
+      final match = resolveProduct(all, query);
 
       final Product target;
       switch (match) {
-        case _MatchNone():
+        case ProductMatchNone():
           exitWith(kExitUsage, 'No product matched: $query');
           return;
-        case _MatchMultiple(:final candidates):
-          _writeCandidates(candidates);
+        case ProductMatchMultiple(:final candidates):
+          writeCandidates(stderr, candidates);
           exitCode = kExitUsage;
           return;
-        case _MatchSingle(:final product):
+        case ProductMatchSingle(:final product):
           target = product;
       }
 
@@ -542,14 +491,14 @@ class _ProductsRemoveCommand extends Command<void> {
     await withFriendlyErrors(() async {
       final userProducts = await _storage.loadUserProducts();
       final all = mergeProducts(builtInProducts, userProducts);
-      final match = _findByQuery(all, query);
+      final match = resolveProduct(all, query);
       switch (match) {
-        case _MatchNone():
+        case ProductMatchNone():
           exitWith(kExitUsage, 'No product matched: $query');
-        case _MatchMultiple(:final candidates):
-          _writeCandidates(candidates);
+        case ProductMatchMultiple(:final candidates):
+          writeCandidates(stderr, candidates);
           exitCode = kExitUsage;
-        case _MatchSingle(:final product):
+        case ProductMatchSingle(:final product):
           if (product.isBuiltIn) {
             exitWith(
               kExitUsage,
