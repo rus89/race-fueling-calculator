@@ -217,7 +217,9 @@ Duration? promptDuration(
 }
 
 /// Prompts for y/n. Accepts `y`, `yes`, `n`, `no` case-insensitive. Empty
-/// input returns [defaultValue]. Retries up to 3 times; throws
+/// input returns [defaultValue]. Throws [NoTerminalException] on EOF so
+/// callers can surface an actionable message listing the flag that skips
+/// the prompt. Retries up to 3 times on invalid input; throws
 /// [PromptAbortedException] after the cap.
 bool promptBool(
   String prompt, {
@@ -232,7 +234,12 @@ bool promptBool(
   for (var attempt = 0; attempt < _kPromptRetryCap; attempt++) {
     sink.write('$prompt [$hint]: ');
     final raw = read();
-    if (raw == null) return defaultValue;
+    if (raw == null) {
+      throw NoTerminalException(
+        'No input available on stdin; re-run with a flag that skips the '
+        'confirmation prompt.',
+      );
+    }
     final lower = raw.trim().toLowerCase();
     if (lower.isEmpty) return defaultValue;
     if (lower == 'y' || lower == 'yes') return true;

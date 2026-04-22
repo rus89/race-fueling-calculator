@@ -20,13 +20,16 @@ class ProductsCommand extends Command<void> {
   ProductsCommand(
     StorageAdapter storage, {
     IsTtyProbe isTty = _defaultIsTty,
+    LineReader? readLine,
   }) {
     addSubcommand(_ProductsListCommand(storage));
     addSubcommand(_ProductsShowCommand(storage));
     addSubcommand(_ProductsAddCommand(storage));
     addSubcommand(_ProductsEditCommand(storage));
     addSubcommand(_ProductsRemoveCommand(storage));
-    addSubcommand(_ProductsResetCommand(storage, isTty: isTty));
+    addSubcommand(
+      _ProductsResetCommand(storage, isTty: isTty, readLine: readLine),
+    );
   }
 
   @override
@@ -571,8 +574,12 @@ class _ProductsRemoveCommand extends Command<void> {
 }
 
 class _ProductsResetCommand extends Command<void> {
-  _ProductsResetCommand(this._storage, {required IsTtyProbe isTty})
-      : _isTty = isTty {
+  _ProductsResetCommand(
+    this._storage, {
+    required IsTtyProbe isTty,
+    LineReader? readLine,
+  })  : _isTty = isTty,
+        _readLine = readLine {
     argParser.addFlag(
       'yes',
       abbr: 'y',
@@ -583,6 +590,7 @@ class _ProductsResetCommand extends Command<void> {
 
   final StorageAdapter _storage;
   final IsTtyProbe _isTty;
+  final LineReader? _readLine;
 
   @override
   final String name = 'reset';
@@ -612,11 +620,18 @@ class _ProductsResetCommand extends Command<void> {
         final confirmed = promptBool(
           'Remove all user products and restore built-in defaults?',
           defaultValue: false,
+          readLine: _readLine,
         );
         if (!confirmed) {
-          exitWith(kExitUsage, 'Reset cancelled.');
+          stdout.writeln('Reset cancelled.');
           return;
         }
+      } on NoTerminalException {
+        exitWith(
+          kExitNoInput,
+          'No input available. Pass --yes to skip the confirmation prompt.',
+        );
+        return;
       } on PromptAbortedException catch (e) {
         exitWith(kExitUsage, e.message);
         return;
