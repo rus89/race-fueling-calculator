@@ -9,18 +9,13 @@ import 'package:race_fueling_core/core.dart';
 
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
+import '../cli/tty.dart';
 import '../prompts/interactive.dart';
-
-/// Probes whether stdin is connected to a terminal. Defaults to
-/// `stdin.hasTerminal`; tests inject a deterministic value.
-typedef IsTtyProbe = bool Function();
-
-bool _defaultIsTty() => stdin.hasTerminal;
 
 class ProfileCommand extends Command<void> {
   ProfileCommand(
     StorageAdapter storage, {
-    IsTtyProbe isTty = _defaultIsTty,
+    IsTtyProbe isTty = defaultIsTty,
   }) {
     addSubcommand(_ProfileSetupCommand(storage, isTty: isTty));
     addSubcommand(_ProfileShowCommand(storage));

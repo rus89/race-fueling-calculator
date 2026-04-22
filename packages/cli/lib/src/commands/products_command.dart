@@ -8,18 +8,13 @@ import 'package:race_fueling_core/core.dart';
 
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
+import '../cli/tty.dart';
 import '../prompts/interactive.dart';
-
-/// Probes whether stdin is connected to a terminal. Defaults to
-/// `stdin.hasTerminal`; tests inject a deterministic value.
-typedef IsTtyProbe = bool Function();
-
-bool _defaultIsTty() => stdin.hasTerminal;
 
 class ProductsCommand extends Command<void> {
   ProductsCommand(
     StorageAdapter storage, {
-    IsTtyProbe isTty = _defaultIsTty,
+    IsTtyProbe isTty = defaultIsTty,
     LineReader? readLine,
   }) {
     addSubcommand(_ProductsListCommand(storage));
