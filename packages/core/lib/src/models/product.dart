@@ -51,9 +51,9 @@ class Product extends Equatable {
   /// Returns a copy with the given fields replaced.
   ///
   /// `id` is intentionally mutable to support promoting a built-in to a
-  /// user override (e.g. copyWith(id: 'user-gel-1', isBuiltIn: false)).
-  /// Do NOT call copyWith(id:) on a product already referenced by a plan's
-  /// ProductSelection — it will orphan the reference.
+  /// user override, where the override keeps the built-in's id but sets
+  /// `isBuiltIn: false`. Do NOT call copyWith(id:) on a product already
+  /// referenced by a plan's ProductSelection — it will orphan the reference.
   Product copyWith({
     String? id,
     String? name,
