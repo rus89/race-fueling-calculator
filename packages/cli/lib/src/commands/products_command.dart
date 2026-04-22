@@ -115,10 +115,16 @@ _Match _findByQuery(List<Product> products, String query) {
 }
 
 void _writeCandidates(List<Product> candidates) {
-  stderr.writeln('Multiple products match — please be more specific:');
+  stderr.writeln('Did you mean one of:');
+  final widest = candidates
+      .map((p) => p.name.length)
+      .fold<int>(0, (a, b) => a > b ? a : b);
   for (final p in candidates) {
-    stderr.writeln('  ${p.id}  ${p.name}');
+    final paddedName = p.name.padRight(widest);
+    stderr.writeln('  $paddedName  (id: ${p.id})');
   }
+  stderr.writeln('');
+  stderr.writeln('Re-run with the exact name in quotes.');
 }
 
 String _typeLabel(ProductType type) {
