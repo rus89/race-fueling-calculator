@@ -34,7 +34,7 @@ class AthleteProfile extends Equatable {
     final gut = (json['gutToleranceGPerHr'] as num?)?.toDouble();
     if (gut == null || gut <= 0 || gut > 200) {
       throw FormatException(
-        'gutToleranceGPerHr must be in (0, 200] g/hr, got $gut',
+        'Tolerance must be between 1 and 200 g/hr (got ${_fmt(gut)}).',
       );
     }
     final weightJson = json['bodyWeightKg'];
@@ -42,11 +42,16 @@ class AthleteProfile extends Equatable {
       final weight = (weightJson as num).toDouble();
       if (weight <= 0) {
         throw FormatException(
-          'bodyWeightKg must be positive when provided, got $weight',
+          'Body weight must be positive (got ${_fmt(weight)} kg).',
         );
       }
     }
     return _$AthleteProfileFromJson(json);
+  }
+
+  static String _fmt(num? n) {
+    if (n == null) return 'null';
+    return n == n.truncateToDouble() ? n.toInt().toString() : n.toString();
   }
 
   Map<String, dynamic> toJson() => _$AthleteProfileToJson(this);

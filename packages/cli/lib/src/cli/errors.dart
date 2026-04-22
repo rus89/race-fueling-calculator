@@ -17,7 +17,7 @@ Future<bool> withFriendlyErrors(Future<void> Function() action) async {
     await action();
     return true;
   } on FormatException catch (e) {
-    exitWith(kExitData, 'Invalid data: ${e.message}');
+    exitWith(kExitData, e.message);
   } on FileSystemException catch (e) {
     exitWith(kExitData, 'File error: ${e.message} (${e.path ?? ""})');
   } on AssertionError catch (e) {

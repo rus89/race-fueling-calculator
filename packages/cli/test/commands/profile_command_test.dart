@@ -132,7 +132,8 @@ void main() {
       });
 
       expect(code, kExitData);
-      expect(captured.stderr, contains('gutToleranceGPerHr'));
+      expect(captured.stderr, contains('Tolerance must be between 1 and 200'));
+      expect(captured.stderr, contains('got 250'));
       expect(await storage.loadProfile(), isNull);
     });
 
@@ -332,7 +333,8 @@ void main() {
       });
 
       expect(code, kExitData);
-      expect(captured.stderr, contains('gutToleranceGPerHr'));
+      expect(captured.stderr, contains('Tolerance must be between 1 and 200'));
+      expect(captured.stderr, contains('got 0'));
     });
 
     test('rejects --weight -5 with kExitData (invariant)', () async {
@@ -352,7 +354,8 @@ void main() {
       });
 
       expect(code, kExitData);
-      expect(captured.stderr, contains('bodyWeightKg'));
+      expect(captured.stderr, contains('Body weight must be positive'));
+      expect(captured.stderr, contains('got -5'));
     });
 
     test('set with no flags exits kExitUsage with "Nothing to update"',

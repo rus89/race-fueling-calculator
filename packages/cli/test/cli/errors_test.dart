@@ -54,8 +54,8 @@ void main() {
 
       expect(result, isFalse);
       expect(exitCode, kExitData);
-      expect(captured.stderr, contains('Invalid data'));
       expect(captured.stderr, contains('bad json'));
+      expect(captured.stderr, isNot(contains('Invalid data')));
     });
 
     test('translates FileSystemException to exit 65 with the path', () async {
