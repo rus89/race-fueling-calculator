@@ -436,12 +436,10 @@ class _ProductsEditCommand extends Command<void> {
 
       final Product updated;
       if (target.isBuiltIn) {
-        // Key the override ID off the built-in's id (not the name) so that
-        // mergeProducts' `user-<id>` prefix shadow continues to work even
-        // when the user also renames the product.
-        final overrideId = 'user-${target.id}';
+        // The override keeps the built-in's id so mergeProducts shadows the
+        // built-in by exact-id match. No CLI naming convention leaks into
+        // core's merge logic.
         updated = target.copyWith(
-          id: overrideId,
           isBuiltIn: false,
           name: newName,
           brand: newBrand,
