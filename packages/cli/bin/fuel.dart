@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:race_fueling_cli/src/cli/exit_codes.dart';
 import 'package:race_fueling_cli/src/cli/runner.dart';
+import 'package:race_fueling_cli/src/commands/plan_command.dart';
 import 'package:race_fueling_cli/src/commands/products_command.dart';
 import 'package:race_fueling_cli/src/commands/profile_command.dart';
 import 'package:race_fueling_cli/src/storage/file_storage_adapter.dart';
@@ -25,7 +26,8 @@ Future<void> main(List<String> args) async {
       'Race Fueling Calculator — plan your race-day nutrition',
     )
       ..addCommand(ProfileCommand(storage))
-      ..addCommand(ProductsCommand(storage));
+      ..addCommand(ProductsCommand(storage))
+      ..addCommand(PlanCommand(storage));
     exitCode = await runFuel(runner, args);
   } catch (e) {
     stderr.writeln('Internal error: $e');
