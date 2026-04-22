@@ -580,6 +580,20 @@ void main() {
     });
   });
 
+  CommandRunner<void> buildRunnerWithStdin({
+    required bool isTty,
+    required String? Function() readLine,
+  }) {
+    return CommandRunner<void>('fuel', 'test')
+      ..addCommand(
+        ProductsCommand(
+          storage,
+          isTty: () => isTty,
+          readLine: readLine,
+        ),
+      );
+  }
+
   group('products reset', () {
     test('without --yes and without TTY exits kExitNoInput', () async {
       await storage.saveUserProducts([
@@ -640,6 +654,64 @@ void main() {
       expect(code, kExitSuccess);
       expect(captured.stderr, isEmpty);
       expect(captured.stdout, contains('No user products to clear.'));
+    });
+
+    test('with TTY but stdin EOF exits kExitNoInput with --yes hint', () async {
+      // bash-launched subprocesses can report hasTerminal=true even when
+      // stdin is piped/redirected. On EOF inside the prompt the command
+      // must surface an actionable "Pass --yes" message rather than
+      // silently cancel with a usage-error exit.
+      await storage.saveUserProducts([
+        Product(
+          id: 'user-custom',
+          name: 'Custom',
+          type: ProductType.gel,
+          carbsPerServing: 20.0,
+          glucoseGrams: 20.0,
+        ),
+      ]);
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(
+          buildRunnerWithStdin(isTty: true, readLine: () => null),
+          ['products', 'reset'],
+        );
+      });
+
+      expect(code, kExitNoInput);
+      expect(captured.stderr, contains('Pass --yes'));
+      expect(await storage.loadUserProducts(), hasLength(1));
+    });
+
+    test('with TTY answering "n" exits 0 with stdout "Reset cancelled."',
+        () async {
+      await storage.saveUserProducts([
+        Product(
+          id: 'user-custom',
+          name: 'Custom',
+          type: ProductType.gel,
+          carbsPerServing: 20.0,
+          glucoseGrams: 20.0,
+        ),
+      ]);
+
+      late final int code;
+      final responses = <String?>['n'];
+      final captured = await captureOutput(() async {
+        code = await runFuel(
+          buildRunnerWithStdin(
+            isTty: true,
+            readLine: () => responses.isEmpty ? null : responses.removeAt(0),
+          ),
+          ['products', 'reset'],
+        );
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stdout, contains('Reset cancelled.'));
+      // User products untouched.
+      expect(await storage.loadUserProducts(), hasLength(1));
     });
   });
 }

@@ -375,6 +375,21 @@ void main() {
         throwsA(isA<PromptAbortedException>()),
       );
     });
+
+    test('throws NoTerminalException when the reader returns null (EOF)', () {
+      // When stdin is piped/redirected and exhausted, readLine returns null.
+      // The caller must surface a helpful "no input" message rather than
+      // silently picking the default and proceeding with a destructive op.
+      final out = StringBuffer();
+      expect(
+        () => promptBool(
+          'Continue?',
+          readLine: () => null,
+          out: out,
+        ),
+        throwsA(isA<NoTerminalException>()),
+      );
+    });
   });
 
   group('promptChoice', () {
