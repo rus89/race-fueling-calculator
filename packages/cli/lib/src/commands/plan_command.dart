@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:race_fueling_core/core.dart';
 
+import '../cli/enum_parsers.dart';
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
 import '../cli/flag_parsers.dart';
@@ -35,35 +36,6 @@ class PlanCommand extends Command<void> {
 
   @override
   final String description = 'Create and manage race fueling plans';
-}
-
-Strategy _parseStrategy(String raw) {
-  final normalized = raw.toLowerCase().replaceAll('_', '-');
-  return switch (normalized) {
-    'steady' => Strategy.steady,
-    'front-load' => Strategy.frontLoad,
-    'back-load' => Strategy.backLoad,
-    'custom' => throw UsageException(
-        'The custom strategy requires curve segments and is not available '
-            'via the CLI.',
-        'Use --strategy steady, front-load, or back-load.',
-      ),
-    _ => throw UsageException(
-        '--strategy must be one of: steady, front-load, back-load',
-        'Got "$raw".',
-      ),
-  };
-}
-
-TimelineMode _parseMode(String raw) {
-  return switch (raw.toLowerCase()) {
-    'time' => TimelineMode.timeBased,
-    'distance' => TimelineMode.distanceBased,
-    _ => throw UsageException(
-        '--mode must be one of: time, distance',
-        'Got "$raw".',
-      ),
-  };
 }
 
 /// Formats a race duration for display (e.g. "3h30m", "2h", "45m").
@@ -151,8 +123,8 @@ class _PlanCreateCommand extends Command<void> {
 
     // Enum parsers must run before numeric guards so typoed modes/strategies
     // surface a UsageException rather than a generic positive-number error.
-    final mode = _parseMode(rawMode);
-    final strategy = _parseStrategy(rawStrategy);
+    final mode = parseModeFlag(rawMode);
+    final strategy = parseStrategyFlag(rawStrategy);
 
     final duration = parseDuration(rawDuration!);
     if (duration == null || duration <= Duration.zero) {

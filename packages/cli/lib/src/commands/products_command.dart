@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:race_fueling_core/core.dart';
 
+import '../cli/enum_parsers.dart';
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
 import '../cli/flag_parsers.dart';
@@ -34,20 +35,6 @@ class ProductsCommand extends Command<void> {
 
   @override
   final String description = 'Manage your nutrition product library';
-}
-
-ProductType _parseType(String raw) {
-  return switch (raw.toLowerCase()) {
-    'gel' => ProductType.gel,
-    'liquid' => ProductType.liquid,
-    'solid' => ProductType.solid,
-    'chew' => ProductType.chew,
-    'real_food' => ProductType.realFood,
-    _ => throw UsageException(
-        '--type must be one of: gel, liquid, solid, chew, real_food',
-        'Got "$raw".',
-      ),
-  };
 }
 
 String _typeLabel(ProductType type) {
@@ -247,7 +234,7 @@ class _ProductsAddCommand extends Command<void> {
         'Pass --type <gel|liquid|solid|chew|real_food>.',
       );
     }
-    final type = _parseType(rawType);
+    final type = parseProductTypeFlag(rawType);
 
     final carbs = parseDoubleFlag(results, 'carbs');
     if (carbs == null) {
