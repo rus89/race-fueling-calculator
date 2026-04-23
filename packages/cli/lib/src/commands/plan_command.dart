@@ -91,15 +91,15 @@ class _PlanCreateCommand extends Command<void> {
       )
       ..addOption(
         'temp',
-        help: 'Race temperature in °C (optional, -20 to 50).',
+        help: 'Race temperature in °C (optional; typical: -20 to 50).',
       )
       ..addOption(
         'humidity',
-        help: 'Relative humidity % (optional, 0 to 100).',
+        help: 'Relative humidity % (optional; typical: 0 to 100).',
       )
       ..addOption(
         'altitude',
-        help: 'Race altitude in m (optional, 0 to 6000).',
+        help: 'Race altitude in m (optional; typical: 0 to 6000).',
       )
       ..addFlag(
         'force',
