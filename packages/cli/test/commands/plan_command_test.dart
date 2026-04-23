@@ -737,6 +737,42 @@ void main() {
   });
 
   group('plan generate', () {
+    test(
+        'on a plan with no selected products exits kExitUsage with an '
+        'actionable message and no stdout output', () async {
+      await seedProfile();
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Empty',
+          '--duration',
+          '2h',
+          '--target',
+          '75',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'plan',
+          'generate',
+          '--plan',
+          'empty',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stdout, isEmpty);
+      expect(captured.stderr, contains('empty'));
+      expect(
+        captured.stderr,
+        contains('fuel plan products add'),
+      );
+    });
+
     test('emits plan text to stdout with a seeded profile and products',
         () async {
       await seedProfile();
