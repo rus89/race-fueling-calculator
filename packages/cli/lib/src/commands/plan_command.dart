@@ -21,7 +21,9 @@ class PlanCommand extends Command<void> {
     IsTtyProbe isTty = defaultIsTty,
     LineReader? readLine,
   }) {
-    addSubcommand(_PlanCreateCommand(storage));
+    addSubcommand(
+      _PlanCreateCommand(storage, isTty: isTty, readLine: readLine),
+    );
     addSubcommand(_PlanListCommand(storage));
     addSubcommand(_PlanShowCommand(storage));
     addSubcommand(
@@ -48,7 +50,12 @@ String _formatDuration(Duration d) {
 }
 
 class _PlanCreateCommand extends Command<void> {
-  _PlanCreateCommand(this._storage) {
+  _PlanCreateCommand(
+    this._storage, {
+    required IsTtyProbe isTty,
+    LineReader? readLine,
+  })  : _isTty = isTty,
+        _readLine = readLine {
     argParser
       ..addOption('name', help: 'Race name (also used to derive the plan id).')
       ..addOption('duration', help: 'Expected duration (e.g. 3h30m or 2:45).')
@@ -84,6 +91,8 @@ class _PlanCreateCommand extends Command<void> {
   }
 
   final StorageAdapter _storage;
+  final IsTtyProbe _isTty;
+  final LineReader? _readLine;
 
   @override
   final String name = 'create';
@@ -104,21 +113,70 @@ class _PlanCreateCommand extends Command<void> {
     final rawMode = results['mode'] as String;
     final rawStrategy = results['strategy'] as String;
 
+    final nameMissing = rawName == null || rawName.trim().isEmpty;
+    final durationMissing = rawDuration == null;
+    final targetMissing = rawTarget == null;
+
     final missing = <String>[
-      if (rawName == null || rawName.trim().isEmpty) '--name',
-      if (rawDuration == null) '--duration',
-      if (rawTarget == null) '--target',
+      if (nameMissing) '--name',
+      if (durationMissing) '--duration',
+      if (targetMissing) '--target',
     ];
+
+    String? resolvedName = nameMissing ? null : rawName;
+    Duration? resolvedDuration;
+    double? resolvedTarget;
+
     if (missing.isNotEmpty) {
-      // Interactive fallback is only attempted when stdin is a TTY. In the
-      // non-TTY path we surface a no-input exit so scripts get a clear signal.
-      exitWith(
-        kExitNoInput,
-        'Missing required flag${missing.length == 1 ? '' : 's'}: '
-        '${missing.join(', ')}. Pass the flag${missing.length == 1 ? '' : 's'} '
-        "or re-run from a terminal.",
-      );
-      return;
+      if (!_isTty()) {
+        exitWith(
+          kExitNoInput,
+          'Missing required flag${missing.length == 1 ? '' : 's'}: '
+          '${missing.join(', ')}. Pass the flag'
+          '${missing.length == 1 ? '' : 's'} or re-run from a terminal.',
+        );
+        return;
+      }
+      try {
+        if (nameMissing) {
+          final prompted = promptString('Race name', readLine: _readLine);
+          if (prompted.trim().isEmpty) {
+            exitWith(kExitNoInput, 'Race name is required.');
+            return;
+          }
+          resolvedName = prompted;
+        }
+        if (durationMissing) {
+          final prompted = promptDuration(
+            'Expected duration (e.g. 3h30m)',
+            readLine: _readLine,
+          );
+          if (prompted == null) {
+            exitWith(kExitNoInput, 'Duration is required.');
+            return;
+          }
+          resolvedDuration = prompted;
+        }
+        if (targetMissing) {
+          final prompted = promptDouble(
+            'Target carbs g/hr',
+            min: 1,
+            max: 200,
+            readLine: _readLine,
+          );
+          if (prompted == null) {
+            exitWith(kExitNoInput, 'Target carbs/hr is required.');
+            return;
+          }
+          resolvedTarget = prompted;
+        }
+      } on PromptAbortedException catch (e) {
+        exitWith(kExitUsage, e.message);
+        return;
+      } on NoTerminalException catch (e) {
+        exitWith(kExitNoInput, e.message);
+        return;
+      }
     }
 
     // Enum parsers must run before numeric guards so typoed modes/strategies
@@ -126,23 +184,29 @@ class _PlanCreateCommand extends Command<void> {
     final mode = parseModeFlag(rawMode);
     final strategy = parseStrategyFlag(rawStrategy);
 
-    final duration = parseDuration(rawDuration!);
-    if (duration == null || duration <= Duration.zero) {
-      exitWith(
-        kExitUsage,
-        '--duration must be positive, got "$rawDuration". '
-        'Use e.g. 3h30m or 2:45.',
-      );
-      return;
+    if (resolvedDuration == null) {
+      final parsed = parseDuration(rawDuration!);
+      if (parsed == null || parsed <= Duration.zero) {
+        exitWith(
+          kExitUsage,
+          '--duration must be positive, got "$rawDuration". '
+          'Use e.g. 3h30m or 2:45.',
+        );
+        return;
+      }
+      resolvedDuration = parsed;
     }
 
-    final target = parseDoubleFlag(results, 'target');
-    if (target == null || target <= 0) {
-      exitWith(
-        kExitUsage,
-        '--target must be positive, got ${target ?? rawTarget}.',
-      );
-      return;
+    if (resolvedTarget == null) {
+      final parsed = parseDoubleFlag(results, 'target');
+      if (parsed == null || parsed <= 0) {
+        exitWith(
+          kExitUsage,
+          '--target must be positive, got ${parsed ?? rawTarget}.',
+        );
+        return;
+      }
+      resolvedTarget = parsed;
     }
 
     final interval = parseIntFlag(results, 'interval');
@@ -175,23 +239,26 @@ class _PlanCreateCommand extends Command<void> {
       }
     }
 
-    final slug = slugify(rawName!);
+    if (resolvedName == null) {
+      throw StateError('resolvedName must be set by this point');
+    }
+    final slug = slugify(resolvedName);
     if (slug.isEmpty) {
       throw UsageException(
         '--name must contain at least one alphanumeric character, got '
-            '"$rawName".',
+            '"$resolvedName".',
         'Pass a name like "My Big Race".',
       );
     }
 
     final config = RaceConfig(
-      name: rawName,
-      duration: duration,
+      name: resolvedName,
+      duration: resolvedDuration,
       distanceKm: distance,
       timelineMode: mode,
       intervalMinutes: mode == TimelineMode.timeBased ? interval : null,
       intervalKm: mode == TimelineMode.distanceBased ? intervalKm : null,
-      targetCarbsGPerHr: target,
+      targetCarbsGPerHr: resolvedTarget,
       strategy: strategy,
       selectedProducts: const [],
       temperature: temperature,
