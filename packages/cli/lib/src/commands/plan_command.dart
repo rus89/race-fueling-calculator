@@ -647,6 +647,14 @@ class _PlanGenerateCommand extends Command<void> {
         exitWith(kExitUsage, 'Plan not found: $planName');
         return;
       }
+      if (config.selectedProducts.isEmpty) {
+        exitWith(
+          kExitUsage,
+          'Plan "$planName" has no products. Add some with: '
+          'fuel plan products add <product> --plan $planName --quantity N.',
+        );
+        return;
+      }
       final profile = await _storage.loadProfile();
       if (profile == null) {
         exitWith(
