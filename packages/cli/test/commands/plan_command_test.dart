@@ -345,6 +345,63 @@ void main() {
       expect(captured.stderr, contains('--name'));
       expect(await storage.listPlans(), isEmpty);
     });
+
+    test(
+        'with all required flags on a TTY takes the non-interactive path '
+        'and does not prompt', () async {
+      // readLine would return null immediately on read, so if the command
+      // attempted to prompt we would see kExitNoInput. Success here proves
+      // no prompt was issued.
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(
+          buildRunner(isTty: true, readLine: () => null),
+          [
+            'plan',
+            'create',
+            '--name',
+            'Foo',
+            '--duration',
+            '3h',
+            '--target',
+            '75',
+          ],
+        );
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+      expect(await storage.listPlans(), contains('foo'));
+    });
+
+    test(
+        'missing --name on a TTY prompts and succeeds when a name is piped '
+        'on stdin', () async {
+      final responses = <String?>['Foo'];
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(
+          buildRunner(
+            isTty: true,
+            readLine: () => responses.isEmpty ? null : responses.removeAt(0),
+          ),
+          [
+            'plan',
+            'create',
+            '--duration',
+            '3h',
+            '--target',
+            '75',
+          ],
+        );
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stdout, contains('Plan "foo" created.'));
+      final loaded = await storage.loadPlan('foo');
+      expect(loaded, isNotNull);
+      expect(loaded!.name, 'Foo');
+    });
   });
 
   group('plan list', () {
