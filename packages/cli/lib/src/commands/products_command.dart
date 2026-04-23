@@ -2,12 +2,12 @@
 // ABOUTME: subcommands that manage the merged built-in + user product library.
 import 'dart:io';
 
-import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:race_fueling_core/core.dart';
 
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
+import '../cli/flag_parsers.dart';
 import '../cli/slugify.dart';
 import '../cli/tty.dart';
 import '../products/product_resolver.dart';
@@ -48,21 +48,6 @@ ProductType _parseType(String raw) {
         'Got "$raw".',
       ),
   };
-}
-
-/// Parses a numeric CLI flag. Returns null if the flag was not supplied.
-/// Throws [UsageException] with an actionable message on parse failure.
-double? _parseDoubleFlag(ArgResults results, String flag) {
-  final raw = results[flag] as String?;
-  if (raw == null) return null;
-  final parsed = double.tryParse(raw);
-  if (parsed == null) {
-    throw UsageException(
-      'Expected a number for --$flag, got "$raw"',
-      'Pass --$flag <number>.',
-    );
-  }
-  return parsed;
 }
 
 String _typeLabel(ProductType type) {
@@ -264,17 +249,17 @@ class _ProductsAddCommand extends Command<void> {
     }
     final type = _parseType(rawType);
 
-    final carbs = _parseDoubleFlag(results, 'carbs');
+    final carbs = parseDoubleFlag(results, 'carbs');
     if (carbs == null) {
       throw UsageException(
         'Missing --carbs.',
         'Pass --carbs <grams per serving>.',
       );
     }
-    final glucose = _parseDoubleFlag(results, 'glucose');
-    final fructose = _parseDoubleFlag(results, 'fructose');
-    final caffeine = _parseDoubleFlag(results, 'caffeine');
-    final water = _parseDoubleFlag(results, 'water');
+    final glucose = parseDoubleFlag(results, 'glucose');
+    final fructose = parseDoubleFlag(results, 'fructose');
+    final caffeine = parseDoubleFlag(results, 'caffeine');
+    final water = parseDoubleFlag(results, 'water');
     final force = results['force'] as bool;
 
     final slug = slugify(rawName);
@@ -368,11 +353,11 @@ class _ProductsEditCommand extends Command<void> {
       );
     }
 
-    final newCarbs = _parseDoubleFlag(results, 'carbs');
-    final newGlucose = _parseDoubleFlag(results, 'glucose');
-    final newFructose = _parseDoubleFlag(results, 'fructose');
-    final newCaffeine = _parseDoubleFlag(results, 'caffeine');
-    final newWater = _parseDoubleFlag(results, 'water');
+    final newCarbs = parseDoubleFlag(results, 'carbs');
+    final newGlucose = parseDoubleFlag(results, 'glucose');
+    final newFructose = parseDoubleFlag(results, 'fructose');
+    final newCaffeine = parseDoubleFlag(results, 'caffeine');
+    final newWater = parseDoubleFlag(results, 'water');
     final newName = results['name'] as String?;
     final newBrand = results['brand'] as String?;
     final newServing = results['serving'] as String?;

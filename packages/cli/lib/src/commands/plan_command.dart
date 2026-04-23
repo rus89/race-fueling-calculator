@@ -2,12 +2,12 @@
 // ABOUTME: 'fuel plan products add/list' subcommands managing race fueling plans.
 import 'dart:io';
 
-import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:race_fueling_core/core.dart';
 
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
+import '../cli/flag_parsers.dart';
 import '../cli/slugify.dart';
 import '../cli/tty.dart';
 import '../formatting/plain_plan.dart';
@@ -35,34 +35,6 @@ class PlanCommand extends Command<void> {
 
   @override
   final String description = 'Create and manage race fueling plans';
-}
-
-/// Parses a numeric CLI flag. Returns null if the flag was not supplied.
-/// Throws [UsageException] with an actionable message on parse failure.
-double? _parseDoubleFlag(ArgResults results, String flag) {
-  final raw = results[flag] as String?;
-  if (raw == null) return null;
-  final parsed = double.tryParse(raw);
-  if (parsed == null) {
-    throw UsageException(
-      'Expected a number for --$flag, got "$raw"',
-      'Pass --$flag <number>.',
-    );
-  }
-  return parsed;
-}
-
-int? _parseIntFlag(ArgResults results, String flag) {
-  final raw = results[flag] as String?;
-  if (raw == null) return null;
-  final parsed = int.tryParse(raw);
-  if (parsed == null) {
-    throw UsageException(
-      'Expected an integer for --$flag, got "$raw"',
-      'Pass --$flag <integer>.',
-    );
-  }
-  return parsed;
 }
 
 Strategy _parseStrategy(String raw) {
@@ -192,7 +164,7 @@ class _PlanCreateCommand extends Command<void> {
       return;
     }
 
-    final target = _parseDoubleFlag(results, 'target');
+    final target = parseDoubleFlag(results, 'target');
     if (target == null || target <= 0) {
       exitWith(
         kExitUsage,
@@ -201,12 +173,12 @@ class _PlanCreateCommand extends Command<void> {
       return;
     }
 
-    final interval = _parseIntFlag(results, 'interval');
-    final intervalKm = _parseDoubleFlag(results, 'interval-km');
-    final distance = _parseDoubleFlag(results, 'distance');
-    final temperature = _parseDoubleFlag(results, 'temp');
-    final humidity = _parseDoubleFlag(results, 'humidity');
-    final altitude = _parseDoubleFlag(results, 'altitude');
+    final interval = parseIntFlag(results, 'interval');
+    final intervalKm = parseDoubleFlag(results, 'interval-km');
+    final distance = parseDoubleFlag(results, 'distance');
+    final temperature = parseDoubleFlag(results, 'temp');
+    final humidity = parseDoubleFlag(results, 'humidity');
+    final altitude = parseDoubleFlag(results, 'altitude');
     final force = results['force'] as bool;
 
     if (mode == TimelineMode.timeBased) {
