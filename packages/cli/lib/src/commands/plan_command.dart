@@ -544,18 +544,39 @@ class _PlanProductsAddCommand extends Command<void> {
           exitCode = kExitUsage;
           return;
         case ProductMatchSingle(:final product):
-          final updatedSelections = [
-            ...config.selectedProducts,
-            ProductSelection(
-              productId: product.id,
-              quantity: quantity,
-            ),
-          ];
-          final updated = config.copyWith(selectedProducts: updatedSelections);
-          await _storage.savePlan(planName, updated);
-          stdout.writeln(
-            'Added ${product.name} x$quantity to plan "$planName".',
-          );
+          final existingIndex = config.selectedProducts
+              .indexWhere((sel) => sel.productId == product.id);
+          if (existingIndex >= 0) {
+            final existing = config.selectedProducts[existingIndex];
+            final mergedQuantity = existing.quantity + quantity;
+            final updatedSelections = [...config.selectedProducts];
+            updatedSelections[existingIndex] = ProductSelection(
+              productId: existing.productId,
+              quantity: mergedQuantity,
+              isAidStationOnly: existing.isAidStationOnly,
+            );
+            final updated =
+                config.copyWith(selectedProducts: updatedSelections);
+            await _storage.savePlan(planName, updated);
+            stdout.writeln(
+              'Updated "${product.name}" in plan "$planName": '
+              'quantity now $mergedQuantity.',
+            );
+          } else {
+            final updatedSelections = [
+              ...config.selectedProducts,
+              ProductSelection(
+                productId: product.id,
+                quantity: quantity,
+              ),
+            ];
+            final updated =
+                config.copyWith(selectedProducts: updatedSelections);
+            await _storage.savePlan(planName, updated);
+            stdout.writeln(
+              'Added ${product.name} x$quantity to plan "$planName".',
+            );
+          }
       }
     });
   }
