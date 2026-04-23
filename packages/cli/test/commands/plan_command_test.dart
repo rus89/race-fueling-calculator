@@ -620,6 +620,106 @@ void main() {
       expect(captured.stdout, isEmpty);
     });
 
+    test(
+        'adding the same product twice merges quantities into a single row '
+        'and reports the total', () async {
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '3h',
+          '--target',
+          '75',
+        ]);
+        await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '5',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '3',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isEmpty);
+      expect(captured.stdout, contains('Updated'));
+      expect(captured.stdout, contains('Maurten Gel 100'));
+      expect(captured.stdout, contains('8'));
+
+      final loaded = await storage.loadPlan('foo');
+      expect(loaded!.selectedProducts, hasLength(1));
+      expect(loaded.selectedProducts.first.productId, 'maurten-gel-100');
+      expect(loaded.selectedProducts.first.quantity, 8);
+    });
+
+    test(
+        'adding two different products keeps both rows and uses "Added" '
+        'wording for each', () async {
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '3h',
+          '--target',
+          '75',
+        ]);
+      });
+
+      final first = await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '5',
+        ]);
+      });
+      final second = await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Drink Mix 320',
+          '--plan',
+          'foo',
+          '--quantity',
+          '2',
+        ]);
+      });
+
+      expect(first.stdout, contains('Added'));
+      expect(second.stdout, contains('Added'));
+
+      final loaded = await storage.loadPlan('foo');
+      expect(loaded!.selectedProducts, hasLength(2));
+    });
+
     test('persists a ProductSelection with the built-in id and quantity',
         () async {
       await captureOutput(() async {
