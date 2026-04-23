@@ -440,14 +440,17 @@ void main() {
       expect(captured.stdout, contains('beta'));
     });
 
-    test('with no saved plans prints "No saved plans" to stdout', () async {
+    test(
+        'with no saved plans leaves stdout empty and prints the hint to '
+        'stderr', () async {
       late final int code;
       final captured = await captureOutput(() async {
         code = await runFuel(buildRunner(), ['plan', 'list']);
       });
 
       expect(code, kExitSuccess);
-      expect(captured.stdout, contains('No saved plans'));
+      expect(captured.stdout, isEmpty);
+      expect(captured.stderr, contains('No saved plans'));
     });
   });
 
@@ -764,7 +767,8 @@ void main() {
   });
 
   group('plan products list', () {
-    test('on empty plan prints "No products in plan" to stdout', () async {
+    test('on empty plan leaves stdout empty and prints the hint to stderr',
+        () async {
       await captureOutput(() async {
         await runFuel(buildRunner(), [
           'plan',
@@ -790,8 +794,8 @@ void main() {
       });
 
       expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
-      expect(captured.stdout, contains('No products in plan'));
+      expect(captured.stdout, isEmpty);
+      expect(captured.stderr, contains('No products in plan'));
     });
 
     test('on populated plan prints each entry with name and quantity',
