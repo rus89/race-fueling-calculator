@@ -303,7 +303,7 @@ class _PlanListCommand extends Command<void> {
     await withFriendlyErrors(() async {
       final plans = await _storage.listPlans();
       if (plans.isEmpty) {
-        stdout.writeln('No saved plans.');
+        stderr.writeln('No saved plans.');
         return;
       }
       final sorted = [...plans]..sort();
@@ -617,7 +617,7 @@ class _PlanProductsListCommand extends Command<void> {
         return;
       }
       if (config.selectedProducts.isEmpty) {
-        stdout.writeln('No products in plan "$planName".');
+        stderr.writeln('No products in plan "$planName".');
         return;
       }
 
