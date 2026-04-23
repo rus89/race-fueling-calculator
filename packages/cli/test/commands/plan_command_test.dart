@@ -402,6 +402,38 @@ void main() {
       expect(loaded, isNotNull);
       expect(loaded!.name, 'Foo');
     });
+
+    group('environmental flag help text', () {
+      String? helpFor(String flag) {
+        final plan = PlanCommand(storage);
+        final create = plan.subcommands['create']!;
+        return create.argParser.options[flag]?.help;
+      }
+
+      test('--temp help presents -20 to 50 as typical, not enforced', () {
+        final help = helpFor('temp');
+        expect(help, isNotNull);
+        expect(help, contains('optional'));
+        expect(help, contains('typical'));
+        expect(help, contains('-20 to 50'));
+      });
+
+      test('--humidity help presents 0 to 100 as typical, not enforced', () {
+        final help = helpFor('humidity');
+        expect(help, isNotNull);
+        expect(help, contains('optional'));
+        expect(help, contains('typical'));
+        expect(help, contains('0 to 100'));
+      });
+
+      test('--altitude help presents 0 to 6000 as typical, not enforced', () {
+        final help = helpFor('altitude');
+        expect(help, isNotNull);
+        expect(help, contains('optional'));
+        expect(help, contains('typical'));
+        expect(help, contains('0 to 6000'));
+      });
+    });
   });
 
   group('plan list', () {
