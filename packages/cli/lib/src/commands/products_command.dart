@@ -8,6 +8,7 @@ import 'package:race_fueling_core/core.dart';
 
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
+import '../cli/slugify.dart';
 import '../cli/tty.dart';
 import '../products/product_resolver.dart';
 import '../prompts/interactive.dart';
@@ -33,13 +34,6 @@ class ProductsCommand extends Command<void> {
 
   @override
   final String description = 'Manage your nutrition product library';
-}
-
-/// Converts a human name to a URL-safe slug for product IDs.
-String _slugify(String name) {
-  final lower = name.toLowerCase();
-  final hyphenated = lower.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-  return hyphenated.replaceAll(RegExp(r'^-+|-+$'), '');
 }
 
 ProductType _parseType(String raw) {
@@ -283,7 +277,7 @@ class _ProductsAddCommand extends Command<void> {
     final water = _parseDoubleFlag(results, 'water');
     final force = results['force'] as bool;
 
-    final slug = _slugify(rawName);
+    final slug = slugify(rawName);
     if (slug.isEmpty) {
       throw UsageException(
         '--name must contain at least one alphanumeric character, got '

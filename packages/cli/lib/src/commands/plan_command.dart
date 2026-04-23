@@ -8,6 +8,7 @@ import 'package:race_fueling_core/core.dart';
 
 import '../cli/errors.dart';
 import '../cli/exit_codes.dart';
+import '../cli/slugify.dart';
 import '../cli/tty.dart';
 import '../formatting/plain_plan.dart';
 import '../products/product_resolver.dart';
@@ -34,13 +35,6 @@ class PlanCommand extends Command<void> {
 
   @override
   final String description = 'Create and manage race fueling plans';
-}
-
-/// Converts a human race name into a filesystem-safe slug.
-String _slugify(String name) {
-  final lower = name.toLowerCase();
-  final hyphenated = lower.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-  return hyphenated.replaceAll(RegExp(r'^-+|-+$'), '');
 }
 
 /// Parses a numeric CLI flag. Returns null if the flag was not supplied.
@@ -237,7 +231,7 @@ class _PlanCreateCommand extends Command<void> {
       }
     }
 
-    final slug = _slugify(rawName!);
+    final slug = slugify(rawName!);
     if (slug.isEmpty) {
       throw UsageException(
         '--name must contain at least one alphanumeric character, got '
