@@ -764,6 +764,103 @@ void main() {
       expect(loaded.selectedProducts.first.productId, 'maurten-gel-100');
       expect(loaded.selectedProducts.first.quantity, 5);
     });
+
+    test('rejects non-numeric --quantity with kExitUsage naming the flag',
+        () async {
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '3h',
+          '--target',
+          '75',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          'abc',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('--quantity'));
+    });
+
+    test('rejects --quantity 0 with kExitUsage', () async {
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '3h',
+          '--target',
+          '75',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '0',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('positive'));
+    });
+
+    test('rejects --quantity -1 with kExitUsage', () async {
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '3h',
+          '--target',
+          '75',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '-1',
+        ]);
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('positive'));
+    });
   });
 
   group('plan products list', () {
@@ -964,6 +1061,51 @@ void main() {
       expect(captured.stderr, contains('caffeine'));
       expect(captured.stderr, contains('bodyWeightKg'));
       // Plan still generates to stdout.
+      expect(captured.stdout, isNotEmpty);
+    });
+
+    test(
+        'does not emit caffeine advisory when bodyWeightKg is null and no '
+        'selected product has caffeine', () async {
+      await seedProfile(weightKg: null);
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '2h',
+          '--target',
+          '75',
+          '--interval',
+          '30',
+        ]);
+        // Maurten Gel 100 (non-caffeinated) rather than the CAF 100 variant.
+        await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '5',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(buildRunner(), [
+          'plan',
+          'generate',
+          '--plan',
+          'foo',
+        ]);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stderr, isNot(contains('caffeine')));
       expect(captured.stdout, isNotEmpty);
     });
   });
