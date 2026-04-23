@@ -1065,6 +1065,30 @@ void main() {
     });
 
     test(
+        'invocation text names the positional for plan show/delete and '
+        'plan products add', () {
+      // `args` prints usage via Zone.print so we can't capture it through
+      // IOOverrides. Reach into the commands directly to verify the
+      // documented invocation includes the positional.
+      final runner = buildRunner();
+      final plan = runner.commands['plan'];
+      if (plan == null) {
+        fail('Expected plan command to be registered.');
+      }
+      final show = plan.subcommands['show'];
+      final del = plan.subcommands['delete'];
+      final products = plan.subcommands['products'];
+      if (show == null || del == null || products == null) {
+        fail('Expected show/delete/products subcommands on plan.');
+      }
+      final add = products.subcommands['add'];
+      if (add == null) fail('Expected add subcommand on plan products.');
+      expect(show.invocation, contains('<plan-name>'));
+      expect(del.invocation, contains('<plan-name>'));
+      expect(add.invocation, contains('<product>'));
+    });
+
+    test(
         'does not emit caffeine advisory when bodyWeightKg is null and no '
         'selected product has caffeine', () async {
       await seedProfile(weightKg: null);

@@ -58,9 +58,18 @@ class _PlanCreateCommand extends Command<void> {
         _readLine = readLine {
     argParser
       ..addOption('name', help: 'Race name (also used to derive the plan id).')
-      ..addOption('duration', help: 'Expected duration (e.g. 3h30m or 2:45).')
-      ..addOption('distance', help: 'Distance in km (distance mode).')
-      ..addOption('target', help: 'Target carbs g/hr.')
+      ..addOption(
+        'duration',
+        help: 'Expected duration. Format: 3h30m or 2:30:00.',
+      )
+      ..addOption(
+        'distance',
+        help: 'Distance in km (required when --mode distance).',
+      )
+      ..addOption(
+        'target',
+        help: 'Target carbs per hour in g/hr (typical: 30–120).',
+      )
       ..addOption(
         'strategy',
         help: 'Distribution strategy (steady, front-load, back-load).',
@@ -68,7 +77,7 @@ class _PlanCreateCommand extends Command<void> {
       )
       ..addOption(
         'interval',
-        help: 'Interval in minutes (time mode).',
+        help: 'Time interval in minutes (default 20, must be positive).',
         defaultsTo: '20',
       )
       ..addOption(
@@ -78,17 +87,31 @@ class _PlanCreateCommand extends Command<void> {
       )
       ..addOption(
         'interval-km',
-        help: 'Interval in km (distance mode).',
+        help: 'Distance interval in km (default 10 when --mode distance).',
       )
-      ..addOption('temp', help: 'Temperature in °C.')
-      ..addOption('humidity', help: 'Relative humidity %.')
-      ..addOption('altitude', help: 'Altitude in meters.')
+      ..addOption(
+        'temp',
+        help: 'Race temperature in °C (optional, -20 to 50).',
+      )
+      ..addOption(
+        'humidity',
+        help: 'Relative humidity % (optional, 0 to 100).',
+      )
+      ..addOption(
+        'altitude',
+        help: 'Race altitude in m (optional, 0 to 6000).',
+      )
       ..addFlag(
         'force',
         negatable: false,
         help: 'Overwrite an existing plan with the same derived slug.',
       );
   }
+
+  @override
+  String get usageFooter =>
+      '\nRun without --name/--duration/--target in a terminal to be '
+      'prompted for the missing fields.';
 
   final StorageAdapter _storage;
   final IsTtyProbe _isTty;
@@ -326,6 +349,9 @@ class _PlanShowCommand extends Command<void> {
   final String description = 'Show details of a saved plan';
 
   @override
+  String get invocation => 'fuel plan show <plan-name>';
+
+  @override
   Future<void> run() async {
     final results = argResults;
     if (results == null) {
@@ -399,6 +425,9 @@ class _PlanDeleteCommand extends Command<void> {
   final String description = 'Delete a saved plan';
 
   @override
+  String get invocation => 'fuel plan delete <plan-name> [--yes]';
+
+  @override
   Future<void> run() async {
     final results = argResults;
     if (results == null) {
@@ -429,6 +458,9 @@ class _PlanDeleteCommand extends Command<void> {
           );
           return;
         }
+        // TODO(ux): summarise the plan's key fields in the delete prompt so
+        // the user can spot an accidental wrong-slug delete. The current
+        // prompt only shows the slug.
         try {
           final confirmed = promptBool(
             'Delete plan "$planName"?',
@@ -474,7 +506,11 @@ class _PlanProductsAddCommand extends Command<void> {
   _PlanProductsAddCommand(this._storage) {
     argParser
       ..addOption('plan', help: 'Plan slug (as shown by `fuel plan list`).')
-      ..addOption('quantity', abbr: 'q', help: 'Servings carried.');
+      ..addOption(
+        'quantity',
+        abbr: 'q',
+        help: 'Quantity carried (positive integer).',
+      );
   }
 
   final StorageAdapter _storage;
@@ -484,6 +520,10 @@ class _PlanProductsAddCommand extends Command<void> {
 
   @override
   final String description = 'Add a product to a plan';
+
+  @override
+  String get invocation =>
+      'fuel plan products add <product> --plan <slug> --quantity N';
 
   @override
   Future<void> run() async {
