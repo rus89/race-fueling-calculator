@@ -416,3 +416,25 @@ Catalogued 2026-04-28 from `dart-quality-reviewer` pass on the merged Phase 6 wo
     - "Plan not found" uses `kExitUsage` (lines 371, 448, 571, 657, 708); "No profile found" uses `kExitData` (`profile_command.dart:204, 263`; `plan_command.dart:721`)
     - Both are defensible (plan = user typo → usage; profile = data missing → data error), but the convention should be either unified or documented
     - Fix: pick one rule and apply it consistently, or add a one-line decision note here
+
+### Phase 7 Plan Review (Medium Priority)
+
+Catalogued 2026-04-28 from a `/plan-review` pass on the Phase 7 amendments in `docs/superpowers/plans/v1.md`. Critical/High gaps were patched into the plan in the same session; these Medium items are deferred to the cleanup pass.
+
+23. **Color contract under captured stdout — pin the assumption** (Phase 7 cross-cutting rule 1)
+    - Inside `dart test`, `stdout.supportsAnsiEscapes` reports `false`, so `resolveColorMode(noColorFlag: false)` correctly returns `false` and existing `captureOutput` tests stay clean
+    - This works today but is implicit; a config change (e.g. running tests with `--reporter=expanded` on a TTY-attached runner) could cause ANSI to leak into existing assertions
+    - Fix: add a unit test for `resolveColorMode` that locks the precedence (`--no-color` → `NO_COLOR` env → `stdout.supportsAnsiEscapes`), and a CI smoke test that runs the suite with stdout redirected to confirm no ANSI bleeds
+
+24. **Phase 8 barrel export still references `plain_plan.dart`** (Phase 8 Task 8.1)
+    - Task 7.4 deletes `plain_plan.dart`, but Task 8.1 (CLI barrel exports) was written when it was the active formatter; if Task 8.1 lists it among exports, the build breaks
+    - Fix: when starting Phase 8, audit Task 8.1's export list — replace any `plain_plan.dart` reference with `plan_table.dart` and `summary_block.dart`
+
+25. **G:F ratio direction is undocumented in the formatter** (`summary_block.dart`, after Task 7.3 lands)
+    - Engine stores ratio as `fructose / glucose` (`plan_engine.dart:82`); label `'1:${ratio}'` reads correctly as glucose:fructose. The patched Task 7.3 snippet adds an ABOUTME line documenting this, but the contract is one inadvertent inversion away from being silently wrong
+    - Fix: in the cleanup pass, add a unit test pinning `formatSummaryBlock` against a known glucose=10 / fructose=8 plan asserting `'1:0.80'` exactly. Catches any future formula flip in the engine
+
+26. **Dead Phase 6 snippet still calls `print(formatPlanTable/SummaryBlock)`** (`v1.md` lines ~4497-4499)
+    - The pre-amendment Phase 6 snippet at those lines still shows `print(...)` which conflicts with the Phase 7 cross-cutting rule "No `print()`"
+    - Phase 6 is shipped so this is dead text, but it's a footgun for any reader skimming the plan top-down
+    - Fix: in the cleanup pass, strike through or annotate the Phase 6 snippet block to flag it as superseded
