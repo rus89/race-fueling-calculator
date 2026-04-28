@@ -66,6 +66,148 @@ void main() {
       final restored = Product.fromJson(json);
       expect(restored, equals(product));
     });
+
+    test('copyWith with no args returns an equal instance', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(), equals(product));
+    });
+
+    test('copyWith updates a single field', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        caffeineMg: 40.0,
+      );
+      final updated = product.copyWith(caffeineMg: 80.0);
+      expect(updated.caffeineMg, 80.0);
+      expect(updated.id, 'gel-1');
+      expect(updated.carbsPerServing, 25.0);
+    });
+
+    test('copyWith preserves isBuiltIn flag', () {
+      final builtIn = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        isBuiltIn: true,
+      );
+      final updated = builtIn.copyWith(name: 'Renamed Gel');
+      expect(updated.isBuiltIn, true);
+    });
+
+    test('copyWith can promote a built-in to a user override', () {
+      final builtIn = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        isBuiltIn: true,
+      );
+      final override = builtIn.copyWith(
+        id: 'user-gel-1',
+        isBuiltIn: false,
+        carbsPerServing: 30.0,
+      );
+      expect(override.id, 'user-gel-1');
+      expect(override.isBuiltIn, false);
+      expect(override.carbsPerServing, 30.0);
+    });
+
+    // The standard `?? this.field` pattern means passing null explicitly is
+    // indistinguishable from omitting the argument.
+    test('copyWith preserves brand when null is passed explicitly', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        brand: 'Acme',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(brand: null).brand, 'Acme');
+    });
+
+    test('copyWith preserves servingDescription when null is passed explicitly',
+        () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+        servingDescription: '1 gel',
+      );
+      expect(product.copyWith(servingDescription: null).servingDescription,
+          '1 gel');
+    });
+
+    test('copyWith updates brand', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(brand: 'Brand').brand, 'Brand');
+    });
+
+    test('copyWith updates type', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(
+          product.copyWith(type: ProductType.liquid).type, ProductType.liquid);
+    });
+
+    test('copyWith updates glucoseGrams', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(glucoseGrams: 20.0).glucoseGrams, 20.0);
+    });
+
+    test('copyWith updates fructoseGrams', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(fructoseGrams: 10.0).fructoseGrams, 10.0);
+    });
+
+    test('copyWith updates waterRequiredMl', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(waterRequiredMl: 200.0).waterRequiredMl, 200.0);
+    });
+
+    test('copyWith updates servingDescription', () {
+      final product = Product(
+        id: 'gel-1',
+        name: 'Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(product.copyWith(servingDescription: 'bottle').servingDescription,
+          'bottle');
+    });
   });
 
   group('ProductType', () {

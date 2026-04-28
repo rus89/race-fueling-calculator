@@ -21,7 +21,7 @@ Map<String, dynamic> _$ProductServingToJson(ProductServing instance) =>
     };
 
 PlanEntry _$PlanEntryFromJson(Map<String, dynamic> json) => PlanEntry(
-      timeMark: _durationFromJson((json['timeMark'] as num).toInt()),
+      timeMark: durationFromJson((json['timeMark'] as num).toInt()),
       distanceMark: (json['distanceMark'] as num?)?.toDouble(),
       products: (json['products'] as List<dynamic>)
           .map((e) => ProductServing.fromJson(e as Map<String, dynamic>))
@@ -39,7 +39,7 @@ PlanEntry _$PlanEntryFromJson(Map<String, dynamic> json) => PlanEntry(
     );
 
 Map<String, dynamic> _$PlanEntryToJson(PlanEntry instance) => <String, dynamic>{
-      'timeMark': _durationToJson(instance.timeMark),
+      'timeMark': durationToJson(instance.timeMark),
       'distanceMark': instance.distanceMark,
       'products': instance.products.map((e) => e.toJson()).toList(),
       'carbsGlucose': instance.carbsGlucose,

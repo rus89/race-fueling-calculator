@@ -1,14 +1,14 @@
-// ABOUTME: Merges built-in and user-created product lists, with user entries taking precedence by ID.
-// ABOUTME: Used at load time to build the unified product catalog available to the plan engine.
+// ABOUTME: Merges built-in and user-created product lists; user entries take
+// ABOUTME: precedence by id so a user product with the same id shadows a built-in.
 import '../models/product.dart';
 
-List<Product> mergeProducts(List<Product> builtIn, List<Product> userProducts) {
-  final userIds = {for (final p in userProducts) p.id};
-  final merged = <Product>[
-    // Built-ins not overridden by user
-    ...builtIn.where((p) => !userIds.contains(p.id)),
-    // All user products
+List<Product> mergeProducts(
+  List<Product> builtIn,
+  List<Product> userProducts,
+) {
+  final shadowedIds = {for (final p in userProducts) p.id};
+  return <Product>[
+    ...builtIn.where((p) => !shadowedIds.contains(p.id)),
     ...userProducts,
   ];
-  return merged;
 }

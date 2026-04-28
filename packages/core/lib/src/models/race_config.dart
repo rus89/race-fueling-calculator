@@ -2,6 +2,7 @@
 // ABOUTME: Includes strategy, timeline mode, product selections, and environmental conditions.
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'duration_converter.dart';
 
 part 'race_config.g.dart';
 
@@ -82,7 +83,7 @@ class CurveSegment extends Equatable {
 @JsonSerializable(explicitToJson: true)
 class RaceConfig extends Equatable {
   final String name;
-  @JsonKey(fromJson: _durationFromJson, toJson: _durationToJson)
+  @JsonKey(fromJson: durationFromJson, toJson: durationToJson)
   final Duration duration;
   final double? distanceKm;
   final TimelineMode timelineMode;
@@ -122,6 +123,41 @@ class RaceConfig extends Equatable {
 
   Map<String, dynamic> toJson() => _$RaceConfigToJson(this);
 
+  RaceConfig copyWith({
+    String? name,
+    Duration? duration,
+    double? distanceKm,
+    TimelineMode? timelineMode,
+    int? intervalMinutes,
+    double? intervalKm,
+    double? targetCarbsGPerHr,
+    Strategy? strategy,
+    List<CurveSegment>? customCurve,
+    List<ProductSelection>? selectedProducts,
+    List<AidStation>? aidStations,
+    double? temperature,
+    double? humidity,
+    double? altitudeM,
+  }) {
+    return RaceConfig(
+      name: name ?? this.name,
+      duration: duration ?? this.duration,
+      distanceKm: distanceKm ?? this.distanceKm,
+      timelineMode: timelineMode ?? this.timelineMode,
+      intervalMinutes: intervalMinutes ?? this.intervalMinutes,
+      intervalKm: intervalKm ?? this.intervalKm,
+      targetCarbsGPerHr: targetCarbsGPerHr ?? this.targetCarbsGPerHr,
+      strategy: strategy ?? this.strategy,
+      customCurve: customCurve ?? this.customCurve,
+      selectedProducts: selectedProducts ?? this.selectedProducts,
+      aidStations: aidStations ?? this.aidStations,
+      temperature: temperature ?? this.temperature,
+      humidity: humidity ?? this.humidity,
+      altitudeM: altitudeM ?? this.altitudeM,
+      schemaVersion: schemaVersion,
+    );
+  }
+
   @override
   List<Object?> get props => [
         name,
@@ -140,6 +176,3 @@ class RaceConfig extends Equatable {
         altitudeM,
       ];
 }
-
-Duration _durationFromJson(int minutes) => Duration(minutes: minutes);
-int _durationToJson(Duration duration) => duration.inMinutes;

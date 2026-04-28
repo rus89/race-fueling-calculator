@@ -2,6 +2,7 @@
 // ABOUTME: Produced by the plan engine and rendered by the CLI formatter.
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'duration_converter.dart';
 import 'race_config.dart';
 import 'warning.dart';
 
@@ -30,7 +31,7 @@ class ProductServing extends Equatable {
 
 @JsonSerializable(explicitToJson: true)
 class PlanEntry extends Equatable {
-  @JsonKey(fromJson: _durationFromJson, toJson: _durationToJson)
+  @JsonKey(fromJson: durationFromJson, toJson: durationToJson)
   final Duration timeMark;
   final double? distanceMark;
   final List<ProductServing> products;
@@ -131,6 +132,3 @@ class FuelingPlan extends Equatable {
   @override
   List<Object?> get props => [raceConfig, entries, summary, warnings];
 }
-
-Duration _durationFromJson(int minutes) => Duration(minutes: minutes);
-int _durationToJson(Duration duration) => duration.inMinutes;

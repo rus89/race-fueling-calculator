@@ -5,6 +5,10 @@ import '../models/product.dart';
 import '../models/race_config.dart';
 
 abstract class StorageAdapter {
+  /// Root directory for persisted data. CLI commands use this to report where
+  /// files live; platform adapters can return a sentinel path.
+  String get baseDir;
+
   Future<AthleteProfile?> loadProfile();
   Future<void> saveProfile(AthleteProfile profile);
   Future<List<Product>> loadUserProducts();

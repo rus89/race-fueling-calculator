@@ -87,5 +87,289 @@ void main() {
       final restored = RaceConfig.fromJson(json);
       expect(restored, equals(config));
     });
+
+    test('copyWith with no args returns an equal instance', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [
+          ProductSelection(productId: 'gel-1', quantity: 6),
+        ],
+      );
+      expect(config.copyWith(), equals(config));
+    });
+
+    test('copyWith appends a ProductSelection', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [
+          ProductSelection(productId: 'gel-1', quantity: 6),
+        ],
+      );
+      final updated = config.copyWith(
+        selectedProducts: [
+          ...config.selectedProducts,
+          ProductSelection(productId: 'gel-2', quantity: 3),
+        ],
+      );
+      expect(updated.selectedProducts.length, 2);
+      expect(updated.selectedProducts.last.productId, 'gel-2');
+      expect(updated.name, 'Test');
+    });
+
+    test('copyWith preserves aidStations and nullable fields when omitted', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 75.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [AidStation(distanceKm: 40.0)],
+        altitudeM: 2000.0,
+      );
+      final updated = config.copyWith(targetCarbsGPerHr: 90.0);
+      expect(updated.aidStations.length, 1);
+      expect(updated.altitudeM, 2000.0);
+      expect(updated.distanceKm, 100.0);
+      expect(updated.targetCarbsGPerHr, 90.0);
+    });
+
+    test('copyWith preserves schemaVersion', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith().schemaVersion, config.schemaVersion);
+    });
+
+    // The standard `?? this.field` pattern means passing null explicitly to
+    // copyWith is indistinguishable from omitting the argument — both keep
+    // the existing value. These tests pin that contract so callers cannot
+    // rely on null to mean "clear the field".
+    test('copyWith preserves distanceKm when null is passed explicitly', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 75.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(distanceKm: null).distanceKm, 100.0);
+    });
+
+    test('copyWith preserves intervalMinutes when null is passed explicitly',
+        () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(intervalMinutes: null).intervalMinutes, 20);
+    });
+
+    test('copyWith preserves intervalKm when null is passed explicitly', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(intervalKm: null).intervalKm, 10.0);
+    });
+
+    test('copyWith preserves temperature when null is passed explicitly', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        temperature: 25.0,
+      );
+      expect(config.copyWith(temperature: null).temperature, 25.0);
+    });
+
+    test('copyWith preserves humidity when null is passed explicitly', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        humidity: 50.0,
+      );
+      expect(config.copyWith(humidity: null).humidity, 50.0);
+    });
+
+    test('copyWith preserves altitudeM when null is passed explicitly', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        altitudeM: 2000.0,
+      );
+      expect(config.copyWith(altitudeM: null).altitudeM, 2000.0);
+    });
+
+    test('copyWith preserves customCurve when null is passed explicitly', () {
+      final curve = [CurveSegment(durationMinutes: 60, targetGPerHr: 80.0)];
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: curve,
+      );
+      expect(config.copyWith(customCurve: null).customCurve, curve);
+    });
+
+    test('copyWith updates strategy', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(strategy: Strategy.backLoad).strategy,
+          Strategy.backLoad);
+    });
+
+    test('copyWith updates intervalMinutes', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(intervalMinutes: 30).intervalMinutes, 30);
+    });
+
+    test('copyWith updates temperature', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(temperature: 30.0).temperature, 30.0);
+    });
+
+    test('copyWith updates humidity', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(humidity: 60.0).humidity, 60.0);
+    });
+
+    test('copyWith updates distanceKm', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(distanceKm: 50.0).distanceKm, 50.0);
+    });
+
+    test('copyWith updates duration', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(duration: Duration(hours: 4)).duration,
+          Duration(hours: 4));
+    });
+
+    test('copyWith updates name', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(name: 'Renamed').name, 'Renamed');
+    });
+
+    test('copyWith updates timelineMode', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(
+          config
+              .copyWith(timelineMode: TimelineMode.distanceBased)
+              .timelineMode,
+          TimelineMode.distanceBased);
+    });
   });
 }

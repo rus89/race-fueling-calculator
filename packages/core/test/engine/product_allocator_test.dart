@@ -131,5 +131,48 @@ void main() {
         true,
       );
     });
+
+    test('cumulativeCaffeine accumulates across slots', () {
+      final slots = [
+        TimeSlot(timeMark: Duration(minutes: 20)),
+        TimeSlot(timeMark: Duration(minutes: 40)),
+        TimeSlot(timeMark: Duration(minutes: 60)),
+      ];
+      final targets = [20.0, 20.0, 20.0];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
+
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [gel],
+        selections: selections,
+      );
+
+      // Each slot gets 1 gel (30mg caffeine each) → running total 30, 60, 90
+      expect(result.entries[0].cumulativeCaffeine, 30.0);
+      expect(result.entries[1].cumulativeCaffeine, 60.0);
+      expect(result.entries[2].cumulativeCaffeine, 90.0);
+    });
+
+    test(
+      'target 20g with 25g product over-allocates by 25% (ceil bug)',
+      () {
+        final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+        final targets = [20.0];
+        final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
+
+        final result = allocateProducts(
+          slots: slots,
+          targetCarbsPerSlot: targets,
+          products: [gel],
+          selections: selections,
+        );
+
+        // Desired: entries[0].carbsTotal close to 20 (0 or 1 gel, not 25g).
+        // Actual: product_allocator.dart uses .ceil(), so 20g/25g rounds up to 1 gel = 25g.
+        expect(result.entries[0].carbsTotal, lessThanOrEqualTo(20.0));
+      },
+      skip: 'KI-1: allocator uses .ceil(); Known Issue to fix in Phase 8',
+    );
   });
 }

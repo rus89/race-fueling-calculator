@@ -106,4 +106,50 @@ void main() {
       expect(aidSlots[0].distanceMark, 45.0);
     });
   });
+
+  group('buildTimeline — boundary cases', () {
+    test(
+      'intervalMinutes == 0 should not infinite-loop',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 2),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 0,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+        );
+        // Desired: either throws ArgumentError or falls back to a sane default.
+        // Actual: for-loop `min += 0` never terminates.
+        expect(() => buildTimeline(config), throwsA(anything));
+      },
+      skip: 'KI-2: zero interval causes infinite loop; fix in Phase 8',
+    );
+
+    test(
+      'distanceKm == 0 should not produce a timeline of time-zero slots',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 5),
+          distanceKm: 0.0,
+          timelineMode: TimelineMode.distanceBased,
+          intervalKm: 10.0,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+          aidStations: [AidStation(distanceKm: 50.0)],
+        );
+        // Desired: either throws ArgumentError, returns [], or places the aid
+        // station at a sensible timeMark derived from a defaulted pace.
+        // Actual: paceMinPerKm falls back to 0, so the aid station collapses
+        // to timeMark 0 — that's the bug this test will catch when unskipped.
+        final slots = buildTimeline(config);
+        final aidSlots = slots.where((s) => s.isAidStation).toList();
+        expect(aidSlots, isEmpty);
+      },
+      skip: 'KI-5: zero distance yields nonsensical timeline; fix in Phase 8',
+    );
+  });
 }

@@ -53,5 +53,21 @@ void main() {
       final merged = mergeProducts(builtIn, userProducts);
       expect(merged.length, 3);
     });
+
+    test('user-prefixed id does NOT shadow a built-in with the bare id', () {
+      // Naming convention is a CLI concern. mergeProducts must only shadow
+      // built-ins when a user product reuses the built-in's exact id.
+      final userProducts = [
+        Product(
+            id: 'user-gel-1',
+            name: 'Unrelated user product',
+            type: ProductType.gel,
+            carbsPerServing: 30),
+      ];
+      final merged = mergeProducts(builtIn, userProducts);
+      expect(merged.length, 3);
+      expect(merged.any((p) => p.id == 'gel-1'), isTrue);
+      expect(merged.any((p) => p.id == 'user-gel-1'), isTrue);
+    });
   });
 }

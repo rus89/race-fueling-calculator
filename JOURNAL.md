@@ -321,6 +321,7 @@ Catalogued during full code quality review (2026-04-07). Do not fix mid-stream; 
 2. **Zero interval causes infinite loop** (`timeline_builder.dart`)
    - If `intervalMinutes` is explicitly set to 0, `for (var min = 0; min <= totalMin; min += 0)` never exits
    - No guard against this. Fix: validate interval > 0 at entry point
+   - **CLI-guarded since Task 6.4** (`plan_command.dart` rejects `--interval 0` / `--interval-km 0` with `kExitUsage`). Core-layer fix still pending.
 
 3. **Custom carb curve incomplete → silent fallback** (`carb_distributor.dart`)
    - If curve segments don't cover full race duration, falls back to base rate silently
@@ -334,6 +335,7 @@ Catalogued during full code quality review (2026-04-07). Do not fix mid-stream; 
 5. **Zero distance causes nonsensical timeline** (`timeline_builder.dart:61`)
    - `paceMinPerKm = totalKm > 0 ? totalMin / totalKm : 0.0` — if distance is 0, all slots get `timeMark = Duration(0)`
    - Allocator still runs, producing a broken plan with no warnings
+   - **CLI-guarded since Task 6.4** (`plan_command.dart` rejects `--distance 0` in distance mode with `kExitUsage`). Core-layer fix still pending.
 
 ### Domain Logic Errors (High Priority)
 

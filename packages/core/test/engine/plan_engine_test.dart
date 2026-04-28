@@ -111,5 +111,110 @@ void main() {
 
       expect(plan.warnings, isNotEmpty);
     });
+
+    test('zero-duration race produces an empty plan', () {
+      final config = RaceConfig(
+        name: 'Zero',
+        duration: Duration.zero,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(plan.entries, isEmpty);
+      expect(plan.summary.totalCarbs, 0);
+      expect(plan.summary.averageGPerHr, 0);
+      expect(plan.summary.totalWaterMl, 0);
+    });
+
+    test('empty product catalog produces entries with no servings', () {
+      final config = RaceConfig(
+        name: 'Starved',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+      );
+
+      final plan = generatePlan(config, profile, const []);
+
+      expect(plan.entries, isNotEmpty);
+      expect(plan.entries.every((e) => e.products.isEmpty), true);
+      expect(plan.summary.totalCarbs, 0);
+    });
+
+    test('empty selectedProducts produces entries with no servings', () {
+      final config = RaceConfig(
+        name: 'Unpacked',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: const [],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(plan.entries, isNotEmpty);
+      expect(plan.entries.every((e) => e.products.isEmpty), true);
+      expect(plan.summary.totalCarbs, 0);
+    });
+
+    test('zero-duration race emits no warnings', () {
+      final config = RaceConfig(
+        name: 'Zero',
+        duration: Duration.zero,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(plan.warnings, isEmpty);
+    });
+
+    test('empty product catalog with selections warns product not found', () {
+      final config = RaceConfig(
+        name: 'Starved',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+      );
+
+      final plan = generatePlan(config, profile, const []);
+
+      // Selected product not found in catalog -> depletion-style warning.
+      expect(plan.warnings, hasLength(1));
+      expect(plan.warnings.first.message, contains('not found in library'));
+    });
+
+    test('empty selectedProducts with non-empty catalog emits no warnings', () {
+      final config = RaceConfig(
+        name: 'Unpacked',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: const [],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(plan.warnings, isEmpty);
+    });
   });
 }

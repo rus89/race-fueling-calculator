@@ -127,4 +127,44 @@ void main() {
       );
     });
   });
+
+  group('resolveDefaultBaseDir', () {
+    test('prefers FUEL_HOME when set', () {
+      final resolved = resolveDefaultBaseDir(
+        const {'FUEL_HOME': '/tmp/fuel', 'HOME': '/home/user'},
+      );
+      expect(resolved, '/tmp/fuel');
+    });
+
+    test('falls back to HOME/.race-fueling when FUEL_HOME is unset', () {
+      final resolved = resolveDefaultBaseDir(const {'HOME': '/home/user'});
+      expect(resolved, p.join('/home/user', '.race-fueling'));
+    });
+
+    test('falls back to ./.race-fueling when neither is set', () {
+      final resolved = resolveDefaultBaseDir(const {});
+      expect(resolved, p.join('.', '.race-fueling'));
+    });
+
+    test('ignores an empty FUEL_HOME', () {
+      final resolved = resolveDefaultBaseDir(
+        const {'FUEL_HOME': '', 'HOME': '/home/user'},
+      );
+      expect(resolved, p.join('/home/user', '.race-fueling'));
+    });
+
+    test('ignores a whitespace-only FUEL_HOME', () {
+      final resolved = resolveDefaultBaseDir(
+        const {'FUEL_HOME': '   ', 'HOME': '/home/user'},
+      );
+      expect(resolved, p.join('/home/user', '.race-fueling'));
+    });
+  });
+
+  group('FileStorageAdapter default construction', () {
+    test('constructs without args and resolves a .race-fueling baseDir', () {
+      final adapter = FileStorageAdapter();
+      expect(adapter.baseDir, contains('.race-fueling'));
+    });
+  });
 }
