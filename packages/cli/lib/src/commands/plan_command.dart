@@ -208,11 +208,17 @@ class _PlanCreateCommand extends Command<void> {
     final strategy = parseStrategyFlag(rawStrategy);
 
     if (resolvedDuration == null) {
-      final parsed = parseDuration(rawDuration!);
+      final raw = rawDuration;
+      if (raw == null) {
+        throw StateError(
+          'resolvedDuration is null only when --duration was provided',
+        );
+      }
+      final parsed = parseDuration(raw);
       if (parsed == null || parsed <= Duration.zero) {
         exitWith(
           kExitUsage,
-          '--duration must be positive, got "$rawDuration". '
+          '--duration must be positive, got "$raw". '
           'Use e.g. 3h30m or 2:45.',
         );
         return;
