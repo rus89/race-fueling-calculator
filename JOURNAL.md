@@ -387,3 +387,32 @@ Catalogued during full code quality review (2026-04-07). Do not fix mid-stream; 
 16. **Product library merge has no conflict validation** (`product_library.dart`)
     - User override replaces built-in by ID, but if user's product is missing glucose/fructose, the ratio changes silently
     - Fix: warn if user product is missing fields that the built-in had
+
+### Phase 6 CLI Quality Review (Medium Priority)
+
+Catalogued 2026-04-28 from `dart-quality-reviewer` pass on the merged Phase 6 work. Same directive: address in the dedicated cleanup pass, not mid-stream.
+
+17. **`plan_command.dart` is 753 lines** (`packages/cli/lib/src/commands/plan_command.dart`)
+    - Six subcommand classes plus the parent live in one file; under the 800 ceiling but past the 400 "consider splitting" mark
+    - Fix: split `_PlanCreateCommand`, `_PlanGenerateCommand`, and `_PlanProductsCommand` into their own files under `lib/src/commands/plan/`
+
+18. **`products_command.dart` is 567 lines** (`packages/cli/lib/src/commands/products_command.dart`)
+    - Six subcommands plus helpers in one file
+    - Fix: split into `lib/src/commands/products/`, separating read-only (list/show) from write (add/edit/remove/reset)
+
+19. **`plan_command_test.dart` is 1168 lines** (`packages/cli/test/commands/plan_command_test.dart`)
+    - Mixes plan-create, plan-list, plan-show, plan-delete, plan-products-add/list, and plan-generate tests; failures hard to navigate
+    - Fix: split along subcommand lines, mirroring whatever split lands for #17
+
+20. **Coverage gap — `_PlanProductsListCommand` plan-not-found path** (`plan_command.dart:655`)
+    - The `_storage.loadPlan(planName) == null` branch has no dedicated test
+    - Fix: add a test running `plan products list --plan nonexistent` asserting `kExitUsage` with "Plan not found"
+
+21. **Coverage gap — `_PlanShowCommand` silently accepts extra positionals** (`plan_command.dart:360`)
+    - `results.rest.first` is taken without checking `results.rest.length`; extra args are silently ignored
+    - Fix: either pin current behavior with a test or reject `rest.length > 1` — make the choice deliberate
+
+22. **Inconsistent "not found" exit codes** (`plan_command.dart` vs `profile_command.dart`)
+    - "Plan not found" uses `kExitUsage` (lines 371, 448, 571, 657, 708); "No profile found" uses `kExitData` (`profile_command.dart:204, 263`; `plan_command.dart:721`)
+    - Both are defensible (plan = user typo → usage; profile = data missing → data error), but the convention should be either unified or documented
+    - Fix: pick one rule and apply it consistently, or add a one-line decision note here
