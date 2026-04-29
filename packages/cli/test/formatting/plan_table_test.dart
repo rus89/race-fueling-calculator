@@ -194,7 +194,7 @@ void main() {
       expect(lines, hasLength(2));
       expect(lines[0], contains('Time'));
       expect(lines[0], contains('Product'));
-      expect(lines[1].startsWith('─'), isTrue);
+      expect(lines[1].startsWith('-'), isTrue);
     });
   });
 
@@ -345,12 +345,91 @@ void main() {
 
       // Header, divider, and both content rows must have identical
       // visible width.
-      final dividerIdx = lines.indexWhere((l) => l.startsWith('─'));
+      final dividerIdx = lines.indexWhere((l) => l.startsWith('-'));
       expect(dividerIdx, greaterThan(0));
       final dividerWidth = visibleWidth(lines[dividerIdx]);
       expect(visibleWidth(lines[dividerIdx - 1]), dividerWidth);
       expect(visibleWidth(lines[dividerIdx + 1]), dividerWidth);
       expect(visibleWidth(lines[dividerIdx + 2]), dividerWidth);
+    });
+  });
+
+  group('formatPlanTable — ASCII fallback under useColor: false', () {
+    FuelingPlan multiRowPlan() => FuelingPlan(
+          raceConfig: testConfig,
+          entries: [
+            entry(
+              timeMark: const Duration(minutes: 20),
+              products: [
+                ProductServing(
+                    productId: 'p1', productName: 'Gel A', servings: 1),
+              ],
+            ),
+            entry(
+              timeMark: const Duration(minutes: 40),
+              products: [
+                ProductServing(
+                    productId: 'p2', productName: 'Gel B', servings: 2),
+              ],
+              cumulativeCaffeine: 50.0,
+            ),
+          ],
+          summary: summary(),
+        );
+
+    test('uses ASCII pipe " | " separator and not Unicode " │ "', () {
+      final output = formatPlanTable(multiRowPlan(), useColor: false);
+
+      expect(output, contains(' | '));
+      expect(output, isNot(contains(' │ ')));
+    });
+
+    test('divider line is built from ASCII "-" characters', () {
+      final output = formatPlanTable(multiRowPlan(), useColor: false);
+
+      expect(output, contains('-' * 10));
+    });
+
+    test('output contains zero box-drawing characters', () {
+      final output = formatPlanTable(multiRowPlan(), useColor: false);
+
+      expect(output, isNot(matches(RegExp(r'[│─]'))));
+    });
+
+    test('divider and every content row share identical visible width', () {
+      final output = formatPlanTable(multiRowPlan(), useColor: false);
+      final lines = output.split('\n').where((l) => l.isNotEmpty).toList();
+      final dividerIdx = lines.indexWhere((l) => l.startsWith('-'));
+
+      expect(dividerIdx, greaterThan(0));
+      final dividerWidth = visibleWidth(lines[dividerIdx]);
+      // Header above the divider must match.
+      expect(visibleWidth(lines[dividerIdx - 1]), dividerWidth);
+      // Every content row below the divider must match.
+      for (var i = dividerIdx + 1; i < lines.length; i++) {
+        expect(visibleWidth(lines[i]), dividerWidth,
+            reason: 'row $i width mismatch');
+      }
+    });
+  });
+
+  group('formatPlanTable — Unicode glyphs under useColor: true', () {
+    test('divider line is built from Unicode "─" characters', () {
+      final plan = FuelingPlan(
+        raceConfig: testConfig,
+        entries: [
+          entry(products: [
+            ProductServing(
+                productId: 'gel-1', productName: 'Test Gel', servings: 1),
+          ]),
+        ],
+        summary: summary(),
+      );
+
+      final output = formatPlanTable(plan, useColor: true);
+
+      expect(output, contains('─' * 10));
+      expect(output, contains(' │ '));
     });
   });
 

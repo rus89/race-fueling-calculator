@@ -3,7 +3,9 @@
 import 'package:race_fueling_core/core.dart';
 import 'color.dart';
 
-const _separator = ' │ '; // 3 visible chars between columns
+// Both Unicode " │ " and ASCII " | " are 3 visible chars wide, so column-width
+// math is independent of which glyph is rendered.
+const _separatorWidth = 3;
 
 String formatPlanTable(FuelingPlan plan, {required bool useColor}) {
   final buf = StringBuffer();
@@ -29,10 +31,10 @@ String formatPlanTable(FuelingPlan plan, {required bool useColor}) {
   ];
 
   final totalWidth =
-      widths.reduce((a, b) => a + b) + (widths.length - 1) * _separator.length;
+      widths.reduce((a, b) => a + b) + (widths.length - 1) * _separatorWidth;
 
   buf.writeln(_row(headers, widths, useColor: useColor, bolded: true));
-  buf.writeln('─' * totalWidth);
+  buf.writeln((useColor ? '─' : '-') * totalWidth);
 
   for (final entry in plan.entries) {
     final cells = <String>[
@@ -76,10 +78,11 @@ String _row(
   required bool useColor,
   bool bolded = false,
 }) {
+  final sep = useColor ? ' │ ' : ' | ';
   final parts = <String>[
     for (var i = 0; i < cells.length; i++) padVisibleRight(cells[i], widths[i]),
   ];
-  final line = parts.join(_separator);
+  final line = parts.join(sep);
   return bolded ? bold(line, enabled: useColor) : line;
 }
 
