@@ -12,21 +12,72 @@ void main() {
       expect(adj.advisories, isEmpty);
     });
 
-    test('altitude >1500m increases carb target', () {
-      final adj = calculateAdjustments(altitudeM: 2000);
-      expect(adj.carbMultiplier, greaterThan(1.0));
-      expect(adj.carbMultiplier, lessThanOrEqualTo(1.1));
-      expect(adj.advisories, contains(contains('altitude')));
-    });
-
-    test('altitude at sea level has no carb adjustment', () {
-      final adj = calculateAdjustments(altitudeM: 500);
+    test('1000m below threshold: no boost, no advisory', () {
+      final adj = calculateAdjustments(altitudeM: 1000);
       expect(adj.carbMultiplier, 1.0);
+      expect(adj.advisories, isEmpty);
     });
 
-    test('altitude above 3000m caps at 10% carb increase', () {
+    test('1500m at band start: no boost yet, no advisory', () {
+      final adj = calculateAdjustments(altitudeM: 1500);
+      expect(adj.carbMultiplier, closeTo(1.0, 1e-9));
+      expect(adj.advisories, isEmpty);
+    });
+
+    test('2000m midpoint of moderate band: +2.5% carbs', () {
+      final adj = calculateAdjustments(altitudeM: 2000);
+      expect(adj.carbMultiplier, closeTo(1.025, 1e-9));
+      expect(
+        adj.advisories.any((a) => a.contains('Moderate altitude')),
+        true,
+      );
+    });
+
+    test('2500m at high-altitude band start: +5% carbs', () {
+      final adj = calculateAdjustments(altitudeM: 2500);
+      expect(adj.carbMultiplier, closeTo(1.05, 1e-9));
+      expect(
+        adj.advisories.any((a) => a.contains('High altitude')),
+        true,
+      );
+    });
+
+    test('3000m midpoint of high band: +7.5% carbs', () {
+      final adj = calculateAdjustments(altitudeM: 3000);
+      expect(adj.carbMultiplier, closeTo(1.075, 1e-9));
+      expect(
+        adj.advisories.any((a) => a.contains('High altitude')),
+        true,
+      );
+    });
+
+    test('4000m midpoint of very-high band: +12.5% carbs', () {
       final adj = calculateAdjustments(altitudeM: 4000);
-      expect(adj.carbMultiplier, closeTo(1.1, 0.001));
+      expect(adj.carbMultiplier, closeTo(1.125, 1e-9));
+      expect(
+        adj.advisories.any((a) => a.contains('Very high altitude')),
+        true,
+      );
+    });
+
+    test('5000m midpoint of extreme band: +17.5% carbs', () {
+      final adj = calculateAdjustments(altitudeM: 5000);
+      expect(adj.carbMultiplier, closeTo(1.175, 1e-9));
+      expect(
+        adj.advisories.any((a) => a.contains('Extreme altitude')),
+        true,
+      );
+    });
+
+    test('6000m above cap: +20% carbs with physiologist advisory', () {
+      final adj = calculateAdjustments(altitudeM: 6000);
+      expect(adj.carbMultiplier, closeTo(1.20, 1e-9));
+      final cappedAdvisory = adj.advisories.firstWhere(
+        (a) => a.contains('Extreme altitude'),
+        orElse: () => '',
+      );
+      expect(cappedAdvisory, isNotEmpty);
+      expect(cappedAdvisory, contains('consult a physiologist'));
     });
 
     test('moderate conditions have mild adjustments', () {

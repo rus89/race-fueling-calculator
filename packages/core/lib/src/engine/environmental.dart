@@ -142,6 +142,34 @@ double _heatIndexF(double tempC, double humidity) {
   );
 }
 
+/// Maps an altitude (m) to a piecewise-linear carb boost (fraction of 1.0)
+/// and a human-readable band label. Boost ramps:
+///   1500–2500m → 0.00 → 0.05 (Moderate altitude)
+///   2500–3500m → 0.05 → 0.10 (High altitude)
+///   3500–4500m → 0.10 → 0.15 (Very high altitude)
+///   4500–5500m → 0.15 → 0.20 (Extreme altitude)
+///   ≥ 5500m    → 0.20 capped (Extreme altitude)
+(double boost, String label) _altitudeBoost(double altitudeM) {
+  if (altitudeM < 1500) return (0.0, '');
+  if (altitudeM < 2500) {
+    final t = (altitudeM - 1500) / 1000.0;
+    return (0.05 * t, 'Moderate altitude');
+  }
+  if (altitudeM < 3500) {
+    final t = (altitudeM - 2500) / 1000.0;
+    return (0.05 + 0.05 * t, 'High altitude');
+  }
+  if (altitudeM < 4500) {
+    final t = (altitudeM - 3500) / 1000.0;
+    return (0.10 + 0.05 * t, 'Very high altitude');
+  }
+  if (altitudeM < 5500) {
+    final t = (altitudeM - 4500) / 1000.0;
+    return (0.15 + 0.05 * t, 'Extreme altitude');
+  }
+  return (0.20, 'Extreme altitude');
+}
+
 EnvironmentalAdjustments calculateAdjustments({
   double? temperature,
   double? humidity,
@@ -151,13 +179,20 @@ EnvironmentalAdjustments calculateAdjustments({
   var additionalWater = 0.0;
   final advisories = <String>[];
 
-  // Altitude adjustments
+  // Altitude carb-need curve: piecewise linear, 0–5500m, +0% to +20%,
+  // derived from ACSM Position Stand on altitude (2008) and athlete
+  // fueling guidelines.
   if (altitudeM != null && altitudeM > 1500) {
-    // Linear scale: 1500m = 0%, 3000m = 10%
-    final factor = ((altitudeM - 1500) / 1500).clamp(0.0, 1.0);
-    carbMultiplier += 0.1 * factor;
-    advisories.add('Target adjusted for altitude (${altitudeM.round()}m): '
-        '+${(factor * 10).toStringAsFixed(0)}% carbs');
+    final (boost, label) = _altitudeBoost(altitudeM);
+    carbMultiplier += boost;
+    final pct = (boost * 100).toStringAsFixed(1);
+    final m = altitudeM.round();
+    if (altitudeM >= 5500) {
+      advisories.add('$label (${m}m), capped at +20%: '
+          'consult a physiologist for race-specific guidance');
+    } else {
+      advisories.add('$label (${m}m): +$pct% carb target');
+    }
   }
 
   // Heat stress adjustments — NWS Rothfusz Heat Index.
