@@ -218,9 +218,9 @@ void main() {
     });
 
     test('altitude under-delivery triggers advisory warning', () {
-      // 2-hour race at 2500m altitude → carb boost ~6.7%, target ~64g/hr.
-      // Total adjusted target ≈ 128g. Provide only 4 gels × 25g = 100g supply,
-      // so allocator can deliver at most 100g — below 90% of 128g (115g).
+      // 2-hour race at 2500m altitude → 5% carb boost, target 63g/hr,
+      // total adjusted target ≈ 126g. Provide only 4 gels × 25g = 100g supply,
+      // so allocator can deliver at most 100g — below 90% of 126g (113g).
       // The under-delivery warning must fire.
       final config = RaceConfig(
         name: 'Mountain Short',
@@ -238,7 +238,7 @@ void main() {
       expect(
         plan.warnings.any((w) =>
             w.severity == Severity.advisory &&
-            w.message.contains('altitude/heat-adjusted target')),
+            w.message.contains('altitude-adjusted carb target')),
         true,
         reason: 'altitude-adjusted plan with insufficient supply must warn',
       );
@@ -262,10 +262,39 @@ void main() {
       final plan = generatePlan(config, profile, [gel]);
 
       expect(
-        plan.warnings.any(
-            (w) => w.message.contains('altitude/heat-adjusted target')),
+        plan.warnings
+            .any((w) => w.message.contains('altitude-adjusted carb target')),
         false,
         reason: 'sufficient supply must not emit under-delivery advisory',
+      );
+    });
+
+    test('heat-only under-delivery does not trigger altitude-carb advisory',
+        () {
+      // 2-hour race at 35°C / 80% RH (Danger heat zone) but altitude 0.
+      // Heat affects water only — carb target stays at baseline 60g/hr.
+      // Even with insufficient supply, the altitude-adjusted-carb-target
+      // advisory must NOT fire because no carb adjustment is in effect.
+      final config = RaceConfig(
+        name: 'Hot Flat',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+        temperature: 35.0,
+        humidity: 80.0,
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(
+        plan.warnings
+            .any((w) => w.message.contains('altitude-adjusted carb target')),
+        false,
+        reason: 'heat without altitude must not emit a carb-target advisory '
+            '(heat scales water only, not carbs)',
       );
     });
   });
