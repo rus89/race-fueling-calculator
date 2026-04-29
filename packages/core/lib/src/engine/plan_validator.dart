@@ -152,7 +152,7 @@ List<Warning> _checkRatio(List<PlanEntry> entries, Duration raceDuration) {
     // Only check ratio if above 50g/hr where dual-source matters
     if (hourCarbs > 50 && hourFructose > 0 && hourGlucose > 0) {
       final ratio = hourFructose / hourGlucose;
-      // G:F ratio acceptable range tightened to [0.5, 1.0] (fructose/glucose).
+      // Acceptable G:F ratio range: [0.5, 1.0] (fructose/glucose).
       // Reference: Jeukendrup AE (2014) "A step towards personalized sports
       // nutrition: carbohydrate intake during exercise" Sports Med
       // 44(Suppl 1):S25-S33. For >60 g/hr targets, multi-transporter
