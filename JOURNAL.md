@@ -597,3 +597,43 @@ Catalogued 2026-04-29 from a multi-agent review (architecture / test-coverage / 
 63. **Process note — TDD trace ambiguous on `cli_integration_test.dart`** (LOW)
     - Assertions look retrofitted to observed behavior (`12`, `isNotEmpty`) rather than written from spec
     - Fix: when extending this test (KI-52 onwards), favor spec-derived assertions like `entries.length == duration / interval` over restating output — keeps the test honest about what it locks
+
+### Engine Correctness Review — 8 KI-fix commits (Mixed Priority)
+
+Catalogued 2026-04-29 from 8 dedicated per-KI reviewers on the `feat/v1-engine-correctness` branch (KI-1 through KI-8 fixes). HIGH and MED items were addressed in commits 1e0b4a7 (KI-4 advisory scope) and 9526ffe (KI-8 comment wording). Items below are deferred LOW polish + one MED follow-up.
+
+64. **Allocator round-down silent under-delivery** (`product_allocator.dart:99`, MEDIUM follow-up to KI-1)
+    - When `target < 0.5 × carbsPerServing` (e.g., 10g target with a 25g-only product), `.round()` returns 0 servings, the inner `if (use > 0)` skips, the slot delivers 0g of carbs, and no warning fires (overage check fires only when delta > 0)
+    - Fix: add a complementary slot-level UNDER-delivery advisory mirroring the over-delivery surfacing — when `carbsAssigned < target * (1 - threshold)` AND a non-zero target was requested, emit `Severity.advisory` with the shortfall
+
+65. **Missing edge-case test for round-down boundary** (`product_allocator_test.dart`, LOW)
+    - No test covers `target = 0.4 × carbsPerServing` (the symmetric edge of the rounding behavior). Pairs with KI-64
+    - Fix: add a case (target=10g + 25g-only product) asserting servings=0 and an under-delivery advisory once KI-64 lands
+
+66. **Overage advisory uses target-relative ratio only** (`product_allocator.dart:131`, LOW)
+    - 5g overage on 20g target = 25% (fires); same 5g on 50g target = 10% (silent). For gut tolerance the absolute g/hr matters
+    - Fix: also flag absolute deltas above a fixed threshold (e.g., >10g/hr extra). Defer if Milan prefers single-axis simplicity
+
+67. **Curve fallback test "60" substring assertion is weak** (`carb_distributor_test.dart:170`, LOW)
+    - Asserts `contains('60')` after asserting `contains('60/120')` — the second assertion is trivially satisfied by the prefix and adds no signal
+    - Fix: assert the full rate substring like `contains('60g/hr')` or `contains('remaining 60 minutes')`
+
+68. **Missing single-segment exact-duration coverage test** (`carb_distributor_test.dart`, LOW)
+    - The covered-full-duration test uses two segments summing to 120 minutes; the equality boundary on a single segment is not exercised
+    - Fix: add a one-line case with `[CurveSegment(durationMinutes: 120, ...)]` asserting no fallback warning
+
+69. **Water-side under-delivery warning missing** (`plan_engine.dart`, MEDIUM follow-up to KI-4)
+    - KI-4's fix correctly scopes the carb-side under-delivery warning to altitude only. But heat scales `additionalWaterMlPerSlot` and the user could still under-deliver fluid (e.g., choose products without enough water requirement). No warning surfaces this
+    - Fix: add a parallel water under-delivery check — when `additionalWaterMlPerSlot > 0` AND the plan's total water is below some threshold, emit a water-specific advisory
+
+70. **KI-7 boundary tests miss 3500m/4500m/5500m exact band-starts and 10000m cap** (`environmental_test.dart`, LOW)
+    - Existing tests use 1000m for "below threshold" (1499m would more tightly pin), and 6000m for "above cap" (10000m would explicitly verify the cap doesn't continue scaling)
+    - Fix: add band-boundary tests at 3500m, 4500m, 5500m and an extreme test at 10000m asserting `carbMultiplier == 1.20`
+
+71. **KI-7 altitude advisory text format not pinned** (`environmental_test.dart`, LOW)
+    - Tests assert substring `'Moderate altitude'` but not the full format `"$label (${m}m): +$pct% carb target"` from the spec
+    - Fix: add an exact-string assertion like `expect(adj.advisories, contains('Moderate altitude (2000m): +2.5% carb target'))`
+
+72. **KI-8 comment cites optimal range but gate is outer tolerance** (`plan_validator.dart:158-159`, LOW)
+    - Comment cites "1:0.8–1:1 is recommended" for >60 g/hr but the implemented gate accepts as low as 0.5 from 50 g/hr+. Minor inconsistency between cited guidance (optimum) and implemented threshold (outer tolerance band)
+    - Fix: add a sentence to the comment clarifying that 0.5 is the *outer* tolerance band, not the optimum, to avoid confusion when readers compare the cited research to the gate
