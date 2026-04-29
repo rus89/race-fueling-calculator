@@ -5,6 +5,7 @@ import 'package:race_fueling_core/src/engine/product_allocator.dart';
 import 'package:race_fueling_core/src/engine/timeline_builder.dart';
 import 'package:race_fueling_core/src/models/product.dart';
 import 'package:race_fueling_core/src/models/race_config.dart';
+import 'package:race_fueling_core/src/models/warning.dart';
 
 void main() {
   final gel = Product(
@@ -154,25 +155,135 @@ void main() {
       expect(result.entries[2].cumulativeCaffeine, 90.0);
     });
 
-    test(
-      'target 20g with 25g product over-allocates by 25% (ceil bug)',
-      () {
-        final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
-        final targets = [20.0];
-        final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
+    test('target 20g with 25g product rounds to nearest serving (1 gel)', () {
+      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+      final targets = [20.0];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
 
-        final result = allocateProducts(
-          slots: slots,
-          targetCarbsPerSlot: targets,
-          products: [gel],
-          selections: selections,
-        );
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [gel],
+        selections: selections,
+      );
 
-        // Desired: entries[0].carbsTotal close to 20 (0 or 1 gel, not 25g).
-        // Actual: product_allocator.dart uses .ceil(), so 20g/25g rounds up to 1 gel = 25g.
-        expect(result.entries[0].carbsTotal, lessThanOrEqualTo(20.0));
-      },
-      skip: 'KI-1: allocator uses .ceil(); Known Issue to fix in Phase 8',
-    );
+      // 20g target / 25g serving = 0.8 → rounds to 1 serving (25g delivered).
+      // Overage is 5g/20g = 25%, which exceeds the 20% threshold and emits
+      // an advisory warning on the slot.
+      expect(result.entries[0].carbsTotal, 25.0);
+      expect(result.entries[0].products.first.servings, 1);
+      expect(
+        result.entries[0].warnings.any((w) => w.severity == Severity.advisory),
+        true,
+        reason: '25% overage should emit advisory warning',
+      );
+    });
+
+    test('target 25g with 25g product matches exactly with no overage warning',
+        () {
+      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+      final targets = [25.0];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
+
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [gel],
+        selections: selections,
+      );
+
+      expect(result.entries[0].carbsTotal, 25.0);
+      expect(result.entries[0].products.first.servings, 1);
+      expect(result.entries[0].warnings, isEmpty);
+    });
+
+    test('target 50g with 25g product takes 2 servings, no overage warning',
+        () {
+      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+      final targets = [50.0];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
+
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [gel],
+        selections: selections,
+      );
+
+      expect(result.entries[0].carbsTotal, 50.0);
+      expect(result.entries[0].products.first.servings, 2);
+      expect(result.entries[0].warnings, isEmpty);
+    });
+
+    test('target 100g with 25g product takes 4 servings, no overage warning',
+        () {
+      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+      final targets = [100.0];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
+
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [gel],
+        selections: selections,
+      );
+
+      expect(result.entries[0].carbsTotal, 100.0);
+      expect(result.entries[0].products.first.servings, 4);
+      expect(result.entries[0].warnings, isEmpty);
+    });
+
+    test('zero-target slot allocates nothing and emits no overage warning',
+        () {
+      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+      final targets = [0.0];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
+
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [gel],
+        selections: selections,
+      );
+
+      expect(result.entries[0].carbsTotal, 0.0);
+      expect(result.entries[0].products, isEmpty);
+      expect(result.entries[0].warnings, isEmpty);
+    });
+
+    test('cumulative carbs across long race stays within ±10% of target', () {
+      // 6×20-min slots, 20g target each → 120g total target.
+      // To meet ±10% the slot target must be representable: a 20g serving
+      // (1 serving fits perfectly) keeps cumulative on-target.
+      final perfectGel = Product(
+        id: 'perfect-gel',
+        name: 'Perfect Gel',
+        type: ProductType.gel,
+        carbsPerServing: 20.0,
+        glucoseGrams: 12.0,
+        fructoseGrams: 8.0,
+        caffeineMg: 0.0,
+        waterRequiredMl: 100.0,
+      );
+      final slots = List.generate(
+          6, (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)));
+      final targets = List.filled(6, 20.0);
+      final selections = [
+        ProductSelection(productId: 'perfect-gel', quantity: 10),
+      ];
+
+      final result = allocateProducts(
+        slots: slots,
+        targetCarbsPerSlot: targets,
+        products: [perfectGel],
+        selections: selections,
+      );
+
+      final cumulative =
+          result.entries.fold<double>(0.0, (sum, e) => sum + e.carbsTotal);
+      const intendedTotal = 120.0;
+      expect(cumulative, greaterThanOrEqualTo(intendedTotal * 0.9));
+      expect(cumulative, lessThanOrEqualTo(intendedTotal * 1.1));
+    });
   });
 }

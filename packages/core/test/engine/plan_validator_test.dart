@@ -181,6 +181,135 @@ void main() {
       );
     });
 
+    test('no ratio warning at lower bound G:F = 0.5', () {
+      // 60g/hr split as 40g glucose + 20g fructose → ratio = 0.5 (boundary)
+      // Above 50g/hr threshold so the ratio check engages.
+      final highGutProfile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final entries = [
+        _entry(minutes: 20, glucose: 14, fructose: 7),
+        _entry(minutes: 40, glucose: 14, fructose: 7),
+        _entry(minutes: 60, glucose: 12, fructose: 6),
+      ];
+
+      final warnings =
+          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) => w.message.contains('ratio')),
+        false,
+      );
+    });
+
+    test('advisory: ratio below new lower bound (G:F = 0.45)', () {
+      // 58g/hr split: 40g glucose + 18g fructose → ratio ≈ 0.45 (below 0.5)
+      final highGutProfile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final entries = [
+        _entry(minutes: 20, glucose: 14, fructose: 6),
+        _entry(minutes: 40, glucose: 14, fructose: 6),
+        _entry(minutes: 60, glucose: 12, fructose: 6),
+      ];
+
+      final warnings =
+          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) =>
+            w.severity == Severity.advisory && w.message.contains('ratio')),
+        true,
+      );
+    });
+
+    test('no ratio warning at G:F = 0.7 (mid-range)', () {
+      // 51g/hr: 30g glucose + 21g fructose → ratio = 0.7
+      final highGutProfile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final entries = [
+        _entry(minutes: 20, glucose: 10, fructose: 7),
+        _entry(minutes: 40, glucose: 10, fructose: 7),
+        _entry(minutes: 60, glucose: 10, fructose: 7),
+      ];
+
+      final warnings =
+          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) => w.message.contains('ratio')),
+        false,
+      );
+    });
+
+    test('no ratio warning at upper bound G:F = 1.0', () {
+      // 60g/hr: 30g glucose + 30g fructose → ratio = 1.0 (boundary)
+      final highGutProfile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final entries = [
+        _entry(minutes: 20, glucose: 10, fructose: 10),
+        _entry(minutes: 40, glucose: 10, fructose: 10),
+        _entry(minutes: 60, glucose: 10, fructose: 10),
+      ];
+
+      final warnings =
+          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) => w.message.contains('ratio')),
+        false,
+      );
+    });
+
+    test('advisory: ratio above upper bound (G:F = 1.05)', () {
+      // 51.25g/hr: 25g glucose + 26.25g fructose → ratio = 1.05 (above 1.0)
+      final highGutProfile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final entries = [
+        _entry(minutes: 20, glucose: 8.33, fructose: 8.75),
+        _entry(minutes: 40, glucose: 8.33, fructose: 8.75),
+        _entry(minutes: 60, glucose: 8.34, fructose: 8.75),
+      ];
+
+      final warnings =
+          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) =>
+            w.severity == Severity.advisory && w.message.contains('ratio')),
+        true,
+      );
+    });
+
+    test('no ratio warning when glucose is zero (divide-by-zero guard)', () {
+      // Pure fructose above threshold; ratio check requires both > 0.
+      final highGutProfile = AthleteProfile(
+        gutToleranceGPerHr: 90.0,
+        unitSystem: UnitSystem.metric,
+        bodyWeightKg: 70.0,
+      );
+      final entries = [
+        _entry(minutes: 20, glucose: 0, fructose: 20),
+        _entry(minutes: 40, glucose: 0, fructose: 20),
+        _entry(minutes: 60, glucose: 0, fructose: 20),
+      ];
+
+      final warnings =
+          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      expect(
+        warnings.any((w) => w.message.contains('ratio')),
+        false,
+      );
+    });
+
     test('advisory: significant carb drop in second half', () {
       // First half: 3 entries x 30g = 90g; second half: 3 entries x 10g = 30g
       // 30g < 90g * 0.8 = 72g → should warn

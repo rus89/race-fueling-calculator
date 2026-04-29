@@ -1,6 +1,8 @@
 // ABOUTME: Calculates fueling adjustments for heat, humidity, and altitude.
 // ABOUTME: Returns carb multipliers, additional hydration needs, and advisory notes.
 
+// Rothfusz heat index per NWS Technical Attachment SR/SSD 90-23 (1990).
+
 import 'dart:math' show sqrt;
 
 /// Project design cap for heat-driven extra water per slot (ml).
@@ -25,19 +27,19 @@ double _celsiusToFahrenheit(double celsius) => celsius * 9.0 / 5.0 + 32.0;
 double _fahrenheitToCelsius(double fahrenheit) =>
     (fahrenheit - 32.0) * 5.0 / 9.0;
 
-/// Computes the NOAA Rothfusz heat index regression in °F.
+/// Steadman's simple heat index regression in °F (T °F, RH %).
 ///
-/// Input: temperature in °F, relative humidity in % (0–100).
-/// Returns heat index in °F.
+/// Used by NWS as the entry point: if this returns < 80°F the polynomial
+/// regression is not applied. Source: Steadman (1979) via NWS guidance.
+double _simpleHeatIndexF(double tempF, double humidity) =>
+    0.5 * (tempF + 61.0 + (tempF - 68.0) * 1.2 + humidity * 0.094);
+
+/// Rothfusz polynomial regression of the Steadman heat index in °F.
 ///
-/// The Rothfusz regression is valid when T >= 80°F (≈26.7°C) and
-/// produces the standard NWS heat index. Below 80°F we fall back to a
-/// linear hand-off where HI ≈ T (with a small humidity nudge) so the
-/// transition is continuous.
-///
-/// Reference: https://www.weather.gov/ffc/heatindex
+/// Defined for tempF in 80–112°F and RH in 0–100%. Includes the two
+/// NWS adjustments for low-humidity (RH<13%) and high-humidity (RH>85%)
+/// regimes that bring the regression in line with Steadman's table.
 double _rothfuszHeatIndexF(double tempF, double humidity) {
-  // Base regression (valid for T >= 80°F, RH >= 0%)
   final hi = -42.379 +
       2.04901523 * tempF +
       10.14333127 * humidity -
@@ -48,13 +50,13 @@ double _rothfuszHeatIndexF(double tempF, double humidity) {
       0.00085282 * tempF * humidity * humidity -
       0.00000199 * tempF * tempF * humidity * humidity;
 
-  // Adjustment A: If RH < 13% and tempF between 80–112°F, subtract
+  // Adjustment A: dry, hot regime.
   if (humidity < 13 && tempF >= 80 && tempF <= 112) {
     final adj = ((13 - humidity) / 4) * sqrt((17 - (tempF - 95).abs()) / 17);
     return hi - adj;
   }
 
-  // Adjustment B: If RH > 85% and tempF between 80–87°F, add
+  // Adjustment B: humid, warm regime.
   if (humidity > 85 && tempF >= 80 && tempF <= 87) {
     final adj = ((humidity - 85) / 10) * ((87 - tempF) / 5);
     return hi + adj;
@@ -63,56 +65,109 @@ double _rothfuszHeatIndexF(double tempF, double humidity) {
   return hi;
 }
 
-/// Categorises heat index (in °C) and returns water addition + advisories.
+/// Computes heat index in °F given temperature in °C and RH percent.
 ///
-/// Thresholds based on NWS Heat Index risk categories:
-///   Caution:        27–32 °C (80–90 °F)  — fatigue possible
-///   Extreme Caution: 32–39 °C (90–103 °F) — heat cramps/heat exhaustion
-///   Danger:         39–52 °C (103–125 °F) — heat exhaustion likely
-///   Extreme Danger:  52+ °C (125+ °F)     — heat stroke imminent
+/// Uses the simple Steadman regression first; if its result is < 80°F the
+/// Rothfusz polynomial is undefined and the simple value is returned. At
+/// or above 80°F the Rothfusz regression (with NWS adjustments) is used.
+double _heatIndexF(double tempC, double humidity) {
+  final tempF = _celsiusToFahrenheit(tempC);
+  final simpleF = _simpleHeatIndexF(tempF, humidity);
+  if (simpleF < 80.0) return simpleF;
+  return _rothfuszHeatIndexF(tempF, humidity);
+}
+
+/// Categorises heat index (in °C) into NWS risk bands and returns the
+/// per-slot extra-water target plus a single (highest-band) advisory.
 ///
-/// Water accumulates across zones (Caution +50, Extreme Caution +50,
-/// Danger +50, capped at [_maxHeatWaterMlPerSlot]). Advisories are
-/// exclusive: only the highest active zone's message is returned to
-/// avoid contradictory guidance.
+/// NWS thresholds:
+///   Caution         27 ≤ HI < 32 °C  fatigue with prolonged exposure
+///   Extreme Caution 32 ≤ HI < 41 °C  heat exhaustion possible
+///   Danger          41 ≤ HI < 54 °C  heat exhaustion likely
+///   Extreme Danger  HI ≥ 54 °C       heat stroke imminent
+///
+/// Water scales linearly across each band:
+///   Caution         0 → 50  ml/slot
+///   Extreme Caution 50 → 100 ml/slot
+///   Danger          100 → 150 ml/slot
+///   Extreme Danger  capped at [_maxHeatWaterMlPerSlot] (150 ml/slot)
+///
+/// Advisories are exclusive: only the highest active band returns text,
+/// to avoid contradictory guidance.
 (double waterMl, List<String> advisories) _applyHeatThresholds(
     double hiCelsius) {
-  // Hi < 27°C: no heat adjustment needed
   if (hiCelsius < 27) return (0.0, []);
 
-  if (hiCelsius >= 52) {
-    // Extreme Danger — water cap already reached at the Danger step.
+  if (hiCelsius >= 54) {
     return (
       _maxHeatWaterMlPerSlot,
       [
-        'EXTREME DANGER: Consider rescheduling or modifying race plans. '
-            'Heat stroke risk. If racing: only liquid nutrition, maximum hydration.',
+        'EXTREME DANGER: Heat stroke imminent. Consider rescheduling or '
+            'modifying race plans. If racing: liquid nutrition only, maximum '
+            'hydration.',
       ],
-    );
-  } else if (hiCelsius >= 39) {
-    // Danger (39–52 °C) — heat exhaustion risk
-    return (
-      _maxHeatWaterMlPerSlot,
-      [
-        'Dangerous heat: minimize gel consumption, prioritize electrolyte '
-            'drink mix. Watch for heat exhaustion symptoms.',
-      ],
-    );
-  } else if (hiCelsius >= 32) {
-    // Extreme Caution (32–39 °C)
-    return (
-      100.0,
-      [
-        'High heat stress: favor drink mix over gels to combine hydration and fueling',
-      ],
-    );
-  } else {
-    // Caution (27–32 °C)
-    return (
-      50.0,
-      ['Warm conditions: extra water recommended when consuming gels'],
     );
   }
+
+  if (hiCelsius >= 41) {
+    final t = (hiCelsius - 41) / (54 - 41);
+    return (
+      100.0 + 50.0 * t,
+      [
+        'Danger: heat exhaustion likely. Reduce intensity, favor electrolyte '
+            'drink mix over gels, watch for heat exhaustion symptoms.',
+      ],
+    );
+  }
+
+  if (hiCelsius >= 32) {
+    final t = (hiCelsius - 32) / (41 - 32);
+    return (
+      50.0 + 50.0 * t,
+      [
+        'Extreme Caution: heat exhaustion possible. Favor drink mix over '
+            'gels to combine hydration and fueling.',
+      ],
+    );
+  }
+
+  // 27 ≤ HI < 32 — Caution
+  final t = (hiCelsius - 27) / (32 - 27);
+  return (
+    50.0 * t,
+    [
+      'Caution: possible fatigue with prolonged exposure. Extra water '
+          'recommended when consuming gels.'
+    ],
+  );
+}
+
+/// Maps an altitude (m) to a piecewise-linear carb boost (fraction of 1.0)
+/// and a human-readable band label. Boost ramps:
+///   1500–2500m → 0.00 → 0.05 (Moderate altitude)
+///   2500–3500m → 0.05 → 0.10 (High altitude)
+///   3500–4500m → 0.10 → 0.15 (Very high altitude)
+///   4500–5500m → 0.15 → 0.20 (Extreme altitude)
+///   ≥ 5500m    → 0.20 capped (Extreme altitude)
+(double boost, String label) _altitudeBoost(double altitudeM) {
+  if (altitudeM < 1500) return (0.0, '');
+  if (altitudeM < 2500) {
+    final t = (altitudeM - 1500) / 1000.0;
+    return (0.05 * t, 'Moderate altitude');
+  }
+  if (altitudeM < 3500) {
+    final t = (altitudeM - 2500) / 1000.0;
+    return (0.05 + 0.05 * t, 'High altitude');
+  }
+  if (altitudeM < 4500) {
+    final t = (altitudeM - 3500) / 1000.0;
+    return (0.10 + 0.05 * t, 'Very high altitude');
+  }
+  if (altitudeM < 5500) {
+    final t = (altitudeM - 4500) / 1000.0;
+    return (0.15 + 0.05 * t, 'Extreme altitude');
+  }
+  return (0.20, 'Extreme altitude');
 }
 
 EnvironmentalAdjustments calculateAdjustments({
@@ -124,37 +179,29 @@ EnvironmentalAdjustments calculateAdjustments({
   var additionalWater = 0.0;
   final advisories = <String>[];
 
-  // Altitude adjustments
+  // Altitude carb-need curve: piecewise linear, 0–5500m, +0% to +20%,
+  // derived from ACSM Position Stand on altitude (2008) and athlete
+  // fueling guidelines.
   if (altitudeM != null && altitudeM > 1500) {
-    // Linear scale: 1500m = 0%, 3000m = 10%
-    final factor = ((altitudeM - 1500) / 1500).clamp(0.0, 1.0);
-    carbMultiplier += 0.1 * factor;
-    advisories.add('Target adjusted for altitude (${altitudeM.round()}m): '
-        '+${(factor * 10).toStringAsFixed(0)}% carbs');
+    final (boost, label) = _altitudeBoost(altitudeM);
+    carbMultiplier += boost;
+    final pct = (boost * 100).toStringAsFixed(1);
+    final m = altitudeM.round();
+    if (altitudeM >= 5500) {
+      advisories.add('$label (${m}m), capped at +20%: '
+          'consult a physiologist for race-specific guidance');
+    } else {
+      advisories.add('$label (${m}m): +$pct% carb target');
+    }
   }
 
-  // Heat stress adjustments — NOAA Rothfusz Heat Index
+  // Heat stress adjustments — NWS Rothfusz Heat Index.
   if (temperature != null) {
     final hum = humidity ?? 50.0;
+    var hiF = _heatIndexF(temperature, hum);
+
+    // Heat index should never read below the dry-bulb temperature.
     final tempF = _celsiusToFahrenheit(temperature);
-
-    // Compute heat index
-    // For temps below 26.7°C (80°F) the Rothfusz regression isn't defined,
-    // so we fall back to a linear approximation that smoothly approaches
-    // the actual temperature at cooler conditions.
-    double hiF;
-    if (temperature >= 26.7) {
-      hiF = _rothfuszHeatIndexF(tempF, hum);
-    } else {
-      // Below the Rothfusz threshold, heat index ≈ actual temperature
-      // with a slight humidity bump. This gives a smooth hand-off. The
-      // raw bump is (hum-50)*0.1, but the clamp below suppresses the
-      // negative half, so the effective range is [0, +5°F].
-      final humEffect = (hum - 50) * 0.1;
-      hiF = tempF + humEffect;
-    }
-
-    // Clamp: HI should never be lower than actual temperature
     if (hiF < tempF) hiF = tempF;
 
     final hiCelsius = _fahrenheitToCelsius(hiF);
@@ -163,7 +210,6 @@ EnvironmentalAdjustments calculateAdjustments({
     additionalWater += water;
     advisories.addAll(heatAdvisories);
 
-    // If heat advisories were generated, add a summary note
     if (heatAdvisories.isNotEmpty) {
       advisories.add(
           'Heat index: ${hiCelsius.toStringAsFixed(1)}°C (${hiF.toStringAsFixed(0)}°F)');

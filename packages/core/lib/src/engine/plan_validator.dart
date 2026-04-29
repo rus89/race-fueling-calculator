@@ -76,6 +76,11 @@ List<Warning> _checkSingleSource(
   return warnings;
 }
 
+// TODO(v1.1): caffeine thresholds are one-size-fits-all — 400 mg absolute cap
+// and 6 mg/kg with no athlete-level sensitivity override. To fix, add a
+// `caffeineSensitivity` field to AthleteProfile (low / normal / high),
+// regenerate .g.dart, write a storage migration for existing profiles, and
+// gate these thresholds on the field. Tracked in JOURNAL.md KI-9.
 List<Warning> _checkCaffeine(List<PlanEntry> entries, AthleteProfile profile) {
   final warnings = <Warning>[];
   final totalCaffeine = entries.isEmpty ? 0.0 : entries.last.cumulativeCaffeine;
@@ -147,13 +152,17 @@ List<Warning> _checkRatio(List<PlanEntry> entries, Duration raceDuration) {
     // Only check ratio if above 50g/hr where dual-source matters
     if (hourCarbs > 50 && hourFructose > 0 && hourGlucose > 0) {
       final ratio = hourFructose / hourGlucose;
-      // Acceptable range: 1:0.6 to 1:1.0 (fructose/glucose)
-      if (ratio < 0.6 || ratio > 1.0) {
+      // Acceptable G:F ratio range: [0.5, 1.0] (fructose/glucose).
+      // Reference: Jeukendrup AE (2014) "A step towards personalized sports
+      // nutrition: carbohydrate intake during exercise" Sports Med
+      // 44(Suppl 1):S25-S33. For >60 g/hr targets, multi-transporter
+      // co-ingestion (glucose + fructose) at 1:0.8–1:1 is recommended.
+      if (ratio < 0.5 || ratio > 1.0) {
         warnings.add(Warning(
           severity: Severity.advisory,
           message: 'Glucose:fructose ratio is 1:${ratio.toStringAsFixed(1)} '
               'at $startMin-${endMin}min '
-              '(optimal range: 1:0.6 to 1:1.0 for high absorption).',
+              '(optimal range: 1:0.5 to 1:1.0 for high absorption).',
         ));
         break; // One warning is enough
       }
