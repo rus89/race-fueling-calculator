@@ -61,4 +61,50 @@ void main() {
       expect(padVisibleRight('abcdef', 3), 'abcdef');
     });
   });
+
+  group('resolveColorMode precedence', () {
+    test('--no-color flag wins over env and tty', () {
+      expect(
+        resolveColorMode(
+          noColorFlag: true,
+          env: const {},
+          ttySupportsAnsi: true,
+        ),
+        false,
+      );
+    });
+    test('NO_COLOR with value "1" disables color', () {
+      expect(
+        resolveColorMode(
+          env: const {'NO_COLOR': '1'},
+          ttySupportsAnsi: true,
+        ),
+        false,
+      );
+    });
+    test('NO_COLOR present but empty disables color (spec compliance)', () {
+      expect(
+        resolveColorMode(
+          env: const {'NO_COLOR': ''},
+          ttySupportsAnsi: true,
+        ),
+        false,
+      );
+    });
+    test('no NO_COLOR and tty supports ANSI returns true', () {
+      expect(
+        resolveColorMode(env: const {}, ttySupportsAnsi: true),
+        true,
+      );
+    });
+    test('no NO_COLOR and tty does not support ANSI returns false', () {
+      expect(
+        resolveColorMode(env: const {}, ttySupportsAnsi: false),
+        false,
+      );
+    });
+    test('falls through to real stdout capability when nothing injected', () {
+      expect(resolveColorMode(), isA<bool>());
+    });
+  });
 }

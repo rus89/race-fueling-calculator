@@ -4,13 +4,19 @@ import 'dart:io';
 
 /// Resolves whether colored output should be emitted.
 ///
-/// Precedence: explicit `--no-color` flag → `NO_COLOR` env var (any non-empty
-/// value disables) → terminal capability (`stdout.supportsAnsiEscapes`).
-bool resolveColorMode({bool? noColorFlag}) {
+/// Precedence: explicit `--no-color` flag → `NO_COLOR` env var (presence
+/// disables, regardless of value, per https://no-color.org/) → terminal
+/// capability (`stdout.supportsAnsiEscapes`).
+///
+/// [env] and [ttySupportsAnsi] override the process globals for unit testing.
+bool resolveColorMode({
+  bool? noColorFlag,
+  Map<String, String>? env,
+  bool? ttySupportsAnsi,
+}) {
   if (noColorFlag == true) return false;
-  final envNoColor = Platform.environment['NO_COLOR'];
-  if (envNoColor != null && envNoColor.isNotEmpty) return false;
-  return stdout.supportsAnsiEscapes;
+  if ((env ?? Platform.environment).containsKey('NO_COLOR')) return false;
+  return ttySupportsAnsi ?? stdout.supportsAnsiEscapes;
 }
 
 String red(String s, {required bool enabled}) =>
