@@ -76,6 +76,11 @@ List<Warning> _checkSingleSource(
   return warnings;
 }
 
+// TODO(v1.1): caffeine thresholds are one-size-fits-all — 400 mg absolute cap
+// and 6 mg/kg with no athlete-level sensitivity override. To fix, add a
+// `caffeineSensitivity` field to AthleteProfile (low / normal / high),
+// regenerate .g.dart, write a storage migration for existing profiles, and
+// gate these thresholds on the field. Tracked in JOURNAL.md KI-9.
 List<Warning> _checkCaffeine(List<PlanEntry> entries, AthleteProfile profile) {
   final warnings = <Warning>[];
   final totalCaffeine = entries.isEmpty ? 0.0 : entries.last.cumulativeCaffeine;
