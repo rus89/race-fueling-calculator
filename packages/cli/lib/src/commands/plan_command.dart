@@ -11,7 +11,9 @@ import '../cli/exit_codes.dart';
 import '../cli/flag_parsers.dart';
 import '../cli/slugify.dart';
 import '../cli/tty.dart';
-import '../formatting/plain_plan.dart';
+import '../formatting/color.dart';
+import '../formatting/plan_table.dart';
+import '../formatting/summary_block.dart';
 import '../products/product_resolver.dart';
 import '../prompts/interactive.dart';
 
@@ -683,7 +685,13 @@ class _PlanProductsListCommand extends Command<void> {
 
 class _PlanGenerateCommand extends Command<void> {
   _PlanGenerateCommand(this._storage) {
-    argParser.addOption('plan', help: 'Plan slug.');
+    argParser
+      ..addOption('plan', help: 'Plan slug.')
+      ..addFlag(
+        'no-color',
+        negatable: false,
+        help: 'Disable colored output. Also honors NO_COLOR env var.',
+      );
   }
 
   final StorageAdapter _storage;
@@ -753,7 +761,10 @@ class _PlanGenerateCommand extends Command<void> {
       }
 
       final plan = generatePlan(config, profile, all);
-      stdout.write(formatPlanText(plan));
+      final useColor =
+          resolveColorMode(noColorFlag: results['no-color'] as bool);
+      stdout.write(formatPlanTable(plan, useColor: useColor));
+      stdout.write(formatSummaryBlock(plan, useColor: useColor));
     });
   }
 }
