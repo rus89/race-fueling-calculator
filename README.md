@@ -1,0 +1,241 @@
+# Race Fueling Calculator
+
+A command-line race-day nutrition planner for endurance athletes. Generates
+minute-by-minute carb, caffeine, and water targets from a race profile,
+your gut tolerance, and your product library — then flags every spot where
+the plan exceeds physiological limits before race day.
+
+Built for cyclists, marathon runners, ultrarunners, triathletes, and XC
+mountain bikers who want to dial in fueling without spreadsheet math.
+
+```bash
+$ fuel plan generate --plan xcm-race
+Time     │ Dist  │ Product               │ Carbs (G+F)    │ Cumul.   │ Caffeine   │ Water
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+0:20     │ 7km   │ Maurten Gel 100       │ 25g (14+11)    │ 25g      │ —          │ 100ml
+0:40     │ 14km  │ Maurten Drink Mix 320 │ 80g (44+36)    │ 105g     │ —          │ 500ml
+1:00     │ 21km  │ Maurten Gel 100       │ 25g (14+11)    │ 130g     │ —          │ 100ml
+...
+
+═══ SUMMARY ═══
+Total carbs:      315g
+Average:          70.0g/hr
+Total caffeine:   0mg
+G:F ratio:        1:0.78
+Total water:      1900ml
+
+  High altitude (2000m): +2.5% carb target
+  Caution: possible fatigue with prolonged exposure
+
+═══ WARNINGS ═══
+ADVISORY:
+  • Plan delivers only 87% of altitude-adjusted carb target — add more product to fully compensate.
+```
+
+## Features
+
+- **Time-based and distance-based timelines.** Pick whichever fits your
+  race plan; the engine builds entry slots at fixed minute or kilometer
+  intervals.
+- **Three distribution strategies.** `steady`, `front-load`, `back-load`,
+  plus support for custom carb-rate curves.
+- **Environmental adjustments.**
+  - **Heat:** NWS Rothfusz heat index with banded advisories (Caution /
+    Extreme Caution / Danger / Extreme Danger) and per-band water ramps.
+  - **Altitude:** piecewise-linear carb-need curve from 1500m to 5500m,
+    capped at +20% above 5500m, derived from ACSM Position Stand on
+    altitude (2008).
+- **Validation suite.** Catches gut-tolerance overshoots, glucose:fructose
+  ratios outside [0.5, 1.0], excessive caffeine, and under-delivery
+  versus altitude-adjusted carb targets.
+- **Built-in product library.** 25 ready-to-use products (Maurten, SiS,
+  GU, Skratch, Precision, Torq, etc.) plus custom user products.
+- **Plan persistence.** Store profiles, custom products, and named race
+  plans in `~/.race-fueling/` — or override with `FUEL_HOME` for testing.
+- **Pipe-friendly output.** Honors `NO_COLOR` env var and the `--no-color`
+  flag; emits ASCII fallbacks for box-drawing glyphs when color is off.
+
+## Installation
+
+Requires the **Dart SDK ≥ 3.6.0** (workspace feature).
+
+```bash
+git clone <repo-url> race-fueling-calculator
+cd race-fueling-calculator
+dart pub get
+```
+
+Run the CLI in development:
+
+```bash
+dart run packages/cli/bin/fuel.dart --help
+```
+
+Compile a standalone executable:
+
+```bash
+dart compile exe packages/cli/bin/fuel.dart -o fuel
+./fuel --help
+```
+
+## Quick start
+
+```bash
+# 1. One-time profile setup (75 kg athlete with 90 g/hr gut tolerance)
+fuel profile setup --weight 75 --tolerance 90 --units metric
+
+# 2. Create a race plan
+fuel plan create \
+  --name "XCM Race" \
+  --duration 4h30m \
+  --distance 95 --mode distance \
+  --target 80 \
+  --strategy front-load \
+  --temp 28 \
+  --altitude 1800
+
+# 3. Add products to the plan
+fuel plan products add "Maurten Gel 100" --plan xcm-race --quantity 8
+fuel plan products add "Maurten Drink Mix 320" --plan xcm-race --quantity 2
+
+# 4. Generate the fueling timeline
+fuel plan generate --plan xcm-race
+```
+
+Use `FUEL_HOME=/tmp/some-dir` to keep test runs out of your real history.
+
+## Commands
+
+| Command                         | Purpose                                     |
+|---------------------------------|---------------------------------------------|
+| `fuel profile setup`            | Create athlete profile                      |
+| `fuel profile show`             | Print current profile                       |
+| `fuel profile set`              | Update one or more profile fields           |
+| `fuel products list`            | List built-in + user products               |
+| `fuel products show <id>`       | Show full product details                   |
+| `fuel products add`             | Add a custom product                        |
+| `fuel products edit <id>`       | Edit a custom product                       |
+| `fuel products remove <id>`     | Remove a custom product                     |
+| `fuel products reset`           | Remove all custom products                  |
+| `fuel plan create`              | Create a named race plan                    |
+| `fuel plan list`                | List saved plans                            |
+| `fuel plan show <name>`         | Show a saved plan's config                  |
+| `fuel plan delete <name>`       | Delete a saved plan                         |
+| `fuel plan products add`        | Add a product to a plan                     |
+| `fuel plan products list`       | List products in a plan                     |
+| `fuel plan generate`            | Compute and print the fueling timeline      |
+
+Run `fuel help <command>` for full flag documentation.
+
+## How it works
+
+The plan engine is a sequence of pure functions:
+
+```
+RaceConfig + AthleteProfile + Products
+        │
+        ▼
+1. Environmental adjustments (Rothfusz heat index, piecewise altitude)
+        │
+        ▼
+2. Build timeline (time- or distance-based slots)
+        │
+        ▼
+3. Distribute carbs (steady / front-load / back-load / custom curve)
+        │
+        ▼
+4. Allocate products (round-to-nearest with overage advisory)
+        │
+        ▼
+5. Per-entry water adjustment (additional ml/slot from heat)
+        │
+        ▼
+6. Validate (gut tolerance, G:F ratio, caffeine, under-delivery)
+        │
+        ▼
+       FuelingPlan with entries, summary, warnings
+```
+
+No mutation, no state — easy to test, easy to embed in a future Flutter
+app via the `cli_api.dart` or `core.dart` barrel.
+
+## Project structure
+
+```
+race-fueling-calculator/
+├── packages/
+│   ├── core/              # Pure Dart domain logic
+│   │   ├── lib/src/
+│   │   │   ├── models/    # AthleteProfile, RaceConfig, FuelingPlan, ...
+│   │   │   ├── engine/    # timeline, distributor, allocator, validator
+│   │   │   ├── data/      # built-in products
+│   │   │   └── storage/   # adapter interface + schema migration
+│   │   └── test/
+│   └── cli/               # CLI on top of core
+│       ├── bin/fuel.dart
+│       ├── lib/
+│       │   ├── cli_api.dart      # Embedder-safe public surface
+│       │   ├── cli_runner.dart   # Adds Command<void> classes
+│       │   └── src/
+│       │       ├── commands/
+│       │       ├── formatting/   # color, plan_table, summary_block
+│       │       ├── prompts/
+│       │       ├── products/     # product_resolver
+│       │       └── storage/      # FileStorageAdapter
+│       └── test/
+├── docs/superpowers/
+│   ├── plans/v1.md            # The implementation plan
+│   └── specs/                 # Design specs
+├── JOURNAL.md                 # Phase log + Known Issues backlog
+└── CLAUDE.md                  # Project rules for AI assistants
+```
+
+## Development
+
+```bash
+# Install dependencies (workspace-aware)
+dart pub get
+
+# Static analysis (must be clean)
+dart analyze
+
+# Run all tests
+cd packages/core && dart test    # 177 tests
+cd packages/cli  && dart test    # 228 tests
+
+# Single test file
+dart test test/engine/timeline_builder_test.dart
+
+# Regenerate JSON serialization
+cd packages/core && dart run build_runner build --delete-conflicting-outputs
+```
+
+Generated `*.g.dart` files are committed to source. After changing any
+annotated model, regenerate before committing.
+
+## Storage
+
+Plans, profiles, and custom products are JSON files under
+`~/.race-fueling/` (override with `FUEL_HOME=/path`). Each file carries a
+`schema_version` field; the storage layer rejects files written with
+versions newer than the running binary supports.
+
+## Versioning
+
+Semantic versioning. The current release is **v1.0.0**.
+
+Known limitations (tracked in `JOURNAL.md`):
+
+- Caffeine validation is one-size-fits-all (400 mg cap, 6 mg/kg) — no
+  per-athlete sensitivity field. Tracked as KI-9, deferred to v1.1.
+- The under-delivery advisory covers carbs only; an analogous
+  water-side advisory is tracked as KI-69.
+- The product allocator's round-to-nearest can deliver 0 servings when
+  the per-slot target is below half the smallest product's serving size.
+  Tracked as KI-64.
+
+See `JOURNAL.md` for the full backlog.
+
+## License
+
+Not yet licensed. Contact the author before redistributing.
