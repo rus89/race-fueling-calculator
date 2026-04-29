@@ -1,6 +1,6 @@
 name: race_fueling_core
 description: Core domain logic for the Race Fueling Calculator
-version: 0.1.0
+version: 1.0.0
 resolution: workspace
 
 environment:
