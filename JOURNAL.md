@@ -426,9 +426,8 @@ Catalogued 2026-04-28 from a `/plan-review` pass on the Phase 7 amendments in `d
     - This works today but is implicit; a config change (e.g. running tests with `--reporter=expanded` on a TTY-attached runner) could cause ANSI to leak into existing assertions
     - Fix: add a unit test for `resolveColorMode` that locks the precedence (`--no-color` → `NO_COLOR` env → `stdout.supportsAnsiEscapes`), and a CI smoke test that runs the suite with stdout redirected to confirm no ANSI bleeds
 
-24. **Phase 8 barrel export still references `plain_plan.dart`** (Phase 8 Task 8.1)
-    - Task 7.4 deletes `plain_plan.dart`, but Task 8.1 (CLI barrel exports) was written when it was the active formatter; if Task 8.1 lists it among exports, the build breaks
-    - Fix: when starting Phase 8, audit Task 8.1's export list — replace any `plain_plan.dart` reference with `plan_table.dart` and `summary_block.dart`
+24. ~~**Phase 8 barrel export still references `plain_plan.dart`**~~ — RETRACTED 2026-04-29
+    - Audited via `/plan-review` on Phase 8 before implementation. Task 8.1's snippet correctly lists `plan_table.dart`, `summary_block.dart`, and `color.dart` — no `plain_plan.dart` reference exists anywhere in Phase 8. The fear was unfounded; either the plan was authored after the Phase 7 amendment or the snippet was patched proactively. No follow-up needed.
 
 25. **G:F ratio direction is undocumented in the formatter** (`summary_block.dart`, after Task 7.3 lands)
     - Engine stores ratio as `fructose / glucose` (`plan_engine.dart:82`); label `'1:${ratio}'` reads correctly as glucose:fructose. The patched Task 7.3 snippet adds an ABOUTME line documenting this, but the contract is one inadvertent inversion away from being silently wrong
