@@ -438,3 +438,111 @@ Catalogued 2026-04-28 from a `/plan-review` pass on the Phase 7 amendments in `d
     - The pre-amendment Phase 6 snippet at those lines still shows `print(...)` which conflicts with the Phase 7 cross-cutting rule "No `print()`"
     - Phase 6 is shipped so this is dead text, but it's a footgun for any reader skimming the plan top-down
     - Fix: in the cleanup pass, strike through or annotate the Phase 6 snippet block to flag it as superseded
+
+### Phase 7 Implementation Review — Tasks 7.1+7.2 (Medium Priority)
+
+Catalogued 2026-04-29 from a multi-agent review (architecture / test-coverage / accessibility-UX) of `color.dart` and `plan_table.dart`. CRITICAL #1 (NO_COLOR spec violation) and HIGH #2/#3/#4 were fixed in commits 530acba and 5351f6d on `feat/v1-phase7-formatting`. Items below are deferred.
+
+27. **No `--color=always` force-on path** (`color.dart`, deferred to Task 7.4)
+    - When auto-detect wrongly reports no-TTY (piping into `less -R`, `script`, terminal recorders, CI logs), users have no way to opt back in to colored output other than unsetting `NO_COLOR`
+    - Fix: in Task 7.4, accept a tri-state via `ColorMode { auto, always, never }` (or `forceColor: bool`) so a `--color=always` flag can override `stdout.supportsAnsiEscapes`. Pairs naturally with the `--no-color` flag already planned for Task 7.4
+
+28. ~~**`_separator` / column widths private; Task 7.3 needs them**~~ — RETRACTED 2026-04-29
+    - Original concern assumed Task 7.3's SUMMARY divider would match the table's total width. Actual implementation uses a fixed-length banner (`═══ SUMMARY ═══`, 15 chars) that is intentionally decoupled from table width. Architecture reviewer (Tasks 7.3+7.4 multi-agent review) confirmed coupling them would actively harm cohesion. False alarm; no follow-up needed.
+
+29. **Truncation uses byte-based `substring(0, 24)`** (`plan_table.dart:67-68`)
+    - `String.substring` operates on UTF-16 code units; product names with multi-code-unit graphemes (emoji, accented chars in user-defined products) can split mid-character and produce mojibake
+    - Fix: use `raw.characters.take(24).toString()` from `package:characters` (already in Dart core); add a regression test with a non-ASCII product name placed at the boundary
+
+30. **`distanceMark!` force-unwrap inside conditional** (`plan_table.dart:42`)
+    - Guarded by the immediately-preceding `!= null`, so safe today, but project policy prefers structural null guards (cf. commit a152eae which removed `rawDuration!` for the same reason)
+    - Fix: rewrite as `final dist = entry.distanceMark; dist != null ? '${dist.toStringAsFixed(0)}km' : ''`
+
+31. **Magic numbers `25` / `24` duplicate `widths[2]`** (`plan_table.dart:67`)
+    - Truncation thresholds are hand-derived from the Product column width; widening the column in the future silently desyncs truncation
+    - Fix: pass the column width into `_productCell` and compute `width - 1` for the truncation arithmetic
+
+32. **`formatPlanTable` signature closed to deferred v2 work** (`plan_table.dart:8`)
+    - Aid stations and per-entry warnings are deferred to v2; when they land, callers will need to opt them in
+    - Fix: consider a Dart 3 record `({required bool useColor})` in v2 so adding `showAidStations` is non-breaking
+
+33. **Box-drawing glyphs degrade screen-reader / non-UTF-8 output** (`plan_table.dart:6`, v1.1)
+    - `│` / `─` are announced poorly by VoiceOver/NVDA and corrupt under `LANG=C`
+    - Fix: in v1.1, add a `--plain` ASCII fallback (`|` / `-`) and auto-detect via `LANG`/`LC_ALL`
+
+34. **Truncation persists when output is piped** (`plan_table.dart:67`, v1.1)
+    - Rationale for truncation (fixed terminal width) disappears when output goes to a file or pipe; "Maurten Drink Mix 320 Caffe…" hides load-bearing tokens
+    - Fix: in v1.1, auto-disable truncation when `!stdout.hasTerminal`; expose `--no-truncate` / `--wide` for explicit control
+
+35. **Alignment test only checks one content row** (`plan_table_test.dart`, ~line 135 pre-coverage commit)
+    - The `useColor: true` alignment test verifies header/divider/first-row visible-width parity; if any row down the table contains a wider product cell or longer carb string, mis-alignment goes undetected
+    - Fix: loop over all content rows in the alignment test and assert `visibleWidth(line) == dividerWidth` for each
+
+36. **`visibleWidth` lacks non-ASCII and all-ANSI test coverage** (`color_test.dart`, line ~37)
+    - Current tests cover plain strings and SGR-wrapped ASCII; no test for `'foo…'` (U+2026 ellipsis used by truncation), all-ANSI strings (`'\x1B[31m\x1B[0m'` should give 0), or multi-segment SGR sequences as inputs to `padVisibleRight`
+    - Fix: add `expect(visibleWidth('foo…'), 4)` and `expect(visibleWidth('\x1B[31m\x1B[0m'), 0)` plus a `padVisibleRight` test on a multi-segment SGR string
+
+37. **`visibleWidth` uses code-unit `.length` — latent CJK/emoji misalignment** (`color.dart:30`, v2)
+    - ASCII-only built-in product catalogue masks this today, but a custom "🧪 Beta Test" or CJK name will misalign columns. Correct fix needs `package:characters` plus East-Asian Width tables — heavier than v1 warrants
+    - Fix: track for v2; pairs with #29 (truncation grapheme safety) and #33 (`--plain` ASCII fallback)
+
+38. **No `stdout.terminalColumns` adaptation** (`plan_table.dart:31`, v2)
+    - Fixed ~76-col layout (or ~98-col with Dist column) wraps on 60-col terminals (mobile SSH, narrow tmux panes)
+    - Fix: in v2, read `stdout.terminalColumns` and trim/wrap columns dynamically; pairs with `--wide` from #34
+
+### Phase 7 Implementation Review — Tasks 7.3+7.4 (Medium Priority)
+
+Catalogued 2026-04-29 from a multi-agent review (architecture / test-coverage / accessibility-UX) of `summary_block.dart`, the `_PlanGenerateCommand` wiring, and the new `full_flow_test.dart` E2E. HIGH items (glyph unification, rule 5(b) gap, E2E cwd, env-only NO_COLOR, plan doc drift) were fixed in commits 019c29e, b611047, 2a2a474. Items below are deferred.
+
+39. **Severity color rendering duplicated between summary_block and table** (`summary_block.dart:46-49` + future `plan_table.dart`)
+    - When v2 adds inline per-entry warnings, the `Severity → color` mapping (critical→red, advisory→yellow) will be in three places
+    - Fix: lift `severityColor(Severity, String, {bool useColor})` helper into `color.dart` (or `severity_format.dart`); both summary_block and the future inline-warning renderer call into one place
+
+40. **`_formatDuration` duplicated with divergent formats** (`plan_command.dart:46-52` vs `plan_table.dart`)
+    - Two private `_formatDuration` helpers exist with different output (`3h30m` vs `3:30`); divergence is intentional but undocumented and a future reader may unify them by accident
+    - Fix: either consolidate into a shared util with a comment explaining the two flavors, or add an ABOUTME line in each clarifying their distinct contracts
+
+41. **E2E spawns 4 `dart run` subprocesses** (`full_flow_test.dart`)
+    - ~8–20s of cold-start cost per CI run; overlap with `plan_command_test.dart`'s in-process tests is high
+    - Fix: mark with `@Tags(['e2e'])`, exclude from default `dart test` runs, gate behind an explicit CI job to keep the inner-loop suite fast
+
+42. **Banner literals hardcoded inline** (`summary_block.dart:11-12,35`)
+    - `═══ SUMMARY ═══` / `═══ WARNINGS ═══` and their ASCII fallbacks appear inline; if reused elsewhere, they'll diverge
+    - Fix: extract `summaryBanner(useColor)` / `warningsBanner(useColor)` constants; minor cleanup, not load-bearing
+
+43. **Coverage — mixed-warnings test doesn't lock structural ordering** (`summary_block_test.dart:38-62`)
+    - Asserts both `CRITICAL` and `ADVISORY` text present, but not that `WARNINGS` precedes both, that `CRITICAL` precedes `ADVISORY`, or that totals precede WARNINGS
+    - Fix: add `output.indexOf('CRITICAL') < output.indexOf('ADVISORY')` and `output.indexOf('WARNINGS') < output.indexOf('CRITICAL')`
+
+44. **Coverage — G:F ratio formatting only pinned at one value** (`summary_block_test.dart:64-70`)
+    - Single test case at `0.80` happens to format identically under naive `toString()`; rounding behavior of `toStringAsFixed(2)` is unverified
+    - Fix: add cases at `0.667` (asserts `1:0.67`) and `1.0` (asserts `1:1.00`, not `1:1`) to lock rounding
+
+45. **Coverage — empty-notes branch spacing not precisely locked** (`summary_block_test.dart:72-95`)
+    - Asserts trailing line is non-empty but not the exact line structure between totals and WARNINGS when notes are empty
+    - Fix: assert exact substring like `'Total water:      1200ml\n\n=== WARNINGS ==='`
+
+46. **Coverage — E2E doesn't assert stderr empty** (`full_flow_test.dart`)
+    - Only checks exit code and stdout; advisory leakage to stderr would go undetected
+    - Fix: add `expect(result.stderr.toString(), isEmpty)` to both E2E tests
+
+47. **UX — severity not recoverable from a single bullet line** (`summary_block.dart:41,48`, v1.1)
+    - Each warning bullet is `'  • <message>'`; if a user pipes through `grep '•'` or a screen reader extracts a single line, severity depends on the upstream group header
+    - Fix: in v1.1, add inline `[CRITICAL]` / `[ADVISORY]` text prefix on each bullet; pairs with KI-33's `--plain` proposal
+
+48. **Polish — code style nits in `summary_block.dart`** (LOW)
+    - Variable `s` for `plan.summary` should be renamed to `summary` (clearer)
+    - `buf.writeln('')` should be `buf.writeln()` (no arg) at lines 10, 21, 33
+    - Fix: trivial cleanup; no urgency
+
+49. **`full_flow_test.dart` lacks `@Timeout` annotation** (`full_flow_test.dart:7`, LOW)
+    - A hung subprocess blocks the suite for `dart test`'s default 30s
+    - Fix: add `@Timeout(Duration(seconds: 60))` and a one-line comment explaining why
+
+50. **Coverage — new "summary block emitted" test in plan_command_test doesn't assert table portion** (`plan_command_test.dart:1168-1204`, LOW)
+    - The test confirms summary is reachable but doesn't assert plan-table substrings (`'Maurten Gel 100'`) co-emit
+    - Fix: add the product assertion to confirm table-then-summary composition
+
+51. **`--no-color` help text doesn't state precedence** (`plan_command.dart:693`, LOW)
+    - Help reads "Disable colored output. Also honors NO_COLOR env var." — doesn't make explicit that the flag wins
+    - Fix: extend to "Equivalent to setting NO_COLOR=1; takes precedence over the env var."

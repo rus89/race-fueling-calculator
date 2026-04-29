@@ -1164,5 +1164,43 @@ void main() {
       expect(captured.stderr, isNot(contains('caffeine')));
       expect(captured.stdout, isNotEmpty);
     });
+
+    test('plan generate emits the new summary block', () async {
+      await seedProfile();
+      await captureOutput(() async {
+        await runFuel(buildRunner(), [
+          'plan',
+          'create',
+          '--name',
+          'Foo',
+          '--duration',
+          '2h',
+          '--target',
+          '75',
+          '--interval',
+          '30',
+        ]);
+        await runFuel(buildRunner(), [
+          'plan',
+          'products',
+          'add',
+          'Maurten Gel 100',
+          '--plan',
+          'foo',
+          '--quantity',
+          '10',
+        ]);
+      });
+
+      late final int code;
+      final captured = await captureOutput(() async {
+        code =
+            await runFuel(buildRunner(), ['plan', 'generate', '--plan', 'foo']);
+      });
+
+      expect(code, kExitSuccess);
+      expect(captured.stdout, contains('=== SUMMARY ==='));
+      expect(captured.stdout.contains('\x1B'), isFalse);
+    });
   });
 }
