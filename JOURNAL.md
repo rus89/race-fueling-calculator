@@ -545,3 +545,55 @@ Catalogued 2026-04-29 from a multi-agent review (architecture / test-coverage / 
 51. **`--no-color` help text doesn't state precedence** (`plan_command.dart:693`, LOW)
     - Help reads "Disable colored output. Also honors NO_COLOR env var." — doesn't make explicit that the flag wins
     - Fix: extend to "Equivalent to setting NO_COLOR=1; takes precedence over the env var."
+
+### Phase 8 Implementation Review — Tasks 8.1+8.2+8.3 (Medium Priority)
+
+Catalogued 2026-04-29 from a multi-agent review (architecture / test-coverage / accessibility-UX) of `cli_api.dart`, `cli_runner.dart`, `cli_integration_test.dart`, and the §Verification smoke-test block. HIGH items (FUEL_HOME isolation, Dist verify, barrel split, consistent show discipline, barrel resolution test, exit-code/errors exports) were fixed in commits f7a8b37 and a2176e6. Items below are deferred.
+
+52. **Coverage — integration test has zero error-path branches** (`cli_integration_test.dart`)
+    - Single happy-path; missing `loadProfile` null, `loadPlan` null, schema-version mismatch (the seams most likely to break)
+    - Fix: add a test where `loadPlan` returns null for an unknown name and another that exercises `validateSchemaVersion` rejecting a stored file with a future `schema_version`
+
+53. **Integration test bypasses its own barrel and doesn't read as API example** (`cli_integration_test.dart:6-8`)
+    - Imports from `src/...` directly while `cli_api.dart` exists for exactly this consumer pattern; new contributors reading the test see the wrong example
+    - Fix: switch imports to `package:race_fueling_cli/cli_api.dart` and add a short header comment mapping each step (profile setup → plan create → products add → plan generate) to its CLI counterpart
+
+54. **`test/integration/` vs `test/e2e/` directory split is semantically thin** (`test/integration/cli_integration_test.dart`)
+    - Both exercise multi-component flows; the directory name doesn't say "in-process vs subprocess"
+    - Fix: rename `test/integration/` to `test/in_process/` (or merge into `test/e2e/` with a shape-conveying filename like `cli_in_process_test.dart`) so the layout teaches future contributors which to add to
+
+55. **Coverage — `entries.length == 12` duplicates a timeline_builder invariant** (`cli_integration_test.dart:62`)
+    - Restates math already locked by `core/test/engine/timeline_builder_test.dart`; brittle (any future timeline change breaks both)
+    - Fix: derive from input — `expect(plan.entries.length, loaded.duration.inMinutes ~/ loaded.intervalMinutes)` — to lock the contract instead of the math
+
+56. **Coverage — `environmentalNotes, isNotEmpty` is coupled to KI-7's altitude threshold** (`cli_integration_test.dart:65`)
+    - Test silently breaks if KI-7 (linear altitude formula) is fixed and the 1500m threshold moves
+    - Fix: tighten to round-trip contract — assert that `loaded.altitudeM == 1800.0` AND that whatever notes the engine produces for the loaded value match the expected list — that tests the seam, not the engine threshold
+
+57. **Coverage — formatter assertions are smoke-only substrings** (`cli_integration_test.dart:70`)
+    - `contains('Maurten')` and `contains('SUMMARY')` don't prove the formatter consumed the LOADED plan vs a default
+    - Fix: add a discriminating assertion like `expect(table, contains('XCM Test Race'))` or assert the formatted output contains the exact total carbs from `plan.summary.totalCarbs`
+
+58. **Test name advertises a `products` step the body doesn't exercise** (`cli_integration_test.dart:23`, LOW)
+    - Test is named `'full workflow: profile → plan → products → generate'` but never calls `saveProducts`/`loadProducts` or merges a non-empty user library
+    - Fix: rename to `'profile + plan round-trip drives engine and formatters'`, OR extend the test to actually exercise `mergeProducts(builtInProducts, userProducts)` with a non-empty user list
+
+59. **Temp-dir prefix inconsistency between integration and e2e tests** (`cli_integration_test.dart:15`, LOW)
+    - Uses `'fuel_integration_'` (underscore) while `e2e/full_flow_test.dart` uses `'fuel-e2e-'` (hyphen)
+    - Fix: normalize to one separator style for grep-ability when triaging leaked temp dirs
+
+60. **Smoke test product name unpinned** (`v1.md:5657`, LOW)
+    - `"Maurten Drink Mix 320"` is hardcoded; future SKU rename in `built_in_products.dart` silently breaks the smoke test
+    - Fix: add a `// source-of-truth: built_in_products.dart:107` comment in the plan, OR pin the smoke test to use the product ID `maurten-320` (more stable than display name)
+
+61. **No automated drift detection on `--help` output** (`v1.md` Task 8.3 Step 4, LOW, v1.1 idea)
+    - Manual sanity check only; an accidental command-tree change goes undetected
+    - Fix: in v1.1, add a golden-file diff test against `fuel --help` and each subcommand's `--help`; fails CI on any unintended drift
+
+62. **Barrel grouping comments missing** (`cli_api.dart:5-12` + `cli_runner.dart:5-9`, LOW)
+    - Exports are a flat list; grouping comments separating storage / formatting / prompts / errors would help additions land in the right section
+    - Fix: cosmetic; add blank lines + section headers if the lists grow
+
+63. **Process note — TDD trace ambiguous on `cli_integration_test.dart`** (LOW)
+    - Assertions look retrofitted to observed behavior (`12`, `isNotEmpty`) rather than written from spec
+    - Fix: when extending this test (KI-52 onwards), favor spec-derived assertions like `entries.length == duration / interval` over restating output — keeps the test honest about what it locks
