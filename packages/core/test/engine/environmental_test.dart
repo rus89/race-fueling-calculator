@@ -35,91 +35,142 @@ void main() {
       expect(adj.carbMultiplier, 1.0);
     });
 
-    test('marginal heat (27 °C) barely enters caution zone', () {
-      // 27°C = 80.6°F / 50% → HI ≈ actual temp (barely above 80°F threshold)
-      final adj = calculateAdjustments(temperature: 27, humidity: 50);
-      // Should be just at the Caution boundary with at least 50ml water
-      expect(adj.additionalWaterMlPerSlot, greaterThanOrEqualTo(50));
+    test('25°C/50% RH stays below the simple-HI 80°F threshold', () {
+      // simpleHI = 0.5*(77 + 61 + (77-68)*1.2 + 50*0.094) = 76.75°F (<80)
+      // → use simple, ≈ 24.86°C, < 27°C threshold → no advisory.
+      final adj = calculateAdjustments(temperature: 25, humidity: 50);
+      expect(adj.additionalWaterMlPerSlot, 0.0);
+      expect(adj.advisories, isEmpty);
+    });
+
+    test('25°C/30% RH stays on the simple-HI path with no advisory', () {
+      // simpleHI = 0.5*(77 + 61 + 10.8 + 30*0.094) ≈ 75.81°F (<80)
+      final adj = calculateAdjustments(temperature: 25, humidity: 30);
+      expect(adj.additionalWaterMlPerSlot, 0.0);
+      expect(adj.advisories, isEmpty);
+    });
+
+    test('20°C/40% RH stays on the simple-HI path with no advisory', () {
+      // simpleHI = 0.5*(68 + 61 + 0 + 40*0.094) ≈ 66.38°F (<80)
+      final adj = calculateAdjustments(temperature: 20, humidity: 40);
+      expect(adj.additionalWaterMlPerSlot, 0.0);
+      expect(adj.advisories, isEmpty);
+    });
+
+    test('Caution band (27°C/45% RH) ramps water from band start (~0)', () {
+      // simpleHI(80.6°F, 45%) = 80.79°F → Rothfusz path. HI lands at the
+      // very start of the Caution band (≥27°C), so water should be
+      // greater than 0 but well below the 50 ml/slot ramp endpoint.
+      final adj = calculateAdjustments(temperature: 27, humidity: 45);
+      expect(adj.additionalWaterMlPerSlot, greaterThanOrEqualTo(0));
+      expect(adj.additionalWaterMlPerSlot, lessThan(50));
       expect(
-        adj.advisories.any((a) => a.contains('Warm conditions')),
+        adj.advisories.any((a) => a.contains('Caution')),
         true,
       );
     });
 
-    test('Danger zone returns only the Danger advisory (exclusive)', () {
-      // 35°C (95°F), 70% RH → Rothfusz HI ≈ 122.6°F (50.3°C)
-      // This is in the Danger zone (39–52°C)
-      final adj = calculateAdjustments(temperature: 35, humidity: 70);
-      // Water still accumulates: Caution (50) + Extreme Caution (50) + Danger
-      // (50) = 150ml
-      expect(adj.additionalWaterMlPerSlot, 150.0);
+    test('Extreme Caution band advisory exclusive (no Caution prefix)', () {
+      // 32°C / 50% RH → HI ≈ 34°C — Extreme Caution band.
+      final adj = calculateAdjustments(temperature: 32, humidity: 50);
       expect(
-        adj.advisories.any((a) => a.contains('Dangerous heat')),
+        adj.advisories.any((a) => a.startsWith('Extreme Caution:')),
         true,
       );
-      // Lower-zone advisories must NOT appear at Danger
+      // Lower-band advisory (begins with 'Caution:') must NOT appear.
+      // Use startsWith to avoid the 'Extreme Caution:' substring overlap.
       expect(
-        adj.advisories.any((a) => a.contains('Warm conditions')),
-        false,
-      );
-      expect(
-        adj.advisories.any((a) => a.contains('High heat stress')),
+        adj.advisories.any((a) => a.startsWith('Caution:')),
         false,
       );
     });
 
-    test('Extreme Danger zone returns only the Extreme Danger advisory', () {
-      // 40°C (104°F), 85% RH → Rothfusz HI well above 52°C
+    test('Danger band (33°C/85%) sits between 100 and 150 ml/slot', () {
+      // HI(91.4°F, 85%) ≈ 117°F ≈ 47°C — squarely in Danger (41–54°C).
+      // Linear ramp in band: 100 + (47-41)/(54-41) * 50 ≈ 123 ml.
+      final adj = calculateAdjustments(temperature: 33, humidity: 85);
+      expect(adj.additionalWaterMlPerSlot, greaterThan(100));
+      expect(adj.additionalWaterMlPerSlot, lessThan(150));
+      expect(
+        adj.advisories.any((a) => a.contains('Danger:')),
+        true,
+      );
+      expect(
+        adj.advisories.any((a) => a.contains('Caution')),
+        false,
+      );
+    });
+
+    test('Extreme Danger zone caps water at 150 ml/slot', () {
+      // 40°C (104°F), 85% RH → Rothfusz HI well above 54°C cutoff.
       final adj = calculateAdjustments(temperature: 40, humidity: 85);
       expect(adj.additionalWaterMlPerSlot, 150.0);
       expect(
         adj.advisories.any((a) => a.contains('EXTREME DANGER')),
         true,
       );
+      // Lower-band advisory phrases must NOT appear at Extreme Danger.
       expect(
-        adj.advisories.any((a) => a.contains('Warm conditions')),
+        adj.advisories.any((a) => a.contains('Caution:')),
         false,
       );
       expect(
-        adj.advisories.any((a) => a.contains('High heat stress')),
+        adj.advisories.any((a) => a.contains('Extreme Caution')),
         false,
       );
       expect(
-        adj.advisories.any((a) => a.contains('Dangerous heat')),
+        adj.advisories.any((a) => a.contains('Danger:')),
         false,
       );
     });
 
     test('extreme heat gives strongest advisory', () {
-      // 40°C (104°F), 85% RH → Rothfusz HI will be very high, likely Danger+
+      // 40°C (104°F), 85% RH — well into Extreme Danger.
       final adj = calculateAdjustments(temperature: 40, humidity: 85);
       expect(adj.additionalWaterMlPerSlot, greaterThan(100));
       expect(adj.advisories.any((a) => a.contains('EXTREME DANGER')), true);
     });
 
-    test('dry heat produces milder advisories than humid heat', () {
-      // 38°C (100°F), 20% RH → Rothfusz with Adjustment A (RH < 13%) doesn't
-      // apply since RH=20 > 13. But HI should be relatively moderate.
+    test('35°C/80% RH yields water at 150ml cap (Extreme Danger)', () {
+      // HI(95°F, 80%) ≈ 134°F ≈ 56.7°C — Extreme Danger.
+      final adj = calculateAdjustments(temperature: 35, humidity: 80);
+      expect(adj.additionalWaterMlPerSlot, 150.0);
+      expect(adj.advisories, isNotEmpty);
+    });
+
+    test('40°C/90% RH triggers Extreme Danger and caps water', () {
+      final adj = calculateAdjustments(temperature: 40, humidity: 90);
+      expect(adj.additionalWaterMlPerSlot, 150.0);
+      expect(
+        adj.advisories.any((a) => a.contains('EXTREME DANGER')),
+        true,
+      );
+    });
+
+    test('dry heat produces less water than humid heat at same temperature',
+        () {
+      // 38°C/20% vs 38°C/80% — humid should add at least as much water.
       final dryAdj = calculateAdjustments(temperature: 38, humidity: 20);
       final humidAdj = calculateAdjustments(temperature: 38, humidity: 80);
-      // Lower humidity should have lower water addition
       expect(dryAdj.additionalWaterMlPerSlot,
           lessThanOrEqualTo(humidAdj.additionalWaterMlPerSlot));
     });
 
-    test('low humidity adjustment subtracts from HI when applicable', () {
-      // 32.2°C (90°F), 10% RH → Adjustment A applies (RH < 13%, temp 80-112)
-      // The adj = ((13-10)/4) * sqrt((17-|90-95|)/17) = 0.75 * sqrt(12/17)
-      // = 0.75 * 0.840 = 0.630
+    test('low humidity Adjustment A still subtracts from HI', () {
+      // 32.2°C (90°F), 10% RH → NWS Adjustment A applies (RH<13%, 80–112°F).
+      // The adjustment lowers HI vs the bare polynomial output.
       final adj = calculateAdjustments(temperature: 32.2, humidity: 10);
-      // Adjustment A reduces HI but we still enter Extreme Caution → 100ml
-      expect(adj.additionalWaterMlPerSlot, greaterThanOrEqualTo(50));
       expect(adj.advisories, isNotEmpty);
-      // Should include the heat index summary line
       expect(
         adj.advisories.any((a) => a.contains('Heat index')),
         true,
       );
+    });
+
+    test('heat does not change carb multiplier (heat is hydration-only)', () {
+      // Strong heat with no altitude — carbMultiplier must stay 1.0.
+      final adj = calculateAdjustments(temperature: 38, humidity: 75);
+      expect(adj.carbMultiplier, 1.0);
     });
 
     test('humidity defaults to 50% when not provided', () {
@@ -162,16 +213,28 @@ void main() {
     });
 
     test('Rothfusz regression gives known output at reference point', () {
-      // At 32°C (89.6°F) / 50% RH, the Rothfusz regression produces
-      // HI ≈ 33°C which falls in Extreme Caution zone → 100ml water.
-      // The well-known NOAA reference: at 90°F/50%, HI is noticeably higher.
+      // NOAA reference: at 90°F (~32.2°C) / 50% RH, HI ≈ 94°F ≈ 34.4°C.
+      // Test point 32°C (89.6°F) / 50% RH lands in the Extreme Caution band
+      // (32 ≤ HI < 41°C). The 50→100 ml ramp at HI≈34.4 yields ≈63 ml.
       final adj = calculateAdjustments(temperature: 32, humidity: 50);
-      // Extreme Caution zone: Caution (50) + Extreme Caution (50) = 100ml
-      expect(adj.additionalWaterMlPerSlot, greaterThanOrEqualTo(100));
-      expect(
-        adj.advisories.any((a) => a.contains('High heat stress')),
-        true,
+
+      // Extreme Caution band: water in [50, 100) per the linear ramp.
+      expect(adj.additionalWaterMlPerSlot, greaterThanOrEqualTo(50));
+      expect(adj.additionalWaterMlPerSlot, lessThan(100));
+
+      // Parse the °C value from the 'Heat index: ...°C (...°F)' summary
+      // and check Rothfusz matches the NOAA reference within ±0.2°C.
+      final summary = adj.advisories.firstWhere(
+        (a) => a.contains('Heat index'),
+        orElse: () => '',
       );
+      expect(summary, isNotEmpty,
+          reason: 'expected a "Heat index: …°C (…°F)" summary advisory');
+      final match = RegExp(r'Heat index:\s*([\d.]+)°C').firstMatch(summary);
+      expect(match, isNotNull,
+          reason: 'could not parse °C from advisory: $summary');
+      final hiCelsius = double.parse(match!.group(1)!);
+      expect(hiCelsius, closeTo(34.4, 0.2));
     });
 
     test('high humidity triggers Adjustment B (Rothfusz)', () {
