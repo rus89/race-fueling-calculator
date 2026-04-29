@@ -125,5 +125,15 @@ void main() {
       final output = formatSummaryBlock(plan, useColor: false);
       expect(output.contains('\x1B'), isFalse);
     });
+
+    test('useColor: true emits red for critical and yellow for advisory', () {
+      final plan = buildPlan(warnings: [
+        Warning(severity: Severity.critical, message: 'Critical thing'),
+        Warning(severity: Severity.advisory, message: 'Advisory thing'),
+      ]);
+      final output = formatSummaryBlock(plan, useColor: true);
+      expect(output, contains('\x1B[31m'), reason: 'red for critical');
+      expect(output, contains('\x1B[33m'), reason: 'yellow for advisory');
+    });
   });
 }
