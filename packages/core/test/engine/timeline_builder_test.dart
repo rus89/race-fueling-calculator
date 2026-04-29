@@ -108,24 +108,61 @@ void main() {
   });
 
   group('buildTimeline — boundary cases', () {
-    test(
-      'intervalMinutes == 0 should not infinite-loop',
-      () {
-        final config = RaceConfig(
-          name: 'Test',
-          duration: Duration(hours: 2),
-          timelineMode: TimelineMode.timeBased,
-          intervalMinutes: 0,
-          targetCarbsGPerHr: 60.0,
-          strategy: Strategy.steady,
-          selectedProducts: [],
-        );
-        // Desired: either throws ArgumentError or falls back to a sane default.
-        // Actual: for-loop `min += 0` never terminates.
-        expect(() => buildTimeline(config), throwsA(anything));
-      },
-      skip: 'KI-2: zero interval causes infinite loop; fix in Phase 8',
-    );
+    test('intervalMinutes == 0 throws ArgumentError', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 0,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(() => buildTimeline(config), throwsArgumentError);
+    });
+
+    test('negative intervalMinutes throws ArgumentError', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: -5,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(() => buildTimeline(config), throwsArgumentError);
+    });
+
+    test('intervalMinutes == 1 produces a sane timeline', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(minutes: 3),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 1,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      final slots = buildTimeline(config);
+      expect(slots.length, 3);
+      expect(slots[0].timeMark, Duration(minutes: 1));
+      expect(slots[2].timeMark, Duration(minutes: 3));
+    });
+
+    test('null intervalMinutes falls back to default 20', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      final slots = buildTimeline(config);
+      expect(slots.length, 6);
+      expect(slots[0].timeMark, Duration(minutes: 20));
+    });
 
     test(
       'distanceKm == 0 should not produce a timeline of time-zero slots',

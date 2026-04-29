@@ -23,6 +23,13 @@ List<TimeSlot> buildTimeline(RaceConfig config) {
 
 List<TimeSlot> _buildTimeBased(RaceConfig config) {
   final intervalMin = config.intervalMinutes ?? 20;
+  if (intervalMin <= 0) {
+    throw ArgumentError.value(
+      config.intervalMinutes,
+      'intervalMinutes',
+      'must be positive',
+    );
+  }
   final totalMin = config.duration.inMinutes;
   final slots = <TimeSlot>[];
 
