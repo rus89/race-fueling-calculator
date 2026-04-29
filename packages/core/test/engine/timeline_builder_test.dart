@@ -164,29 +164,76 @@ void main() {
       expect(slots[0].timeMark, Duration(minutes: 20));
     });
 
-    test(
-      'distanceKm == 0 should not produce a timeline of time-zero slots',
-      () {
-        final config = RaceConfig(
-          name: 'Test',
-          duration: Duration(hours: 5),
-          distanceKm: 0.0,
-          timelineMode: TimelineMode.distanceBased,
-          intervalKm: 10.0,
-          targetCarbsGPerHr: 60.0,
-          strategy: Strategy.steady,
-          selectedProducts: [],
-          aidStations: [AidStation(distanceKm: 50.0)],
-        );
-        // Desired: either throws ArgumentError, returns [], or places the aid
-        // station at a sensible timeMark derived from a defaulted pace.
-        // Actual: paceMinPerKm falls back to 0, so the aid station collapses
-        // to timeMark 0 — that's the bug this test will catch when unskipped.
-        final slots = buildTimeline(config);
-        final aidSlots = slots.where((s) => s.isAidStation).toList();
-        expect(aidSlots, isEmpty);
-      },
-      skip: 'KI-5: zero distance yields nonsensical timeline; fix in Phase 8',
-    );
+    test('distanceKm == 0 in distanceBased mode throws ArgumentError', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 0.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [AidStation(distanceKm: 50.0)],
+      );
+      expect(() => buildTimeline(config), throwsArgumentError);
+    });
+
+    test('negative distanceKm in distanceBased mode throws ArgumentError', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: -10.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(() => buildTimeline(config), throwsArgumentError);
+    });
+
+    test('tiny positive distanceKm produces a sane timeline', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(minutes: 1),
+        distanceKm: 0.1,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 0.1,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      final slots = buildTimeline(config);
+      expect(slots.length, 1);
+      expect(slots[0].distanceMark, 0.1);
+    });
+
+    test('null distanceKm in timeBased mode does not throw', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(() => buildTimeline(config), returnsNormally);
+    });
+
+    test('distanceKm == 0 in timeBased mode does not throw', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        distanceKm: 0.0,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(() => buildTimeline(config), returnsNormally);
+    });
   });
 }

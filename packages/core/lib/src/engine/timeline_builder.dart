@@ -64,8 +64,15 @@ List<TimeSlot> _buildTimeBased(RaceConfig config) {
 List<TimeSlot> _buildDistanceBased(RaceConfig config) {
   final intervalKm = config.intervalKm ?? 10.0;
   final totalKm = config.distanceKm ?? 0.0;
+  if (totalKm <= 0) {
+    throw ArgumentError.value(
+      config.distanceKm,
+      'distanceKm',
+      'must be positive when timelineMode is distanceBased',
+    );
+  }
   final totalMin = config.duration.inMinutes;
-  final paceMinPerKm = totalKm > 0 ? totalMin / totalKm : 0.0;
+  final paceMinPerKm = totalMin / totalKm;
   final slots = <TimeSlot>[];
 
   for (var i = 1; i * intervalKm <= totalKm; i++) {
