@@ -216,5 +216,57 @@ void main() {
 
       expect(plan.warnings, isEmpty);
     });
+
+    test('altitude under-delivery triggers advisory warning', () {
+      // 2-hour race at 2500m altitude → carb boost ~6.7%, target ~64g/hr.
+      // Total adjusted target ≈ 128g. Provide only 4 gels × 25g = 100g supply,
+      // so allocator can deliver at most 100g — below 90% of 128g (115g).
+      // The under-delivery warning must fire.
+      final config = RaceConfig(
+        name: 'Mountain Short',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+        altitudeM: 2500,
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(
+        plan.warnings.any((w) =>
+            w.severity == Severity.advisory &&
+            w.message.contains('altitude/heat-adjusted target')),
+        true,
+        reason: 'altitude-adjusted plan with insufficient supply must warn',
+      );
+    });
+
+    test('altitude with sufficient product emits no under-delivery warning',
+        () {
+      // 2-hour race at 2500m, plenty of gels. Plan should reach the
+      // boosted target → no under-delivery advisory.
+      final config = RaceConfig(
+        name: 'Mountain Stocked',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 12)],
+        altitudeM: 2500,
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(
+        plan.warnings.any(
+            (w) => w.message.contains('altitude/heat-adjusted target')),
+        false,
+        reason: 'sufficient supply must not emit under-delivery advisory',
+      );
+    });
   });
 }

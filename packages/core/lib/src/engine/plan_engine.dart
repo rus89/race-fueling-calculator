@@ -11,6 +11,12 @@ import 'product_allocator.dart';
 import 'plan_validator.dart';
 import 'environmental.dart';
 
+/// Threshold for the under-delivery advisory: when an environmentally
+/// adjusted plan delivers below this fraction of the adjusted target,
+/// surface an advisory so the user knows the altitude/heat compensation
+/// is not actually reflected in the product mix.
+const _underDeliveryThreshold = 0.90;
+
 FuelingPlan generatePlan(
   RaceConfig config,
   AthleteProfile profile,
@@ -59,11 +65,36 @@ FuelingPlan generatePlan(
   final validationWarnings =
       validatePlan(adjustedEntries, profile, config.duration);
 
+  // Step 6b: Detect under-delivery vs. environmentally adjusted target.
+  // Without this, the altitude/heat carb multiplier scales the target rate
+  // but its effect can be invisible if the available product mix can't
+  // reach the boosted target — the user would think the plan compensates
+  // when it doesn't.
+  final envAdjustmentsApplied = adjustments.carbMultiplier > 1.0 ||
+      adjustments.additionalWaterMlPerSlot > 0.0;
+  final adjustedTargetTotal =
+      targetCarbs.fold<double>(0.0, (sum, t) => sum + t);
+  final actualTotal =
+      adjustedEntries.fold<double>(0.0, (sum, e) => sum + e.carbsTotal);
+  Warning? underDeliveryWarning;
+  if (envAdjustmentsApplied && adjustedTargetTotal > 0) {
+    final ratio = actualTotal / adjustedTargetTotal;
+    if (ratio < _underDeliveryThreshold) {
+      underDeliveryWarning = Warning(
+        severity: Severity.advisory,
+        message: 'Plan delivers only ${(ratio * 100).toStringAsFixed(0)}% '
+            'of altitude/heat-adjusted target — add more product to fully '
+            'compensate.',
+      );
+    }
+  }
+
   final allWarnings = <Warning>[
     ...validationWarnings,
     ...allocation.depletionWarnings
         .map((msg) => Warning(severity: Severity.critical, message: msg)),
     if (curveCoverageWarning != null) curveCoverageWarning,
+    if (underDeliveryWarning != null) underDeliveryWarning,
   ];
 
   // Step 7: Build summary
