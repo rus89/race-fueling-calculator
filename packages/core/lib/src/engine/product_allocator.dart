@@ -3,7 +3,14 @@
 import '../models/product.dart';
 import '../models/race_config.dart';
 import '../models/fueling_plan.dart';
+import '../models/warning.dart';
 import 'timeline_builder.dart';
+
+/// Slot-level overage advisory threshold. When delivered carbs exceed the
+/// slot target by more than this fraction, an advisory warning is attached
+/// to the slot to surface the gut-tolerance risk caused by coarse serving
+/// sizes.
+const _slotOverageAdvisoryThreshold = 0.20;
 
 class AllocationResult {
   final List<PlanEntry> entries;
@@ -40,6 +47,24 @@ AllocationResult allocateProducts({
     var waterAssigned = 0.0;
     final servings = <ProductServing>[];
 
+    // Skip allocation entirely when the slot has no carb target. Avoids
+    // emitting a meaningless overage warning for slots whose strategy
+    // assigns zero carbs.
+    if (target <= 0) {
+      entries.add(PlanEntry(
+        timeMark: slot.timeMark,
+        distanceMark: slot.distanceMark,
+        products: servings,
+        carbsGlucose: glucoseAssigned,
+        carbsFructose: fructoseAssigned,
+        carbsTotal: carbsAssigned,
+        cumulativeCarbs: cumulativeCarbs,
+        cumulativeCaffeine: cumulativeCaffeine,
+        waterMl: waterAssigned,
+      ));
+      continue;
+    }
+
     // Get available products for this slot
     final available = selections.where((s) {
       if ((remaining[s.productId] ?? 0) <= 0) return false;
@@ -66,8 +91,12 @@ AllocationResult allocateProducts({
       if (product == null) {
         continue; // product removed from library since plan was saved
       }
+      // Round to nearest whole serving so a 20g target served by a 25g
+      // product picks 1 serving (closest), not 1 forced upward by .ceil().
+      // The post-allocation overage check below surfaces any resulting
+      // gut-tolerance risk to the user.
       final needed =
-          ((target - carbsAssigned) / product.carbsPerServing).ceil();
+          ((target - carbsAssigned) / product.carbsPerServing).round();
       final canUse = remaining[selection.productId] ?? 0;
       final use = needed.clamp(0, canUse);
 
@@ -90,6 +119,23 @@ AllocationResult allocateProducts({
     cumulativeCarbs += carbsAssigned;
     cumulativeCaffeine += caffeineAssigned;
 
+    // Slot-level over-delivery advisory: coarse serving sizes can push
+    // delivered carbs above target, increasing gut-tolerance risk.
+    final slotWarnings = <Warning>[];
+    final overageDelta = carbsAssigned - target;
+    if (overageDelta > 0) {
+      final overage = overageDelta / target;
+      if (overage > _slotOverageAdvisoryThreshold) {
+        slotWarnings.add(Warning(
+          severity: Severity.advisory,
+          message: 'Product mix over-delivers '
+              '${overageDelta.toStringAsFixed(0)}g '
+              '(${(overage * 100).toStringAsFixed(0)}%) above target',
+          entryIndex: i,
+        ));
+      }
+    }
+
     entries.add(PlanEntry(
       timeMark: slot.timeMark,
       distanceMark: slot.distanceMark,
@@ -100,6 +146,7 @@ AllocationResult allocateProducts({
       cumulativeCarbs: cumulativeCarbs,
       cumulativeCaffeine: cumulativeCaffeine,
       waterMl: waterAssigned,
+      warnings: slotWarnings,
     ));
   }
 
