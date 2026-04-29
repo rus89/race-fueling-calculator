@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 import 'package:race_fueling_core/src/engine/carb_distributor.dart';
 import 'package:race_fueling_core/src/engine/timeline_builder.dart';
 import 'package:race_fueling_core/src/models/race_config.dart';
+import 'package:race_fueling_core/src/models/warning.dart';
 
 void main() {
   group('distributeCarbs — steady', () {
@@ -135,6 +136,174 @@ void main() {
       // Last 60 min: 40g/hr -> 20g per 30min slot
       expect(targets[2], closeTo(20.0, 0.5));
       expect(targets[3], closeTo(20.0, 0.5));
+    });
+  });
+
+  group('detectCustomCurveCoverageWarning', () {
+    test('returns null when curve covers full duration', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 30,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: [
+          CurveSegment(durationMinutes: 60, targetGPerHr: 80.0),
+          CurveSegment(durationMinutes: 60, targetGPerHr: 40.0),
+        ],
+      );
+
+      final warning =
+          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+
+      expect(warning, isNull);
+    });
+
+    test('returns advisory when curve covers only first half', () {
+      // Race is 120 min; curve covers only first 60 min.
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 30,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: [
+          CurveSegment(durationMinutes: 60, targetGPerHr: 80.0),
+        ],
+      );
+
+      final warning =
+          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+
+      expect(warning, isNotNull);
+      expect(warning!.severity, Severity.advisory);
+      expect(warning.message, contains('60/120'));
+      expect(warning.message, contains('60'));
+    });
+
+    test(
+        'returns advisory when total curve duration is less than race even with multiple segments',
+        () {
+      // Race is 180 min; curve covers 60 + 30 = 90 min.
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 3),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 30,
+        targetCarbsGPerHr: 70.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: [
+          CurveSegment(durationMinutes: 60, targetGPerHr: 90.0),
+          CurveSegment(durationMinutes: 30, targetGPerHr: 50.0),
+        ],
+      );
+
+      final warning =
+          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+
+      expect(warning, isNotNull);
+      expect(warning!.severity, Severity.advisory);
+      expect(warning.message, contains('90/180'));
+      expect(warning.message, contains('90')); // gap = 90 minutes
+    });
+
+    test('returns advisory with full-fallback wording when curve list is empty',
+        () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 1),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: [],
+      );
+
+      final warning =
+          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+
+      expect(warning, isNotNull);
+      expect(warning!.severity, Severity.advisory);
+      expect(warning.message, contains('0/60'));
+    });
+
+    test('returns null when strategy is not custom', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 30,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+
+      final warning =
+          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+
+      expect(warning, isNull);
+    });
+
+    test('returns advisory when customCurve is null (treated as zero coverage)',
+        () {
+      // Edge: strategy=custom but curve is null. The distributor falls back
+      // entirely; surface the same advisory as an empty list.
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 1),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: null,
+      );
+
+      final warning =
+          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+
+      expect(warning, isNotNull);
+      expect(warning!.severity, Severity.advisory);
+      expect(warning.message, contains('0/60'));
+    });
+  });
+
+  group('distributeCarbs — custom fallback behavior', () {
+    test('falls back to base rate for slots beyond curve coverage', () {
+      // Curve covers first 60 min only; slots at 90 and 120 should fall back.
+      final slots = [
+        TimeSlot(timeMark: Duration(minutes: 30)),
+        TimeSlot(timeMark: Duration(minutes: 60)),
+        TimeSlot(timeMark: Duration(minutes: 90)),
+        TimeSlot(timeMark: Duration(minutes: 120)),
+      ];
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 30,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.custom,
+        selectedProducts: [],
+        customCurve: [
+          CurveSegment(durationMinutes: 60, targetGPerHr: 80.0),
+        ],
+      );
+
+      final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);
+
+      // First 60 min: 80g/hr -> 40g per 30min slot
+      expect(targets[0], closeTo(40.0, 0.5));
+      expect(targets[1], closeTo(40.0, 0.5));
+      // Beyond curve: base 60g/hr -> 30g per 30min slot
+      expect(targets[2], closeTo(30.0, 0.5));
+      expect(targets[3], closeTo(30.0, 0.5));
     });
   });
 }

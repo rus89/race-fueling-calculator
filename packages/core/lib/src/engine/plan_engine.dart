@@ -29,6 +29,8 @@ FuelingPlan generatePlan(
   // Step 3: Distribute carbs, applying altitude multiplier to the target rate
   final adjustedRate = config.targetCarbsGPerHr * adjustments.carbMultiplier;
   final targetCarbs = distributeCarbs(slots, config, adjustedRate);
+  final curveCoverageWarning =
+      detectCustomCurveCoverageWarning(config, adjustedRate);
 
   // Step 4: Allocate products
   final allocation = allocateProducts(
@@ -61,6 +63,7 @@ FuelingPlan generatePlan(
     ...validationWarnings,
     ...allocation.depletionWarnings
         .map((msg) => Warning(severity: Severity.critical, message: msg)),
+    if (curveCoverageWarning != null) curveCoverageWarning,
   ];
 
   // Step 7: Build summary
