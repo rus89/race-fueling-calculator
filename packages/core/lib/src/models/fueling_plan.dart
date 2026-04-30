@@ -42,6 +42,10 @@ class PlanEntry extends Equatable {
   final double cumulativeCaffeine;
   final double waterMl;
   final List<Warning> warnings;
+  @JsonKey(defaultValue: 0.0)
+  final double effectiveDrinkCarbs;
+  @JsonKey(includeIfNull: false)
+  final AidStation? aidStation;
 
   const PlanEntry({
     required this.timeMark,
@@ -54,6 +58,8 @@ class PlanEntry extends Equatable {
     required this.cumulativeCaffeine,
     required this.waterMl,
     this.warnings = const [],
+    this.effectiveDrinkCarbs = 0.0,
+    this.aidStation,
   });
 
   factory PlanEntry.fromJson(Map<String, dynamic> json) =>
@@ -61,19 +67,55 @@ class PlanEntry extends Equatable {
 
   Map<String, dynamic> toJson() => _$PlanEntryToJson(this);
 
+  /// Returns a copy with the given fields replaced. Used by `plan_engine`
+  /// when applying environmental water adjustments to a freshly allocated
+  /// entry — the allocator emits `effectiveDrinkCarbs`, `aidStation`, and
+  /// per-slot `warnings` that must NOT be silently dropped on rebuild.
+  /// `aidStation` cannot be cleared via this method; it is only ever set
+  /// once by the allocator and read downstream.
+  PlanEntry copyWith({
+    Duration? timeMark,
+    double? distanceMark,
+    List<ProductServing>? products,
+    double? carbsGlucose,
+    double? carbsFructose,
+    double? carbsTotal,
+    double? cumulativeCarbs,
+    double? cumulativeCaffeine,
+    double? waterMl,
+    List<Warning>? warnings,
+    double? effectiveDrinkCarbs,
+    AidStation? aidStation,
+  }) => PlanEntry(
+    timeMark: timeMark ?? this.timeMark,
+    distanceMark: distanceMark ?? this.distanceMark,
+    products: products ?? this.products,
+    carbsGlucose: carbsGlucose ?? this.carbsGlucose,
+    carbsFructose: carbsFructose ?? this.carbsFructose,
+    carbsTotal: carbsTotal ?? this.carbsTotal,
+    cumulativeCarbs: cumulativeCarbs ?? this.cumulativeCarbs,
+    cumulativeCaffeine: cumulativeCaffeine ?? this.cumulativeCaffeine,
+    waterMl: waterMl ?? this.waterMl,
+    warnings: warnings ?? this.warnings,
+    effectiveDrinkCarbs: effectiveDrinkCarbs ?? this.effectiveDrinkCarbs,
+    aidStation: aidStation ?? this.aidStation,
+  );
+
   @override
   List<Object?> get props => [
-        timeMark,
-        distanceMark,
-        products,
-        carbsGlucose,
-        carbsFructose,
-        carbsTotal,
-        cumulativeCarbs,
-        cumulativeCaffeine,
-        waterMl,
-        warnings,
-      ];
+    timeMark,
+    distanceMark,
+    products,
+    carbsGlucose,
+    carbsFructose,
+    carbsTotal,
+    cumulativeCarbs,
+    cumulativeCaffeine,
+    waterMl,
+    warnings,
+    effectiveDrinkCarbs,
+    aidStation,
+  ];
 }
 
 @JsonSerializable()
@@ -101,13 +143,13 @@ class PlanSummary extends Equatable {
 
   @override
   List<Object?> get props => [
-        totalCarbs,
-        averageGPerHr,
-        totalCaffeineMg,
-        glucoseFructoseRatio,
-        totalWaterMl,
-        environmentalNotes,
-      ];
+    totalCarbs,
+    averageGPerHr,
+    totalCaffeineMg,
+    glucoseFructoseRatio,
+    totalWaterMl,
+    environmentalNotes,
+  ];
 }
 
 @JsonSerializable(explicitToJson: true)

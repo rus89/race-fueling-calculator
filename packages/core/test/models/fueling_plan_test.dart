@@ -9,7 +9,10 @@ void main() {
   group('ProductServing', () {
     test('creates correctly', () {
       final serving = ProductServing(
-          productId: 'gel-1', productName: 'Test Gel', servings: 1);
+        productId: 'gel-1',
+        productName: 'Test Gel',
+        servings: 1,
+      );
       expect(serving.productId, 'gel-1');
       expect(serving.servings, 1);
     });
@@ -20,7 +23,7 @@ void main() {
       final entry = PlanEntry(
         timeMark: Duration(minutes: 20),
         products: [
-          ProductServing(productId: 'gel-1', productName: 'Gel', servings: 1)
+          ProductServing(productId: 'gel-1', productName: 'Gel', servings: 1),
         ],
         carbsGlucose: 20.0,
         carbsFructose: 5.0,
@@ -32,6 +35,78 @@ void main() {
       expect(entry.carbsTotal, 25.0);
       expect(entry.distanceMark, isNull);
       expect(entry.warnings, isEmpty);
+    });
+
+    test('effectiveDrinkCarbs defaults to 0', () {
+      final e = PlanEntry(
+        timeMark: const Duration(minutes: 15),
+        products: const [],
+        carbsGlucose: 10,
+        carbsFructose: 6,
+        carbsTotal: 16,
+        cumulativeCarbs: 16,
+        cumulativeCaffeine: 0,
+        waterMl: 100,
+      );
+      expect(e.effectiveDrinkCarbs, 0);
+      expect(e.aidStation, isNull);
+    });
+
+    test('effectiveDrinkCarbs and aidStation round-trip through JSON', () {
+      final e = PlanEntry(
+        timeMark: const Duration(minutes: 90),
+        products: const [],
+        carbsGlucose: 8,
+        carbsFructose: 5,
+        carbsTotal: 13,
+        cumulativeCarbs: 13,
+        cumulativeCaffeine: 0,
+        waterMl: 125,
+        effectiveDrinkCarbs: 13,
+        aidStation: const AidStation(
+          timeMinutes: 90,
+          refill: ['sis-beta-fuel'],
+        ),
+      );
+      final back = PlanEntry.fromJson(e.toJson());
+      expect(back.effectiveDrinkCarbs, 13);
+      expect(back.aidStation?.timeMinutes, 90);
+      expect(back.aidStation?.refill, ['sis-beta-fuel']);
+    });
+
+    test('copyWith preserves effectiveDrinkCarbs, aidStation, warnings', () {
+      final original = PlanEntry(
+        timeMark: const Duration(minutes: 90),
+        products: const [],
+        carbsGlucose: 8,
+        carbsFructose: 5,
+        carbsTotal: 13,
+        cumulativeCarbs: 13,
+        cumulativeCaffeine: 0,
+        waterMl: 100,
+        effectiveDrinkCarbs: 13,
+        aidStation: const AidStation(timeMinutes: 90, refill: ['x']),
+        warnings: const [Warning(severity: Severity.advisory, message: 'm')],
+      );
+      final updated = original.copyWith(waterMl: 250);
+      expect(updated.waterMl, 250);
+      expect(updated.effectiveDrinkCarbs, 13);
+      expect(updated.aidStation?.timeMinutes, 90);
+      expect(updated.warnings, hasLength(1));
+    });
+
+    test('toJson omits aidStation when null (no schema noise)', () {
+      final e = PlanEntry(
+        timeMark: const Duration(minutes: 15),
+        products: const [],
+        carbsGlucose: 10,
+        carbsFructose: 6,
+        carbsTotal: 16,
+        cumulativeCarbs: 16,
+        cumulativeCaffeine: 0,
+        waterMl: 100,
+      );
+      expect(e.toJson().containsKey('aidStation'), isFalse);
     });
   });
 
@@ -67,7 +142,7 @@ void main() {
           PlanEntry(
             timeMark: Duration(minutes: 20),
             products: [
-              ProductServing(productId: 'g1', productName: 'Gel', servings: 1)
+              ProductServing(productId: 'g1', productName: 'Gel', servings: 1),
             ],
             carbsGlucose: 20.0,
             carbsFructose: 5.0,

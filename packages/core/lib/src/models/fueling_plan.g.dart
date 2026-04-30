@@ -37,6 +37,10 @@ PlanEntry _$PlanEntryFromJson(Map<String, dynamic> json) => PlanEntry(
           ?.map((e) => Warning.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const [],
+  effectiveDrinkCarbs: (json['effectiveDrinkCarbs'] as num?)?.toDouble() ?? 0.0,
+  aidStation: json['aidStation'] == null
+      ? null
+      : AidStation.fromJson(json['aidStation'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$PlanEntryToJson(PlanEntry instance) => <String, dynamic>{
@@ -50,6 +54,8 @@ Map<String, dynamic> _$PlanEntryToJson(PlanEntry instance) => <String, dynamic>{
   'cumulativeCaffeine': instance.cumulativeCaffeine,
   'waterMl': instance.waterMl,
   'warnings': instance.warnings.map((e) => e.toJson()).toList(),
+  'effectiveDrinkCarbs': instance.effectiveDrinkCarbs,
+  'aidStation': ?instance.aidStation?.toJson(),
 };
 
 PlanSummary _$PlanSummaryFromJson(Map<String, dynamic> json) => PlanSummary(
