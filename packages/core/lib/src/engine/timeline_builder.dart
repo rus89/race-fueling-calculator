@@ -85,6 +85,8 @@ List<TimeSlot> _buildDistanceBased(RaceConfig config) {
   // Non-aligned stations are surfaced by the allocator from
   // config.aidStations directly via projectAidStationMin.
   for (final station in config.aidStations) {
+    // Time-minute stations in a distance-based timeline are surfaced by
+    // the allocator via projectAidStationMin, not marked here.
     final stationKm = station.distanceKm;
     if (stationKm == null) continue;
     final idx = slots.indexWhere((s) {

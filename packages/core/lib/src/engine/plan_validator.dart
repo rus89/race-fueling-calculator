@@ -1,5 +1,5 @@
-// ABOUTME: Validates a generated fueling plan and produces critical and advisory warnings.
-// ABOUTME: Checks gut tolerance, carb source ratios, caffeine limits, and fuel gaps.
+// ABOUTME: Validates a generated fueling plan and aid-station definitions
+// ABOUTME: against the race config; produces critical and advisory warnings.
 import '../models/fueling_plan.dart';
 import '../models/athlete_profile.dart';
 import '../models/race_config.dart';
@@ -20,6 +20,87 @@ List<Warning> validatePlan(
   warnings.addAll(_checkCarbDrop(entries, raceDuration));
 
   return warnings;
+}
+
+/// Validates aid station definitions against the race configuration.
+///
+/// Emits:
+/// - **critical** when a station has neither `timeMinutes` nor `distanceKm`
+///   (cannot be placed on the timeline).
+/// - **critical** when `timeMinutes` is negative or beyond `config.duration`.
+/// - **critical** when `distanceKm` is negative or beyond `config.distanceKm`.
+/// - **advisory** when a station uses `distanceKm` but the race has no
+///   `distanceKm` set (the projection would return null, dropping the
+///   station silently).
+List<Warning> validateAidStationDefinitions(RaceConfig config) {
+  final out = <Warning>[];
+  final raceMinutes = config.duration.inMinutes;
+  final raceKm = config.distanceKm;
+  for (var i = 0; i < config.aidStations.length; i++) {
+    final s = config.aidStations[i];
+    final n = i + 1;
+    if (s.timeMinutes == null && s.distanceKm == null) {
+      out.add(
+        Warning(
+          severity: Severity.critical,
+          message: 'Aid station #$n has no time or distance defined',
+        ),
+      );
+      continue;
+    }
+    final t = s.timeMinutes;
+    if (t != null) {
+      if (t < 0) {
+        out.add(
+          Warning(
+            severity: Severity.critical,
+            message: 'Aid station #$n has negative timeMinutes ($t)',
+          ),
+        );
+      } else if (t > raceMinutes) {
+        out.add(
+          Warning(
+            severity: Severity.critical,
+            message:
+                'Aid station #$n at minute $t is beyond race duration '
+                '($raceMinutes min)',
+          ),
+        );
+      }
+    }
+    final km = s.distanceKm;
+    if (km != null) {
+      if (km < 0) {
+        out.add(
+          Warning(
+            severity: Severity.critical,
+            message:
+                'Aid station #$n has negative distanceKm '
+                '(${km.toStringAsFixed(0)})',
+          ),
+        );
+      } else if (raceKm != null && km > raceKm) {
+        out.add(
+          Warning(
+            severity: Severity.critical,
+            message:
+                'Aid station #$n at km ${km.toStringAsFixed(0)} is '
+                'beyond total race distance (${raceKm.toStringAsFixed(0)} km)',
+          ),
+        );
+      } else if (t == null && raceKm == null) {
+        out.add(
+          Warning(
+            severity: Severity.advisory,
+            message:
+                'Aid station #$n at km ${km.toStringAsFixed(0)} '
+                'needs total race distance set',
+          ),
+        );
+      }
+    }
+  }
+  return out;
 }
 
 List<Warning> _checkGutTolerance(
@@ -229,85 +310,4 @@ List<Warning> _checkCarbDrop(List<PlanEntry> entries, Duration raceDuration) {
   }
 
   return warnings;
-}
-
-/// Validates aid station definitions against the race configuration.
-///
-/// Emits:
-/// - **critical** when a station has neither `timeMinutes` nor `distanceKm`
-///   (cannot be placed on the timeline).
-/// - **critical** when `timeMinutes` is negative or beyond `config.duration`.
-/// - **critical** when `distanceKm` is negative or beyond `config.distanceKm`.
-/// - **advisory** when a station uses `distanceKm` but the race has no
-///   `distanceKm` set (the projection would return null, dropping the
-///   station silently).
-List<Warning> validateAidStationDefinitions(RaceConfig config) {
-  final out = <Warning>[];
-  final raceMinutes = config.duration.inMinutes;
-  final raceKm = config.distanceKm;
-  for (var i = 0; i < config.aidStations.length; i++) {
-    final s = config.aidStations[i];
-    final n = i + 1;
-    if (s.timeMinutes == null && s.distanceKm == null) {
-      out.add(
-        Warning(
-          severity: Severity.critical,
-          message: 'Aid station #$n has no time or distance defined',
-        ),
-      );
-      continue;
-    }
-    final t = s.timeMinutes;
-    if (t != null) {
-      if (t < 0) {
-        out.add(
-          Warning(
-            severity: Severity.critical,
-            message: 'Aid station #$n has negative timeMinutes ($t)',
-          ),
-        );
-      } else if (t > raceMinutes) {
-        out.add(
-          Warning(
-            severity: Severity.critical,
-            message:
-                'Aid station #$n at minute $t is beyond race duration '
-                '($raceMinutes min)',
-          ),
-        );
-      }
-    }
-    final km = s.distanceKm;
-    if (km != null) {
-      if (km < 0) {
-        out.add(
-          Warning(
-            severity: Severity.critical,
-            message:
-                'Aid station #$n has negative distanceKm '
-                '(${km.toStringAsFixed(0)})',
-          ),
-        );
-      } else if (raceKm != null && km > raceKm) {
-        out.add(
-          Warning(
-            severity: Severity.critical,
-            message:
-                'Aid station #$n at km ${km.toStringAsFixed(0)} is '
-                'beyond total race distance (${raceKm.toStringAsFixed(0)} km)',
-          ),
-        );
-      } else if (t == null && raceKm == null) {
-        out.add(
-          Warning(
-            severity: Severity.advisory,
-            message:
-                'Aid station #$n at km ${km.toStringAsFixed(0)} '
-                'needs total race distance set',
-          ),
-        );
-      }
-    }
-  }
-  return out;
 }
