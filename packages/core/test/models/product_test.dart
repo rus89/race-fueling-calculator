@@ -208,6 +208,64 @@ void main() {
       expect(product.copyWith(servingDescription: 'bottle').servingDescription,
           'bottle');
     });
+
+    test('copyWith updates sipMinutes', () {
+      final product = Product(
+        id: 'mix',
+        name: 'Test Mix',
+        type: ProductType.liquid,
+        carbsPerServing: 80.0,
+        sipMinutes: 60,
+      );
+      expect(product.copyWith(sipMinutes: 45).sipMinutes, 45);
+    });
+
+    test('sipMinutes is null by default for instant products', () {
+      final p = Product(
+        id: 'gel',
+        name: 'Test Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(p.sipMinutes, isNull);
+    });
+
+    test('sipMinutes is preserved on liquid products', () {
+      final p = Product(
+        id: 'mix',
+        name: 'Test Mix',
+        type: ProductType.liquid,
+        carbsPerServing: 80.0,
+        sipMinutes: 60,
+      );
+      expect(p.sipMinutes, 60);
+    });
+
+    test('sipMinutes round-trips through JSON', () {
+      final p = Product(
+        id: 'mix',
+        name: 'Test Mix',
+        type: ProductType.liquid,
+        carbsPerServing: 80.0,
+        sipMinutes: 60,
+      );
+      final json = p.toJson();
+      final back = Product.fromJson(json);
+      expect(back.sipMinutes, 60);
+    });
+
+    test('sipMinutes must be positive when provided', () {
+      expect(
+        () => Product(
+          id: 'mix',
+          name: 'Test Mix',
+          type: ProductType.liquid,
+          carbsPerServing: 80.0,
+          sipMinutes: 0,
+        ),
+        throwsArgumentError,
+      );
+    });
   });
 
   group('ProductType', () {

@@ -18,6 +18,7 @@ Product _$ProductFromJson(Map<String, dynamic> json) => Product(
       waterRequiredMl: (json['waterRequiredMl'] as num?)?.toDouble() ?? 0.0,
       servingDescription: json['servingDescription'] as String?,
       isBuiltIn: json['isBuiltIn'] as bool? ?? false,
+      sipMinutes: (json['sipMinutes'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
@@ -32,6 +33,7 @@ Map<String, dynamic> _$ProductToJson(Product instance) => <String, dynamic>{
       'waterRequiredMl': instance.waterRequiredMl,
       'servingDescription': instance.servingDescription,
       'isBuiltIn': instance.isBuiltIn,
+      'sipMinutes': instance.sipMinutes,
     };
 
 const _$ProductTypeEnumMap = {

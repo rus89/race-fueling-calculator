@@ -28,6 +28,7 @@ class Product extends Equatable {
   final double waterRequiredMl;
   final String? servingDescription;
   final bool isBuiltIn;
+  final int? sipMinutes;
 
   Product({
     required this.id,
@@ -41,12 +42,20 @@ class Product extends Equatable {
     this.waterRequiredMl = 0.0,
     this.servingDescription,
     this.isBuiltIn = false,
+    this.sipMinutes,
   }) : glucoseGrams = glucoseGrams ?? carbsPerServing {
     if (!carbsPerServing.isFinite || carbsPerServing <= 0) {
       throw ArgumentError.value(
         carbsPerServing,
         'carbsPerServing',
         'must be a finite positive number',
+      );
+    }
+    if (sipMinutes != null && sipMinutes! <= 0) {
+      throw ArgumentError.value(
+        sipMinutes,
+        'sipMinutes',
+        'must be positive when provided',
       );
     }
   }
@@ -74,6 +83,7 @@ class Product extends Equatable {
     double? waterRequiredMl,
     String? servingDescription,
     bool? isBuiltIn,
+    int? sipMinutes,
   }) {
     return Product(
       id: id ?? this.id,
@@ -87,6 +97,7 @@ class Product extends Equatable {
       waterRequiredMl: waterRequiredMl ?? this.waterRequiredMl,
       servingDescription: servingDescription ?? this.servingDescription,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+      sipMinutes: sipMinutes ?? this.sipMinutes,
     );
   }
 
@@ -103,5 +114,6 @@ class Product extends Equatable {
         waterRequiredMl,
         servingDescription,
         isBuiltIn,
+        sipMinutes,
       ];
 }
