@@ -243,6 +243,10 @@ class _ProductsAddCommand extends Command<void> {
         'Pass --carbs <grams per serving>.',
       );
     }
+    if (!carbs.isFinite || carbs <= 0) {
+      exitWith(kExitUsage, '--carbs must be greater than 0, got $carbs.');
+      return;
+    }
     final glucose = parseDoubleFlag(results, 'glucose');
     final fructose = parseDoubleFlag(results, 'fructose');
     final caffeine = parseDoubleFlag(results, 'caffeine');
@@ -341,6 +345,10 @@ class _ProductsEditCommand extends Command<void> {
     }
 
     final newCarbs = parseDoubleFlag(results, 'carbs');
+    if (newCarbs != null && (!newCarbs.isFinite || newCarbs <= 0)) {
+      exitWith(kExitUsage, '--carbs must be greater than 0, got $newCarbs.');
+      return;
+    }
     final newGlucose = parseDoubleFlag(results, 'glucose');
     final newFructose = parseDoubleFlag(results, 'fructose');
     final newCaffeine = parseDoubleFlag(results, 'caffeine');

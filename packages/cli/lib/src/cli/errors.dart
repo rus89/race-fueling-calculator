@@ -22,6 +22,9 @@ Future<bool> withFriendlyErrors(Future<void> Function() action) async {
     exitWith(kExitData, 'File error: ${e.message} (${e.path ?? ""})');
   } on AssertionError catch (e) {
     exitWith(kExitData, 'Invariant violated: ${e.message}');
+  } on ArgumentError catch (e) {
+    final label = e.name != null ? '${e.name}: ' : '';
+    exitWith(kExitUsage, 'Invalid $label${e.message ?? e.invalidValue}');
   }
   return false;
 }
