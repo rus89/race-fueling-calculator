@@ -68,7 +68,7 @@ RaceConfig _$RaceConfigFromJson(Map<String, dynamic> json) => RaceConfig(
   humidity: (json['humidity'] as num?)?.toDouble(),
   altitudeM: (json['altitudeM'] as num?)?.toDouble(),
   discipline: $enumDecodeNullable(_$DisciplineEnumMap, json['discipline']),
-  schemaVersion: (json['schema_version'] as num?)?.toInt() ?? 1,
+  schemaVersion: (json['schema_version'] as num?)?.toInt() ?? 2,
 );
 
 Map<String, dynamic> _$RaceConfigToJson(

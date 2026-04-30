@@ -109,7 +109,7 @@ class RaceConfig extends Equatable {
   final double? altitudeM;
   @JsonKey(includeIfNull: false)
   final Discipline? discipline;
-  @JsonKey(name: 'schema_version', defaultValue: 1)
+  @JsonKey(name: 'schema_version', defaultValue: 2)
   final int schemaVersion;
 
   const RaceConfig({
@@ -128,7 +128,7 @@ class RaceConfig extends Equatable {
     this.humidity,
     this.altitudeM,
     this.discipline,
-    this.schemaVersion = 1,
+    this.schemaVersion = 2,
   });
 
   factory RaceConfig.fromJson(Map<String, dynamic> json) =>

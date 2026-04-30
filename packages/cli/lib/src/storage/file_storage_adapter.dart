@@ -43,7 +43,7 @@ class FileStorageAdapter implements StorageAdapter {
   final String baseDir;
 
   FileStorageAdapter({String? baseDir})
-      : baseDir = baseDir ?? resolveDefaultBaseDir(Platform.environment);
+    : baseDir = baseDir ?? resolveDefaultBaseDir(Platform.environment);
 
   String get _profilePath => p.join(baseDir, 'profile.json');
   String get _productsPath => p.join(baseDir, 'products.json');
@@ -70,7 +70,8 @@ class FileStorageAdapter implements StorageAdapter {
     await _ensureDir(baseDir);
     final file = File(_profilePath);
     await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(profile.toJson()));
+      const JsonEncoder.withIndent('  ').convert(profile.toJson()),
+    );
   }
 
   @override
@@ -102,8 +103,9 @@ class FileStorageAdapter implements StorageAdapter {
     _assertSafePlanName(name);
     final file = File(p.join(_plansDir, '$name.json'));
     if (!await file.exists()) return null;
-    final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-    validateSchemaVersion(json, currentVersion: 1);
+    final raw = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    validateSchemaVersion(raw, currentVersion: 2);
+    final json = migrateRaceConfig(raw);
     return RaceConfig.fromJson(json);
   }
 
@@ -113,7 +115,8 @@ class FileStorageAdapter implements StorageAdapter {
     await _ensureDir(_plansDir);
     final file = File(p.join(_plansDir, '$name.json'));
     await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(config.toJson()));
+      const JsonEncoder.withIndent('  ').convert(config.toJson()),
+    );
   }
 
   @override

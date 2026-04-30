@@ -70,7 +70,7 @@ void main() {
         altitudeM: 2000.0,
       );
       final json = config.toJson();
-      expect(json['schema_version'], 1);
+      expect(json['schema_version'], 2);
       final restored = RaceConfig.fromJson(json);
       expect(restored, equals(config));
     });
