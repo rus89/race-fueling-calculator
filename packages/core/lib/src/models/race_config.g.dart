@@ -64,6 +64,7 @@ RaceConfig _$RaceConfigFromJson(Map<String, dynamic> json) => RaceConfig(
       temperature: (json['temperature'] as num?)?.toDouble(),
       humidity: (json['humidity'] as num?)?.toDouble(),
       altitudeM: (json['altitudeM'] as num?)?.toDouble(),
+      discipline: $enumDecodeNullable(_$DisciplineEnumMap, json['discipline']),
       schemaVersion: (json['schema_version'] as num?)?.toInt() ?? 1,
     );
 
@@ -84,6 +85,7 @@ Map<String, dynamic> _$RaceConfigToJson(RaceConfig instance) =>
       'temperature': instance.temperature,
       'humidity': instance.humidity,
       'altitudeM': instance.altitudeM,
+      'discipline': _$DisciplineEnumMap[instance.discipline],
       'schema_version': instance.schemaVersion,
     };
 
@@ -97,4 +99,12 @@ const _$StrategyEnumMap = {
   Strategy.frontLoad: 'front_load',
   Strategy.backLoad: 'back_load',
   Strategy.custom: 'custom',
+};
+
+const _$DisciplineEnumMap = {
+  Discipline.xcm: 'xcm',
+  Discipline.road: 'road',
+  Discipline.run: 'run',
+  Discipline.tri: 'tri',
+  Discipline.ultra: 'ultra',
 };

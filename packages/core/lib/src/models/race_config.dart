@@ -24,6 +24,19 @@ enum Strategy {
   custom,
 }
 
+enum Discipline {
+  @JsonValue('xcm')
+  xcm,
+  @JsonValue('road')
+  road,
+  @JsonValue('run')
+  run,
+  @JsonValue('tri')
+  tri,
+  @JsonValue('ultra')
+  ultra,
+}
+
 @JsonSerializable()
 class ProductSelection extends Equatable {
   final String productId;
@@ -97,6 +110,7 @@ class RaceConfig extends Equatable {
   final double? temperature;
   final double? humidity;
   final double? altitudeM;
+  final Discipline? discipline;
   @JsonKey(name: 'schema_version', defaultValue: 1)
   final int schemaVersion;
 
@@ -115,6 +129,7 @@ class RaceConfig extends Equatable {
     this.temperature,
     this.humidity,
     this.altitudeM,
+    this.discipline,
     this.schemaVersion = 1,
   });
 
@@ -138,6 +153,7 @@ class RaceConfig extends Equatable {
     double? temperature,
     double? humidity,
     double? altitudeM,
+    Discipline? discipline,
   }) {
     return RaceConfig(
       name: name ?? this.name,
@@ -154,6 +170,7 @@ class RaceConfig extends Equatable {
       temperature: temperature ?? this.temperature,
       humidity: humidity ?? this.humidity,
       altitudeM: altitudeM ?? this.altitudeM,
+      discipline: discipline ?? this.discipline,
       schemaVersion: schemaVersion,
     );
   }
@@ -174,5 +191,6 @@ class RaceConfig extends Equatable {
         temperature,
         humidity,
         altitudeM,
+        discipline,
       ];
 }

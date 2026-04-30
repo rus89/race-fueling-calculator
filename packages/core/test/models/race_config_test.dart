@@ -88,6 +88,49 @@ void main() {
       expect(restored, equals(config));
     });
 
+    test('discipline is null by default', () {
+      final cfg = RaceConfig(
+        name: 'Test',
+        duration: const Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(cfg.discipline, isNull);
+    });
+
+    test('discipline is preserved when set', () {
+      final cfg = RaceConfig(
+        name: 'Andalucía',
+        duration: const Duration(hours: 4, minutes: 30),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 15,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        discipline: Discipline.xcm,
+      );
+      expect(cfg.discipline, Discipline.xcm);
+    });
+
+    test('discipline round-trips through JSON for every value', () {
+      for (final d in Discipline.values) {
+        final cfg = RaceConfig(
+          name: 'Test',
+          duration: const Duration(hours: 2),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 80.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+          discipline: d,
+        );
+        expect(RaceConfig.fromJson(cfg.toJson()).discipline, d);
+      }
+    });
+
     test('copyWith with no args returns an equal instance', () {
       final config = RaceConfig(
         name: 'Test',
@@ -370,6 +413,34 @@ void main() {
               .copyWith(timelineMode: TimelineMode.distanceBased)
               .timelineMode,
           TimelineMode.distanceBased);
+    });
+
+    test('copyWith updates discipline', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith(discipline: Discipline.road).discipline,
+          Discipline.road);
+    });
+
+    test('copyWith preserves discipline when null is passed explicitly', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        discipline: Discipline.tri,
+      );
+      expect(config.copyWith(discipline: null).discipline, Discipline.tri);
     });
   });
 }
