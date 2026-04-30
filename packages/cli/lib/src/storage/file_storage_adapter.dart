@@ -114,9 +114,36 @@ class FileStorageAdapter implements StorageAdapter {
     _assertSafePlanName(name);
     await _ensureDir(_plansDir);
     final file = File(p.join(_plansDir, '$name.json'));
+    await _backupV1IfPresent(file);
     await file.writeAsString(
       const JsonEncoder.withIndent('  ').convert(config.toJson()),
     );
+  }
+
+  /// Preserves the original bytes of a v1 plan file as `<path>.v1.bak`
+  /// before the first overwrite that would migrate it to v2. The backup is
+  /// written exactly once per file: if a `.v1.bak` already exists it is
+  /// left untouched.
+  Future<void> _backupV1IfPresent(File file) async {
+    if (!await file.exists()) return;
+    final backup = File('${file.path}.v1.bak');
+    if (await backup.exists()) return;
+    try {
+      final raw = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final version = raw['schema_version'];
+      // A pre-v2 file (or one missing schema_version entirely) is the only
+      // shape that needs a backup. Anything already at v2+ is safe to
+      // overwrite without copying.
+      final isV1 = version is! int || version < 2;
+      if (!isV1) return;
+    } on FormatException {
+      // Existing file is not valid JSON — don't try to back up garbage.
+      return;
+    } on TypeError {
+      // Top-level JSON wasn't a map — same call.
+      return;
+    }
+    await file.copy(backup.path);
   }
 
   @override
