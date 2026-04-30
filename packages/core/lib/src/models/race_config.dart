@@ -62,8 +62,10 @@ class ProductSelection extends Equatable {
 class AidStation extends Equatable {
   final double? distanceKm;
   final int? timeMinutes;
+  @JsonKey(defaultValue: <String>[])
+  final List<String> refill;
 
-  const AidStation({this.distanceKm, this.timeMinutes});
+  const AidStation({this.distanceKm, this.timeMinutes, this.refill = const []});
 
   factory AidStation.fromJson(Map<String, dynamic> json) =>
       _$AidStationFromJson(json);
@@ -71,7 +73,7 @@ class AidStation extends Equatable {
   Map<String, dynamic> toJson() => _$AidStationToJson(this);
 
   @override
-  List<Object?> get props => [distanceKm, timeMinutes];
+  List<Object?> get props => [distanceKm, timeMinutes, refill];
 }
 
 @JsonSerializable()

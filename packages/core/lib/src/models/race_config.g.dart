@@ -23,12 +23,16 @@ Map<String, dynamic> _$ProductSelectionToJson(ProductSelection instance) =>
 AidStation _$AidStationFromJson(Map<String, dynamic> json) => AidStation(
   distanceKm: (json['distanceKm'] as num?)?.toDouble(),
   timeMinutes: (json['timeMinutes'] as num?)?.toInt(),
+  refill:
+      (json['refill'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      [],
 );
 
 Map<String, dynamic> _$AidStationToJson(AidStation instance) =>
     <String, dynamic>{
       'distanceKm': instance.distanceKm,
       'timeMinutes': instance.timeMinutes,
+      'refill': instance.refill,
     };
 
 CurveSegment _$CurveSegmentFromJson(Map<String, dynamic> json) => CurveSegment(

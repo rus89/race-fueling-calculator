@@ -455,4 +455,30 @@ void main() {
       expect(config.copyWith(discipline: null).discipline, Discipline.tri);
     });
   });
+
+  group('AidStation.refill', () {
+    test('defaults to empty list', () {
+      const s = AidStation(timeMinutes: 90);
+      expect(s.refill, isEmpty);
+    });
+
+    test('preserves refill product IDs', () {
+      const s = AidStation(
+        timeMinutes: 90,
+        refill: ['sis-beta-fuel', 'maurten-160'],
+      );
+      expect(s.refill, ['sis-beta-fuel', 'maurten-160']);
+    });
+
+    test('refill round-trips through JSON', () {
+      const s = AidStation(timeMinutes: 90, refill: ['sis-beta-fuel']);
+      final back = AidStation.fromJson(s.toJson());
+      expect(back.refill, ['sis-beta-fuel']);
+    });
+
+    test('legacy JSON without refill loads as empty', () {
+      final json = <String, dynamic>{'timeMinutes': 90};
+      expect(AidStation.fromJson(json).refill, isEmpty);
+    });
+  });
 }
