@@ -28,6 +28,7 @@ class Product extends Equatable {
   final double waterRequiredMl;
   final String? servingDescription;
   final bool isBuiltIn;
+  @JsonKey(includeIfNull: false)
   final int? sipMinutes;
 
   Product({
@@ -51,11 +52,19 @@ class Product extends Equatable {
         'must be a finite positive number',
       );
     }
-    if (sipMinutes != null && sipMinutes! <= 0) {
+    final sip = sipMinutes;
+    if (sip != null && sip <= 0) {
       throw ArgumentError.value(
-        sipMinutes,
+        sip,
         'sipMinutes',
         'must be positive when provided',
+      );
+    }
+    if (sip != null && type != ProductType.liquid) {
+      throw ArgumentError.value(
+        sip,
+        'sipMinutes',
+        'must only be set on ProductType.liquid (got $type)',
       );
     }
   }
@@ -103,17 +112,17 @@ class Product extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        brand,
-        type,
-        carbsPerServing,
-        glucoseGrams,
-        fructoseGrams,
-        caffeineMg,
-        waterRequiredMl,
-        servingDescription,
-        isBuiltIn,
-        sipMinutes,
-      ];
+    id,
+    name,
+    brand,
+    type,
+    carbsPerServing,
+    glucoseGrams,
+    fructoseGrams,
+    caffeineMg,
+    waterRequiredMl,
+    servingDescription,
+    isBuiltIn,
+    sipMinutes,
+  ];
 }

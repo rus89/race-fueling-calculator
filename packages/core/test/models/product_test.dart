@@ -266,6 +266,53 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('sipMinutes rejects negative values', () {
+      expect(
+        () => Product(
+          id: 'mix',
+          name: 'Test Mix',
+          type: ProductType.liquid,
+          carbsPerServing: 80.0,
+          sipMinutes: -1,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('sipMinutes rejected on non-liquid product type', () {
+      expect(
+        () => Product(
+          id: 'bad-gel',
+          name: 'Bad Gel',
+          type: ProductType.gel,
+          carbsPerServing: 25.0,
+          sipMinutes: 60,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('toJson omits sipMinutes when null', () {
+      final p = Product(
+        id: 'gel',
+        name: 'Plain Gel',
+        type: ProductType.gel,
+        carbsPerServing: 25.0,
+      );
+      expect(p.toJson().containsKey('sipMinutes'), isFalse);
+    });
+
+    test('copyWith preserves sipMinutes when null is passed explicitly', () {
+      final product = Product(
+        id: 'mix',
+        name: 'Test Mix',
+        type: ProductType.liquid,
+        carbsPerServing: 80.0,
+        sipMinutes: 60,
+      );
+      expect(product.copyWith(sipMinutes: null).sipMinutes, 60);
+    });
   });
 
   group('ProductType', () {

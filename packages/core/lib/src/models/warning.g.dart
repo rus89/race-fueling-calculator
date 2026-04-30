@@ -7,16 +7,16 @@ part of 'warning.dart';
 // **************************************************************************
 
 Warning _$WarningFromJson(Map<String, dynamic> json) => Warning(
-      severity: $enumDecode(_$SeverityEnumMap, json['severity']),
-      message: json['message'] as String,
-      entryIndex: (json['entryIndex'] as num?)?.toInt(),
-    );
+  severity: $enumDecode(_$SeverityEnumMap, json['severity']),
+  message: json['message'] as String,
+  entryIndex: (json['entryIndex'] as num?)?.toInt(),
+);
 
 Map<String, dynamic> _$WarningToJson(Warning instance) => <String, dynamic>{
-      'severity': _$SeverityEnumMap[instance.severity]!,
-      'message': instance.message,
-      'entryIndex': instance.entryIndex,
-    };
+  'severity': _$SeverityEnumMap[instance.severity]!,
+  'message': instance.message,
+  'entryIndex': instance.entryIndex,
+};
 
 const _$SeverityEnumMap = {
   Severity.critical: 'critical',
