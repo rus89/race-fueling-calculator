@@ -86,7 +86,7 @@ Map<String, dynamic> _$RaceConfigToJson(
   'temperature': instance.temperature,
   'humidity': instance.humidity,
   'altitudeM': instance.altitudeM,
-  'discipline': _$DisciplineEnumMap[instance.discipline],
+  'discipline': ?_$DisciplineEnumMap[instance.discipline],
   'schema_version': instance.schemaVersion,
 };
 

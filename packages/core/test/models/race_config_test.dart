@@ -13,9 +13,7 @@ void main() {
         intervalMinutes: 20,
         targetCarbsGPerHr: 80.0,
         strategy: Strategy.steady,
-        selectedProducts: [
-          ProductSelection(productId: 'gel-1', quantity: 6),
-        ],
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 6)],
       );
       expect(config.name, 'Test Race');
       expect(config.intervalMinutes, 20);
@@ -75,9 +73,7 @@ void main() {
         intervalMinutes: 15,
         targetCarbsGPerHr: 70.0,
         strategy: Strategy.steady,
-        selectedProducts: [
-          ProductSelection(productId: 'gel-1', quantity: 8),
-        ],
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 8)],
         temperature: 28.0,
         humidity: 65.0,
         altitudeM: 2000.0,
@@ -131,6 +127,19 @@ void main() {
       }
     });
 
+    test('toJson omits discipline when null', () {
+      final cfg = RaceConfig(
+        name: 'Test',
+        duration: const Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(cfg.toJson().containsKey('discipline'), isFalse);
+    });
+
     test('copyWith with no args returns an equal instance', () {
       final config = RaceConfig(
         name: 'Test',
@@ -139,9 +148,7 @@ void main() {
         intervalMinutes: 20,
         targetCarbsGPerHr: 80.0,
         strategy: Strategy.steady,
-        selectedProducts: [
-          ProductSelection(productId: 'gel-1', quantity: 6),
-        ],
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 6)],
       );
       expect(config.copyWith(), equals(config));
     });
@@ -154,9 +161,7 @@ void main() {
         intervalMinutes: 20,
         targetCarbsGPerHr: 80.0,
         strategy: Strategy.steady,
-        selectedProducts: [
-          ProductSelection(productId: 'gel-1', quantity: 6),
-        ],
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 6)],
       );
       final updated = config.copyWith(
         selectedProducts: [
@@ -220,19 +225,21 @@ void main() {
       expect(config.copyWith(distanceKm: null).distanceKm, 100.0);
     });
 
-    test('copyWith preserves intervalMinutes when null is passed explicitly',
-        () {
-      final config = RaceConfig(
-        name: 'Test',
-        duration: Duration(hours: 2),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 60.0,
-        strategy: Strategy.steady,
-        selectedProducts: [],
-      );
-      expect(config.copyWith(intervalMinutes: null).intervalMinutes, 20);
-    });
+    test(
+      'copyWith preserves intervalMinutes when null is passed explicitly',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 2),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+        );
+        expect(config.copyWith(intervalMinutes: null).intervalMinutes, 20);
+      },
+    );
 
     test('copyWith preserves intervalKm when null is passed explicitly', () {
       final config = RaceConfig(
@@ -315,8 +322,10 @@ void main() {
         strategy: Strategy.steady,
         selectedProducts: [],
       );
-      expect(config.copyWith(strategy: Strategy.backLoad).strategy,
-          Strategy.backLoad);
+      expect(
+        config.copyWith(strategy: Strategy.backLoad).strategy,
+        Strategy.backLoad,
+      );
     });
 
     test('copyWith updates intervalMinutes', () {
@@ -381,8 +390,10 @@ void main() {
         strategy: Strategy.steady,
         selectedProducts: [],
       );
-      expect(config.copyWith(duration: Duration(hours: 4)).duration,
-          Duration(hours: 4));
+      expect(
+        config.copyWith(duration: Duration(hours: 4)).duration,
+        Duration(hours: 4),
+      );
     });
 
     test('copyWith updates name', () {
@@ -409,10 +420,9 @@ void main() {
         selectedProducts: [],
       );
       expect(
-          config
-              .copyWith(timelineMode: TimelineMode.distanceBased)
-              .timelineMode,
-          TimelineMode.distanceBased);
+        config.copyWith(timelineMode: TimelineMode.distanceBased).timelineMode,
+        TimelineMode.distanceBased,
+      );
     });
 
     test('copyWith updates discipline', () {
@@ -425,8 +435,10 @@ void main() {
         strategy: Strategy.steady,
         selectedProducts: [],
       );
-      expect(config.copyWith(discipline: Discipline.road).discipline,
-          Discipline.road);
+      expect(
+        config.copyWith(discipline: Discipline.road).discipline,
+        Discipline.road,
+      );
     });
 
     test('copyWith preserves discipline when null is passed explicitly', () {

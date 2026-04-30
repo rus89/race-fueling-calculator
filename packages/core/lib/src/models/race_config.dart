@@ -110,6 +110,7 @@ class RaceConfig extends Equatable {
   final double? temperature;
   final double? humidity;
   final double? altitudeM;
+  @JsonKey(includeIfNull: false)
   final Discipline? discipline;
   @JsonKey(name: 'schema_version', defaultValue: 1)
   final int schemaVersion;
@@ -177,20 +178,20 @@ class RaceConfig extends Equatable {
 
   @override
   List<Object?> get props => [
-        name,
-        duration,
-        distanceKm,
-        timelineMode,
-        intervalMinutes,
-        intervalKm,
-        targetCarbsGPerHr,
-        strategy,
-        customCurve,
-        selectedProducts,
-        aidStations,
-        temperature,
-        humidity,
-        altitudeM,
-        discipline,
-      ];
+    name,
+    duration,
+    distanceKm,
+    timelineMode,
+    intervalMinutes,
+    intervalKm,
+    targetCarbsGPerHr,
+    strategy,
+    customCurve,
+    selectedProducts,
+    aidStations,
+    temperature,
+    humidity,
+    altitudeM,
+    discipline,
+  ];
 }
