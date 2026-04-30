@@ -40,5 +40,25 @@ void main() {
             ProductType.realFood,
           ]));
     });
+
+    test('every liquid built-in has sipMinutes set', () {
+      final liquids =
+          builtInProducts.where((p) => p.type == ProductType.liquid);
+      expect(liquids, isNotEmpty);
+      for (final p in liquids) {
+        expect(p.sipMinutes, isNotNull, reason: '${p.id} missing sipMinutes');
+        expect(p.sipMinutes, greaterThan(0),
+            reason: '${p.id} has invalid sipMinutes');
+      }
+    });
+
+    test('non-liquid built-ins have null sipMinutes', () {
+      final nonLiquids =
+          builtInProducts.where((p) => p.type != ProductType.liquid);
+      for (final p in nonLiquids) {
+        expect(p.sipMinutes, isNull,
+            reason: '${p.id} should not have sipMinutes');
+      }
+    });
   });
 }
