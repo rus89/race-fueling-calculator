@@ -2,6 +2,7 @@
 // ABOUTME: Checks gut tolerance, carb source ratios, caffeine limits, and fuel gaps.
 import '../models/fueling_plan.dart';
 import '../models/athlete_profile.dart';
+import '../models/race_config.dart';
 import '../models/warning.dart';
 
 List<Warning> validatePlan(
@@ -22,7 +23,10 @@ List<Warning> validatePlan(
 }
 
 List<Warning> _checkGutTolerance(
-    List<PlanEntry> entries, AthleteProfile profile, Duration raceDuration) {
+  List<PlanEntry> entries,
+  AthleteProfile profile,
+  Duration raceDuration,
+) {
   final warnings = <Warning>[];
   final totalMin = raceDuration.inMinutes;
   final tolerance = profile.gutToleranceGPerHr;
@@ -31,16 +35,21 @@ List<Warning> _checkGutTolerance(
   for (var startMin = 0; startMin < totalMin; startMin += 20) {
     final endMin = startMin + 60;
     final hourCarbs = entries
-        .where((e) =>
-            e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin)
+        .where(
+          (e) =>
+              e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin,
+        )
         .fold(0.0, (sum, e) => sum + e.carbsTotal);
 
     if (hourCarbs > tolerance * 1.15) {
-      warnings.add(Warning(
-        severity: Severity.critical,
-        message: 'Exceeding gut tolerance: ${hourCarbs.toStringAsFixed(0)}g/hr '
-            'at $startMin-${endMin}min (trained: ${tolerance.toStringAsFixed(0)}g/hr)',
-      ));
+      warnings.add(
+        Warning(
+          severity: Severity.critical,
+          message:
+              'Exceeding gut tolerance: ${hourCarbs.toStringAsFixed(0)}g/hr '
+              'at $startMin-${endMin}min (trained: ${tolerance.toStringAsFixed(0)}g/hr)',
+        ),
+      );
       break; // One warning is enough
     }
   }
@@ -49,26 +58,33 @@ List<Warning> _checkGutTolerance(
 }
 
 List<Warning> _checkSingleSource(
-    List<PlanEntry> entries, Duration raceDuration) {
+  List<PlanEntry> entries,
+  Duration raceDuration,
+) {
   final warnings = <Warning>[];
   final totalMin = raceDuration.inMinutes;
 
   for (var startMin = 0; startMin < totalMin; startMin += 20) {
     final endMin = startMin + 60;
-    final hourEntries = entries.where((e) =>
-        e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin);
+    final hourEntries = entries.where(
+      (e) => e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin,
+    );
 
     final hourGlucose = hourEntries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
-    final hourFructose =
-        hourEntries.fold(0.0, (sum, e) => sum + e.carbsFructose);
+    final hourFructose = hourEntries.fold(
+      0.0,
+      (sum, e) => sum + e.carbsFructose,
+    );
 
     if (hourGlucose > 60 && hourFructose == 0) {
-      warnings.add(Warning(
-        severity: Severity.critical,
-        message:
-            'Over 60g/hr from single-source carbs at $startMin-${endMin}min. '
-            'Dual-source (glucose + fructose) needed for absorption above 60g/hr.',
-      ));
+      warnings.add(
+        Warning(
+          severity: Severity.critical,
+          message:
+              'Over 60g/hr from single-source carbs at $startMin-${endMin}min. '
+              'Dual-source (glucose + fructose) needed for absorption above 60g/hr.',
+        ),
+      );
       break;
     }
   }
@@ -86,22 +102,27 @@ List<Warning> _checkCaffeine(List<PlanEntry> entries, AthleteProfile profile) {
   final totalCaffeine = entries.isEmpty ? 0.0 : entries.last.cumulativeCaffeine;
 
   if (totalCaffeine > 400) {
-    warnings.add(Warning(
-      severity: Severity.critical,
-      message: 'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
-          'safe threshold (400mg).',
-    ));
+    warnings.add(
+      Warning(
+        severity: Severity.critical,
+        message:
+            'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
+            'safe threshold (400mg).',
+      ),
+    );
   } else {
     final kg = profile.bodyWeightKg;
     if (kg != null) {
       final mgPerKg = totalCaffeine / kg;
       if (mgPerKg > 6.0) {
-        warnings.add(Warning(
-          severity: Severity.critical,
-          message:
-              'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
-              '${mgPerKg.toStringAsFixed(1)}mg/kg (threshold: 6mg/kg).',
-        ));
+        warnings.add(
+          Warning(
+            severity: Severity.critical,
+            message:
+                'Total caffeine ${totalCaffeine.toStringAsFixed(0)}mg exceeds '
+                '${mgPerKg.toStringAsFixed(1)}mg/kg (threshold: 6mg/kg).',
+          ),
+        );
       }
     }
   }
@@ -118,13 +139,15 @@ List<Warning> _checkGaps(List<PlanEntry> entries) {
     final gap = entry.timeMark.inMinutes - prevMin;
 
     if (gap > 30 && entry.carbsTotal > 0) {
-      warnings.add(Warning(
-        severity: Severity.advisory,
-        message:
-            '$gap-minute gap before intake at ${entry.timeMark.inMinutes}min. '
-            'Consider more frequent fueling.',
-        entryIndex: i,
-      ));
+      warnings.add(
+        Warning(
+          severity: Severity.advisory,
+          message:
+              '$gap-minute gap before intake at ${entry.timeMark.inMinutes}min. '
+              'Consider more frequent fueling.',
+          entryIndex: i,
+        ),
+      );
     }
 
     if (entry.carbsTotal > 0) {
@@ -141,12 +164,15 @@ List<Warning> _checkRatio(List<PlanEntry> entries, Duration raceDuration) {
 
   for (var startMin = 0; startMin < totalMin; startMin += 20) {
     final endMin = startMin + 60;
-    final hourEntries = entries.where((e) =>
-        e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin);
+    final hourEntries = entries.where(
+      (e) => e.timeMark.inMinutes > startMin && e.timeMark.inMinutes <= endMin,
+    );
 
     final hourGlucose = hourEntries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
-    final hourFructose =
-        hourEntries.fold(0.0, (sum, e) => sum + e.carbsFructose);
+    final hourFructose = hourEntries.fold(
+      0.0,
+      (sum, e) => sum + e.carbsFructose,
+    );
     final hourCarbs = hourGlucose + hourFructose;
 
     // Only check ratio if above 50g/hr where dual-source matters
@@ -158,12 +184,15 @@ List<Warning> _checkRatio(List<PlanEntry> entries, Duration raceDuration) {
       // 44(Suppl 1):S25-S33. For >60 g/hr targets, multi-transporter
       // co-ingestion (glucose + fructose) at 1:0.8–1:1 is recommended.
       if (ratio < 0.5 || ratio > 1.0) {
-        warnings.add(Warning(
-          severity: Severity.advisory,
-          message: 'Glucose:fructose ratio is 1:${ratio.toStringAsFixed(1)} '
-              'at $startMin-${endMin}min '
-              '(optimal range: 1:0.5 to 1:1.0 for high absorption).',
-        ));
+        warnings.add(
+          Warning(
+            severity: Severity.advisory,
+            message:
+                'Glucose:fructose ratio is 1:${ratio.toStringAsFixed(1)} '
+                'at $startMin-${endMin}min '
+                '(optimal range: 1:0.5 to 1:1.0 for high absorption).',
+          ),
+        );
         break; // One warning is enough
       }
     }
@@ -188,13 +217,49 @@ List<Warning> _checkCarbDrop(List<PlanEntry> entries, Duration raceDuration) {
       .fold(0.0, (sum, e) => sum + e.carbsTotal);
 
   if (firstHalf > 0 && secondHalf < firstHalf * 0.8) {
-    warnings.add(Warning(
-      severity: Severity.advisory,
-      message: 'Carb intake drops significantly in the second half '
-          '(${secondHalf.toStringAsFixed(0)}g vs ${firstHalf.toStringAsFixed(0)}g). '
-          'Consider back-load strategy if this is intentional.',
-    ));
+    warnings.add(
+      Warning(
+        severity: Severity.advisory,
+        message:
+            'Carb intake drops significantly in the second half '
+            '(${secondHalf.toStringAsFixed(0)}g vs ${firstHalf.toStringAsFixed(0)}g). '
+            'Consider back-load strategy if this is intentional.',
+      ),
+    );
   }
 
+  return warnings;
+}
+
+/// Validates aid station definitions against the race configuration.
+///
+/// - Critical when a station has neither `timeMinutes` nor `distanceKm`
+///   (it cannot be placed on the timeline).
+/// - Advisory when a station uses `distanceKm` but the race has no
+///   `distanceKm` set (the projection would return null).
+List<Warning> validateAidStationDefinitions(RaceConfig config) {
+  final warnings = <Warning>[];
+  for (final station in config.aidStations) {
+    if (station.timeMinutes == null && station.distanceKm == null) {
+      warnings.add(
+        const Warning(
+          severity: Severity.critical,
+          message: 'Aid station has no time or distance defined',
+        ),
+      );
+      continue;
+    }
+    if (station.timeMinutes == null &&
+        station.distanceKm != null &&
+        config.distanceKm == null) {
+      warnings.add(
+        Warning(
+          severity: Severity.advisory,
+          message:
+              'Aid station at km ${station.distanceKm} needs total race distance set',
+        ),
+      );
+    }
+  }
   return warnings;
 }

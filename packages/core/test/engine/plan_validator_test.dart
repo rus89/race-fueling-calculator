@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 import 'package:race_fueling_core/src/engine/plan_validator.dart';
 import 'package:race_fueling_core/src/models/fueling_plan.dart';
 import 'package:race_fueling_core/src/models/athlete_profile.dart';
+import 'package:race_fueling_core/src/models/race_config.dart';
 import 'package:race_fueling_core/src/models/warning.dart';
 
 PlanEntry _entry({
@@ -11,17 +12,16 @@ PlanEntry _entry({
   double glucose = 20,
   double fructose = 10,
   double caffeine = 0,
-}) =>
-    PlanEntry(
-      timeMark: Duration(minutes: minutes),
-      products: [],
-      carbsGlucose: glucose,
-      carbsFructose: fructose,
-      carbsTotal: glucose + fructose,
-      cumulativeCarbs: 0, // not used by validator directly
-      cumulativeCaffeine: caffeine,
-      waterMl: 0,
-    );
+}) => PlanEntry(
+  timeMark: Duration(minutes: minutes),
+  products: [],
+  carbsGlucose: glucose,
+  carbsFructose: fructose,
+  carbsTotal: glucose + fructose,
+  cumulativeCarbs: 0, // not used by validator directly
+  cumulativeCaffeine: caffeine,
+  waterMl: 0,
+);
 
 void main() {
   final profile = AthleteProfile(
@@ -52,9 +52,11 @@ void main() {
 
       final warnings = validatePlan(entries, profile, Duration(hours: 1));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.critical &&
-            w.message.contains('gut tolerance')),
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('gut tolerance'),
+        ),
         true,
       );
     });
@@ -68,9 +70,11 @@ void main() {
 
       final warnings = validatePlan(entries, profile, Duration(hours: 1));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.critical &&
-            w.message.contains('single-source')),
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('single-source'),
+        ),
         true,
       );
     });
@@ -104,8 +108,10 @@ void main() {
 
       final warnings = validatePlan(entries, profile, Duration(hours: 1));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.critical && w.message.contains('caffeine')),
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical && w.message.contains('caffeine'),
+        ),
         true,
       );
     });
@@ -144,8 +150,10 @@ void main() {
 
       final warnings = validatePlan(entries, lightProfile, Duration(hours: 1));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.critical && w.message.contains('caffeine')),
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical && w.message.contains('caffeine'),
+        ),
         true,
       );
     });
@@ -159,8 +167,9 @@ void main() {
 
       final warnings = validatePlan(entries, profile, Duration(hours: 1));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.advisory && w.message.contains('gap')),
+        warnings.any(
+          (w) => w.severity == Severity.advisory && w.message.contains('gap'),
+        ),
         true,
       );
     });
@@ -175,8 +184,9 @@ void main() {
 
       final warnings = validatePlan(entries, profile, Duration(hours: 1));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.advisory && w.message.contains('ratio')),
+        warnings.any(
+          (w) => w.severity == Severity.advisory && w.message.contains('ratio'),
+        ),
         true,
       );
     });
@@ -195,12 +205,12 @@ void main() {
         _entry(minutes: 60, glucose: 12, fructose: 6),
       ];
 
-      final warnings =
-          validatePlan(entries, highGutProfile, Duration(hours: 1));
-      expect(
-        warnings.any((w) => w.message.contains('ratio')),
-        false,
+      final warnings = validatePlan(
+        entries,
+        highGutProfile,
+        Duration(hours: 1),
       );
+      expect(warnings.any((w) => w.message.contains('ratio')), false);
     });
 
     test('advisory: ratio below new lower bound (G:F = 0.45)', () {
@@ -216,11 +226,15 @@ void main() {
         _entry(minutes: 60, glucose: 12, fructose: 6),
       ];
 
-      final warnings =
-          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      final warnings = validatePlan(
+        entries,
+        highGutProfile,
+        Duration(hours: 1),
+      );
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.advisory && w.message.contains('ratio')),
+        warnings.any(
+          (w) => w.severity == Severity.advisory && w.message.contains('ratio'),
+        ),
         true,
       );
     });
@@ -238,12 +252,12 @@ void main() {
         _entry(minutes: 60, glucose: 10, fructose: 7),
       ];
 
-      final warnings =
-          validatePlan(entries, highGutProfile, Duration(hours: 1));
-      expect(
-        warnings.any((w) => w.message.contains('ratio')),
-        false,
+      final warnings = validatePlan(
+        entries,
+        highGutProfile,
+        Duration(hours: 1),
       );
+      expect(warnings.any((w) => w.message.contains('ratio')), false);
     });
 
     test('no ratio warning at upper bound G:F = 1.0', () {
@@ -259,12 +273,12 @@ void main() {
         _entry(minutes: 60, glucose: 10, fructose: 10),
       ];
 
-      final warnings =
-          validatePlan(entries, highGutProfile, Duration(hours: 1));
-      expect(
-        warnings.any((w) => w.message.contains('ratio')),
-        false,
+      final warnings = validatePlan(
+        entries,
+        highGutProfile,
+        Duration(hours: 1),
       );
+      expect(warnings.any((w) => w.message.contains('ratio')), false);
     });
 
     test('advisory: ratio above upper bound (G:F = 1.05)', () {
@@ -280,11 +294,15 @@ void main() {
         _entry(minutes: 60, glucose: 8.34, fructose: 8.75),
       ];
 
-      final warnings =
-          validatePlan(entries, highGutProfile, Duration(hours: 1));
+      final warnings = validatePlan(
+        entries,
+        highGutProfile,
+        Duration(hours: 1),
+      );
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.advisory && w.message.contains('ratio')),
+        warnings.any(
+          (w) => w.severity == Severity.advisory && w.message.contains('ratio'),
+        ),
         true,
       );
     });
@@ -302,12 +320,12 @@ void main() {
         _entry(minutes: 60, glucose: 0, fructose: 20),
       ];
 
-      final warnings =
-          validatePlan(entries, highGutProfile, Duration(hours: 1));
-      expect(
-        warnings.any((w) => w.message.contains('ratio')),
-        false,
+      final warnings = validatePlan(
+        entries,
+        highGutProfile,
+        Duration(hours: 1),
       );
+      expect(warnings.any((w) => w.message.contains('ratio')), false);
     });
 
     test('advisory: significant carb drop in second half', () {
@@ -324,9 +342,11 @@ void main() {
 
       final warnings = validatePlan(entries, profile, Duration(hours: 2));
       expect(
-        warnings.any((w) =>
-            w.severity == Severity.advisory &&
-            w.message.contains('second half')),
+        warnings.any(
+          (w) =>
+              w.severity == Severity.advisory &&
+              w.message.contains('second half'),
+        ),
         true,
       );
     });
@@ -342,15 +362,115 @@ void main() {
       ];
 
       final warnings = validatePlan(entries, profile, Duration(hours: 2));
-      expect(
-        warnings.any((w) => w.message.contains('second half')),
-        false,
-      );
+      expect(warnings.any((w) => w.message.contains('second half')), false);
     });
 
     test('empty plan produces no warnings', () {
       final warnings = validatePlan([], profile, Duration(hours: 2));
       expect(warnings, isEmpty);
+    });
+  });
+
+  group('validateAidStationDefinitions', () {
+    test('emits critical when aid station has no time and no distance', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation()],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('no time or distance'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('emits advisory when distance set without total race distance', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation(distanceKm: 30)],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(
+        warnings.any(
+          (w) => w.severity == Severity.advisory && w.message.contains('km 30'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('no warning when distance + total are both set', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        distanceKm: 90,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation(distanceKm: 30)],
+      );
+      expect(validateAidStationDefinitions(cfg), isEmpty);
+    });
+
+    test(
+      'no warning when timeMinutes is set (regardless of distance fields)',
+      () {
+        final cfg = RaceConfig(
+          name: 'X',
+          duration: const Duration(hours: 4),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 80,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+          aidStations: [const AidStation(timeMinutes: 90)],
+        );
+        expect(validateAidStationDefinitions(cfg), isEmpty);
+      },
+    );
+
+    test('aggregates warnings across multiple stations', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [
+          const AidStation(),
+          const AidStation(distanceKm: 30),
+          const AidStation(timeMinutes: 90),
+        ],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(warnings, hasLength(2));
+      expect(
+        warnings.where((w) => w.severity == Severity.critical),
+        hasLength(1),
+      );
+      expect(
+        warnings.where((w) => w.severity == Severity.advisory),
+        hasLength(1),
+      );
     });
   });
 }
