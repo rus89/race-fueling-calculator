@@ -86,6 +86,34 @@ void main() {
       );
       expect(slots.map((s) => s.timeMark.inMinutes), [30, 60, 90, 120]);
     });
+
+    test(
+      'multiple aid stations: aligned ones are marked, non-aligned are skipped (time-based)',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 2),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 30,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+          aidStations: [
+            AidStation(timeMinutes: 60), // aligned
+            AidStation(timeMinutes: 75), // non-aligned — should be skipped
+            AidStation(timeMinutes: 90), // aligned
+          ],
+        );
+        final slots = buildTimeline(config);
+        expect(slots.length, 4); // 30, 60, 90, 120 — unchanged
+        expect(slots.where((s) => s.isAidStation).length, 2);
+        final marked = slots
+            .where((s) => s.isAidStation)
+            .map((s) => s.timeMark.inMinutes)
+            .toList();
+        expect(marked, containsAll([60, 90]));
+      },
+    );
   });
 
   group('buildTimeline — distance-based', () {
@@ -150,6 +178,30 @@ void main() {
         reason: 'non-aligned aid station should not mark any slot',
       );
     });
+
+    test(
+      'multiple aid stations: aligned ones are marked, non-aligned are skipped (distance-based)',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 5),
+          distanceKm: 100,
+          timelineMode: TimelineMode.distanceBased,
+          intervalKm: 10,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+          aidStations: [
+            AidStation(distanceKm: 30), // aligned
+            AidStation(distanceKm: 45), // non-aligned — should be skipped
+            AidStation(distanceKm: 70), // aligned
+          ],
+        );
+        final slots = buildTimeline(config);
+        expect(slots.length, 10); // 10, 20, ..., 100 — unchanged
+        expect(slots.where((s) => s.isAidStation).length, 2);
+      },
+    );
   });
 
   group('buildTimeline — boundary cases', () {

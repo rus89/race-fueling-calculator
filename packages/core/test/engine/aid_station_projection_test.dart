@@ -54,5 +54,31 @@ void main() {
         expect(projectAidStationMin(s, totalKm: 100, durationMin: 240), 60);
       },
     );
+
+    test(
+      'station at the start line (distanceKm == 0) projects to minute 0',
+      () {
+        const s = AidStation(distanceKm: 0);
+        expect(projectAidStationMin(s, totalKm: 100, durationMin: 240), 0);
+      },
+    );
+
+    test(
+      'station at the finish line (distanceKm == totalKm) projects to durationMin',
+      () {
+        const s = AidStation(distanceKm: 100);
+        expect(projectAidStationMin(s, totalKm: 100, durationMin: 240), 240);
+      },
+    );
+
+    test(
+      'station beyond the finish (distanceKm > totalKm) projects past durationMin',
+      () {
+        // Pinning current pass-through behavior. The validator (A9) catches this
+        // case; the projection helper itself is permissive.
+        const s = AidStation(distanceKm: 110);
+        expect(projectAidStationMin(s, totalKm: 100, durationMin: 240), 264);
+      },
+    );
   });
 }

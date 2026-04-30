@@ -572,5 +572,19 @@ void main() {
         expect(validateAidStationDefinitions(cfg), isEmpty);
       },
     );
+
+    test('returns empty list when aidStations is empty', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [],
+      );
+      expect(validateAidStationDefinitions(cfg), isEmpty);
+    });
   });
 }
