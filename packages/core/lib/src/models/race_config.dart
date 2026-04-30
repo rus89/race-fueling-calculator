@@ -41,13 +41,8 @@ enum Discipline {
 class ProductSelection extends Equatable {
   final String productId;
   final int quantity;
-  final bool isAidStationOnly;
 
-  const ProductSelection({
-    required this.productId,
-    required this.quantity,
-    this.isAidStationOnly = false,
-  });
+  const ProductSelection({required this.productId, required this.quantity});
 
   factory ProductSelection.fromJson(Map<String, dynamic> json) =>
       _$ProductSelectionFromJson(json);
@@ -55,7 +50,7 @@ class ProductSelection extends Equatable {
   Map<String, dynamic> toJson() => _$ProductSelectionToJson(this);
 
   @override
-  List<Object?> get props => [productId, quantity, isAidStationOnly];
+  List<Object?> get props => [productId, quantity];
 }
 
 @JsonSerializable()

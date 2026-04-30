@@ -1,5 +1,5 @@
 // ABOUTME: Assigns nutrition products to timeline slots using greedy allocation.
-// ABOUTME: Respects quantity limits, aid station constraints, and optimizes glucose:fructose ratio.
+// ABOUTME: Respects quantity limits and optimizes glucose:fructose ratio.
 import '../models/product.dart';
 import '../models/race_config.dart';
 import '../models/fueling_plan.dart';
@@ -30,7 +30,6 @@ AllocationResult allocateProducts({
 }) {
   final productMap = {for (final p in products) p.id: p};
   final remaining = {for (final s in selections) s.productId: s.quantity};
-  final aidOnly = {for (final s in selections) s.productId: s.isAidStationOnly};
   final entries = <PlanEntry>[];
   final depletionWarnings = <String>[];
 
@@ -51,24 +50,25 @@ AllocationResult allocateProducts({
     // emitting a meaningless overage warning for slots whose strategy
     // assigns zero carbs.
     if (target <= 0) {
-      entries.add(PlanEntry(
-        timeMark: slot.timeMark,
-        distanceMark: slot.distanceMark,
-        products: servings,
-        carbsGlucose: glucoseAssigned,
-        carbsFructose: fructoseAssigned,
-        carbsTotal: carbsAssigned,
-        cumulativeCarbs: cumulativeCarbs,
-        cumulativeCaffeine: cumulativeCaffeine,
-        waterMl: waterAssigned,
-      ));
+      entries.add(
+        PlanEntry(
+          timeMark: slot.timeMark,
+          distanceMark: slot.distanceMark,
+          products: servings,
+          carbsGlucose: glucoseAssigned,
+          carbsFructose: fructoseAssigned,
+          carbsTotal: carbsAssigned,
+          cumulativeCarbs: cumulativeCarbs,
+          cumulativeCaffeine: cumulativeCaffeine,
+          waterMl: waterAssigned,
+        ),
+      );
       continue;
     }
 
     // Get available products for this slot
     final available = selections.where((s) {
       if ((remaining[s.productId] ?? 0) <= 0) return false;
-      if (aidOnly[s.productId] == true && !slot.isAidStation) return false;
       return true;
     }).toList();
 
@@ -95,17 +95,19 @@ AllocationResult allocateProducts({
       // product picks 1 serving (closest), not 1 forced upward by .ceil().
       // The post-allocation overage check below surfaces any resulting
       // gut-tolerance risk to the user.
-      final needed =
-          ((target - carbsAssigned) / product.carbsPerServing).round();
+      final needed = ((target - carbsAssigned) / product.carbsPerServing)
+          .round();
       final canUse = remaining[selection.productId] ?? 0;
       final use = needed.clamp(0, canUse);
 
       if (use > 0) {
-        servings.add(ProductServing(
-          productId: product.id,
-          productName: product.name,
-          servings: use,
-        ));
+        servings.add(
+          ProductServing(
+            productId: product.id,
+            productName: product.name,
+            servings: use,
+          ),
+        );
         carbsAssigned += product.carbsPerServing * use;
         glucoseAssigned += product.glucoseGrams * use;
         fructoseAssigned += product.fructoseGrams * use;
@@ -126,28 +128,33 @@ AllocationResult allocateProducts({
     if (overageDelta > 0) {
       final overage = overageDelta / target;
       if (overage > _slotOverageAdvisoryThreshold) {
-        slotWarnings.add(Warning(
-          severity: Severity.advisory,
-          message: 'Product mix over-delivers '
-              '${overageDelta.toStringAsFixed(0)}g '
-              '(${(overage * 100).toStringAsFixed(0)}%) above target',
-          entryIndex: i,
-        ));
+        slotWarnings.add(
+          Warning(
+            severity: Severity.advisory,
+            message:
+                'Product mix over-delivers '
+                '${overageDelta.toStringAsFixed(0)}g '
+                '(${(overage * 100).toStringAsFixed(0)}%) above target',
+            entryIndex: i,
+          ),
+        );
       }
     }
 
-    entries.add(PlanEntry(
-      timeMark: slot.timeMark,
-      distanceMark: slot.distanceMark,
-      products: servings,
-      carbsGlucose: glucoseAssigned,
-      carbsFructose: fructoseAssigned,
-      carbsTotal: carbsAssigned,
-      cumulativeCarbs: cumulativeCarbs,
-      cumulativeCaffeine: cumulativeCaffeine,
-      waterMl: waterAssigned,
-      warnings: slotWarnings,
-    ));
+    entries.add(
+      PlanEntry(
+        timeMark: slot.timeMark,
+        distanceMark: slot.distanceMark,
+        products: servings,
+        carbsGlucose: glucoseAssigned,
+        carbsFructose: fructoseAssigned,
+        carbsTotal: carbsAssigned,
+        cumulativeCarbs: cumulativeCarbs,
+        cumulativeCaffeine: cumulativeCaffeine,
+        waterMl: waterAssigned,
+        warnings: slotWarnings,
+      ),
+    );
   }
 
   // Check for depleted products and missing products
@@ -155,20 +162,25 @@ AllocationResult allocateProducts({
     final product = productMap[selection.productId];
     if (product == null) {
       depletionWarnings.add(
-          'Product ID "${selection.productId}" not found in library — skipped');
+        'Product ID "${selection.productId}" not found in library — skipped',
+      );
       continue;
     }
     if ((remaining[selection.productId] ?? 0) <= 0) {
       // Check if all quantity was used before the last slot
       final lastUsed = entries.lastIndexWhere(
-          (e) => e.products.any((p) => p.productId == selection.productId));
+        (e) => e.products.any((p) => p.productId == selection.productId),
+      );
       if (lastUsed >= 0 && lastUsed < slots.length - 1) {
         depletionWarnings.add(
-            'Ran out of ${product.name} at slot ${lastUsed + 1} of ${slots.length}');
+          'Ran out of ${product.name} at slot ${lastUsed + 1} of ${slots.length}',
+        );
       }
     }
   }
 
   return AllocationResult(
-      entries: entries, depletionWarnings: depletionWarnings);
+    entries: entries,
+    depletionWarnings: depletionWarnings,
+  );
 }

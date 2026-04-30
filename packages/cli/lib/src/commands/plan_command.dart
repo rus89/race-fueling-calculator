@@ -56,8 +56,8 @@ class _PlanCreateCommand extends Command<void> {
     this._storage, {
     required IsTtyProbe isTty,
     LineReader? readLine,
-  })  : _isTty = isTty,
-        _readLine = readLine {
+  }) : _isTty = isTty,
+       _readLine = readLine {
     argParser
       ..addOption('name', help: 'Race name (also used to derive the plan id).')
       ..addOption(
@@ -412,8 +412,8 @@ class _PlanDeleteCommand extends Command<void> {
     this._storage, {
     required IsTtyProbe isTty,
     LineReader? readLine,
-  })  : _isTty = isTty,
-        _readLine = readLine {
+  }) : _isTty = isTty,
+       _readLine = readLine {
     argParser.addFlag(
       'yes',
       abbr: 'y',
@@ -541,10 +541,7 @@ class _PlanProductsAddCommand extends Command<void> {
     }
     final planName = results['plan'] as String?;
     if (planName == null || planName.trim().isEmpty) {
-      throw UsageException(
-        'Missing --plan.',
-        'Pass --plan <plan-slug>.',
-      );
+      throw UsageException('Missing --plan.', 'Pass --plan <plan-slug>.');
     }
     final query = results.rest.join(' ').trim();
     if (query.isEmpty) {
@@ -556,10 +553,7 @@ class _PlanProductsAddCommand extends Command<void> {
     }
     final rawQty = results['quantity'] as String?;
     if (rawQty == null) {
-      throw UsageException(
-        'Missing --quantity.',
-        'Pass --quantity <integer>.',
-      );
+      throw UsageException('Missing --quantity.', 'Pass --quantity <integer>.');
     }
     final quantity = int.tryParse(rawQty);
     if (quantity == null) {
@@ -592,8 +586,9 @@ class _PlanProductsAddCommand extends Command<void> {
           exitCode = kExitUsage;
           return;
         case ProductMatchSingle(:final product):
-          final existingIndex = config.selectedProducts
-              .indexWhere((sel) => sel.productId == product.id);
+          final existingIndex = config.selectedProducts.indexWhere(
+            (sel) => sel.productId == product.id,
+          );
           if (existingIndex >= 0) {
             final existing = config.selectedProducts[existingIndex];
             final mergedQuantity = existing.quantity + quantity;
@@ -601,10 +596,10 @@ class _PlanProductsAddCommand extends Command<void> {
             updatedSelections[existingIndex] = ProductSelection(
               productId: existing.productId,
               quantity: mergedQuantity,
-              isAidStationOnly: existing.isAidStationOnly,
             );
-            final updated =
-                config.copyWith(selectedProducts: updatedSelections);
+            final updated = config.copyWith(
+              selectedProducts: updatedSelections,
+            );
             await _storage.savePlan(planName, updated);
             stdout.writeln(
               'Updated "${product.name}" in plan "$planName": '
@@ -613,13 +608,11 @@ class _PlanProductsAddCommand extends Command<void> {
           } else {
             final updatedSelections = [
               ...config.selectedProducts,
-              ProductSelection(
-                productId: product.id,
-                quantity: quantity,
-              ),
+              ProductSelection(productId: product.id, quantity: quantity),
             ];
-            final updated =
-                config.copyWith(selectedProducts: updatedSelections);
+            final updated = config.copyWith(
+              selectedProducts: updatedSelections,
+            );
             await _storage.savePlan(planName, updated);
             stdout.writeln(
               'Added ${product.name} x$quantity to plan "$planName".',
@@ -632,8 +625,10 @@ class _PlanProductsAddCommand extends Command<void> {
 
 class _PlanProductsListCommand extends Command<void> {
   _PlanProductsListCommand(this._storage) {
-    argParser.addOption('plan',
-        help: 'Plan slug (as shown by `fuel plan list`).');
+    argParser.addOption(
+      'plan',
+      help: 'Plan slug (as shown by `fuel plan list`).',
+    );
   }
 
   final StorageAdapter _storage;
@@ -652,10 +647,7 @@ class _PlanProductsListCommand extends Command<void> {
     }
     final planName = results['plan'] as String?;
     if (planName == null || planName.trim().isEmpty) {
-      throw UsageException(
-        'Missing --plan.',
-        'Pass --plan <plan-slug>.',
-      );
+      throw UsageException('Missing --plan.', 'Pass --plan <plan-slug>.');
     }
 
     await withFriendlyErrors(() async {
@@ -676,8 +668,7 @@ class _PlanProductsListCommand extends Command<void> {
       for (final selection in config.selectedProducts) {
         final product = byId[selection.productId];
         final name = product?.name ?? selection.productId;
-        final tag = selection.isAidStationOnly ? ' [aid station]' : '';
-        stdout.writeln('  $name x${selection.quantity}$tag');
+        stdout.writeln('  $name x${selection.quantity}');
       }
     });
   }
@@ -710,10 +701,7 @@ class _PlanGenerateCommand extends Command<void> {
     }
     final planName = results['plan'] as String?;
     if (planName == null || planName.trim().isEmpty) {
-      throw UsageException(
-        'Missing --plan.',
-        'Pass --plan <plan-slug>.',
-      );
+      throw UsageException('Missing --plan.', 'Pass --plan <plan-slug>.');
     }
 
     await withFriendlyErrors(() async {
@@ -761,8 +749,9 @@ class _PlanGenerateCommand extends Command<void> {
       }
 
       final plan = generatePlan(config, profile, all);
-      final useColor =
-          resolveColorMode(noColorFlag: results['no-color'] as bool);
+      final useColor = resolveColorMode(
+        noColorFlag: results['no-color'] as bool,
+      );
       stdout.write(formatPlanTable(plan, useColor: useColor));
       stdout.write(formatSummaryBlock(plan, useColor: useColor));
     });

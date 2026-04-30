@@ -10,14 +10,12 @@ ProductSelection _$ProductSelectionFromJson(Map<String, dynamic> json) =>
     ProductSelection(
       productId: json['productId'] as String,
       quantity: (json['quantity'] as num).toInt(),
-      isAidStationOnly: json['isAidStationOnly'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ProductSelectionToJson(ProductSelection instance) =>
     <String, dynamic>{
       'productId': instance.productId,
       'quantity': instance.quantity,
-      'isAidStationOnly': instance.isAidStationOnly,
     };
 
 AidStation _$AidStationFromJson(Map<String, dynamic> json) => AidStation(

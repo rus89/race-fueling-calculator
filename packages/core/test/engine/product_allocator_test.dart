@@ -1,5 +1,5 @@
 // ABOUTME: Tests for greedy product allocation to timeline slots.
-// ABOUTME: Verifies quantity tracking, aid station constraints, and G:F ratio optimization.
+// ABOUTME: Verifies quantity tracking, depletion warnings, and G:F ratio optimization.
 import 'package:test/test.dart';
 import 'package:race_fueling_core/src/engine/product_allocator.dart';
 import 'package:race_fueling_core/src/engine/timeline_builder.dart';
@@ -19,16 +19,6 @@ void main() {
     waterRequiredMl: 100.0,
   );
 
-  final drinkMix = Product(
-    id: 'drink-1',
-    name: 'Test Drink',
-    type: ProductType.liquid,
-    carbsPerServing: 40.0,
-    glucoseGrams: 22.0,
-    fructoseGrams: 18.0,
-    waterRequiredMl: 0.0,
-  );
-
   group('allocateProducts', () {
     test('single product, enough quantity', () {
       final slots = [
@@ -37,9 +27,7 @@ void main() {
         TimeSlot(timeMark: Duration(minutes: 60)),
       ];
       final targets = [20.0, 20.0, 20.0];
-      final selections = [
-        ProductSelection(productId: 'gel-1', quantity: 6),
-      ];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
 
       final result = allocateProducts(
         slots: slots,
@@ -56,11 +44,11 @@ void main() {
 
     test('product depletion triggers warning', () {
       final slots = List.generate(
-          4, (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)));
+        4,
+        (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)),
+      );
       final targets = [25.0, 25.0, 25.0, 25.0];
-      final selections = [
-        ProductSelection(productId: 'gel-1', quantity: 2),
-      ];
+      final selections = [ProductSelection(productId: 'gel-1', quantity: 2)];
 
       final result = allocateProducts(
         slots: slots,
@@ -74,39 +62,11 @@ void main() {
       expect(result.entries[3].products, isEmpty);
       expect(result.depletionWarnings, isNotEmpty);
       expect(
-        result.depletionWarnings
-            .any((w) => w.contains('gel-1') || w.contains('Test Gel')),
+        result.depletionWarnings.any(
+          (w) => w.contains('gel-1') || w.contains('Test Gel'),
+        ),
         true,
       );
-    });
-
-    test('aid-station-only product used only at aid stations', () {
-      final slots = [
-        TimeSlot(timeMark: Duration(minutes: 20)),
-        TimeSlot(timeMark: Duration(minutes: 40), isAidStation: true),
-        TimeSlot(timeMark: Duration(minutes: 60)),
-      ];
-      final targets = [20.0, 20.0, 20.0];
-      final selections = [
-        ProductSelection(
-            productId: 'drink-1', quantity: 2, isAidStationOnly: true),
-        ProductSelection(productId: 'gel-1', quantity: 4),
-      ];
-
-      final result = allocateProducts(
-        slots: slots,
-        targetCarbsPerSlot: targets,
-        products: [gel, drinkMix],
-        selections: selections,
-      );
-
-      // Slot 1 (aid station): should use drink mix
-      final aidEntry = result.entries[1];
-      expect(aidEntry.products.any((p) => p.productId == 'drink-1'), true);
-
-      // Slot 0 (not aid station): should not use drink mix
-      final regularEntry = result.entries[0];
-      expect(regularEntry.products.any((p) => p.productId == 'drink-1'), false);
     });
 
     test('missing product ID does not crash and emits warning', () {
@@ -179,62 +139,67 @@ void main() {
       );
     });
 
-    test('target 25g with 25g product matches exactly with no overage warning',
-        () {
-      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
-      final targets = [25.0];
-      final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
+    test(
+      'target 25g with 25g product matches exactly with no overage warning',
+      () {
+        final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+        final targets = [25.0];
+        final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
 
-      final result = allocateProducts(
-        slots: slots,
-        targetCarbsPerSlot: targets,
-        products: [gel],
-        selections: selections,
-      );
+        final result = allocateProducts(
+          slots: slots,
+          targetCarbsPerSlot: targets,
+          products: [gel],
+          selections: selections,
+        );
 
-      expect(result.entries[0].carbsTotal, 25.0);
-      expect(result.entries[0].products.first.servings, 1);
-      expect(result.entries[0].warnings, isEmpty);
-    });
+        expect(result.entries[0].carbsTotal, 25.0);
+        expect(result.entries[0].products.first.servings, 1);
+        expect(result.entries[0].warnings, isEmpty);
+      },
+    );
 
-    test('target 50g with 25g product takes 2 servings, no overage warning',
-        () {
-      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
-      final targets = [50.0];
-      final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
+    test(
+      'target 50g with 25g product takes 2 servings, no overage warning',
+      () {
+        final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+        final targets = [50.0];
+        final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
 
-      final result = allocateProducts(
-        slots: slots,
-        targetCarbsPerSlot: targets,
-        products: [gel],
-        selections: selections,
-      );
+        final result = allocateProducts(
+          slots: slots,
+          targetCarbsPerSlot: targets,
+          products: [gel],
+          selections: selections,
+        );
 
-      expect(result.entries[0].carbsTotal, 50.0);
-      expect(result.entries[0].products.first.servings, 2);
-      expect(result.entries[0].warnings, isEmpty);
-    });
+        expect(result.entries[0].carbsTotal, 50.0);
+        expect(result.entries[0].products.first.servings, 2);
+        expect(result.entries[0].warnings, isEmpty);
+      },
+    );
 
-    test('target 100g with 25g product takes 4 servings, no overage warning',
-        () {
-      final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
-      final targets = [100.0];
-      final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
+    test(
+      'target 100g with 25g product takes 4 servings, no overage warning',
+      () {
+        final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
+        final targets = [100.0];
+        final selections = [ProductSelection(productId: 'gel-1', quantity: 6)];
 
-      final result = allocateProducts(
-        slots: slots,
-        targetCarbsPerSlot: targets,
-        products: [gel],
-        selections: selections,
-      );
+        final result = allocateProducts(
+          slots: slots,
+          targetCarbsPerSlot: targets,
+          products: [gel],
+          selections: selections,
+        );
 
-      expect(result.entries[0].carbsTotal, 100.0);
-      expect(result.entries[0].products.first.servings, 4);
-      expect(result.entries[0].warnings, isEmpty);
-    });
+        expect(result.entries[0].carbsTotal, 100.0);
+        expect(result.entries[0].products.first.servings, 4);
+        expect(result.entries[0].warnings, isEmpty);
+      },
+    );
 
-    test('zero-target slot allocates nothing and emits no overage warning',
-        () {
+    test('zero-target slot allocates nothing and emits no overage warning', () {
       final slots = [TimeSlot(timeMark: Duration(minutes: 20))];
       final targets = [0.0];
       final selections = [ProductSelection(productId: 'gel-1', quantity: 3)];
@@ -266,7 +231,9 @@ void main() {
         waterRequiredMl: 100.0,
       );
       final slots = List.generate(
-          6, (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)));
+        6,
+        (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)),
+      );
       final targets = List.filled(6, 20.0);
       final selections = [
         ProductSelection(productId: 'perfect-gel', quantity: 10),
@@ -279,8 +246,10 @@ void main() {
         selections: selections,
       );
 
-      final cumulative =
-          result.entries.fold<double>(0.0, (sum, e) => sum + e.carbsTotal);
+      final cumulative = result.entries.fold<double>(
+        0.0,
+        (sum, e) => sum + e.carbsTotal,
+      );
       const intendedTotal = 120.0;
       expect(cumulative, greaterThanOrEqualTo(intendedTotal * 0.9));
       expect(cumulative, lessThanOrEqualTo(intendedTotal * 1.1));

@@ -56,15 +56,6 @@ void main() {
       expect(config.customCurve!.length, 2);
     });
 
-    test('ProductSelection supports aid-station flag', () {
-      final ps = ProductSelection(
-        productId: 'bottle-1',
-        quantity: 2,
-        isAidStationOnly: true,
-      );
-      expect(ps.isAidStationOnly, true);
-    });
-
     test('JSON round-trip', () {
       final config = RaceConfig(
         name: 'Test',
