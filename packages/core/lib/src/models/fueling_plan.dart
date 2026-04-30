@@ -67,12 +67,10 @@ class PlanEntry extends Equatable {
 
   Map<String, dynamic> toJson() => _$PlanEntryToJson(this);
 
-  /// Returns a copy with the given fields replaced. Used by `plan_engine`
-  /// when applying environmental water adjustments to a freshly allocated
-  /// entry — the allocator emits `effectiveDrinkCarbs`, `aidStation`, and
-  /// per-slot `warnings` that must NOT be silently dropped on rebuild.
-  /// `aidStation` cannot be cleared via this method; it is only ever set
-  /// once by the allocator and read downstream.
+  /// Returns a copy with the given fields replaced. Passing `null` for a
+  /// nullable field (e.g., `distanceMark`, `aidStation`) preserves the
+  /// existing value — there is no way to clear a nullable field via this
+  /// method.
   PlanEntry copyWith({
     Duration? timeMark,
     double? distanceMark,

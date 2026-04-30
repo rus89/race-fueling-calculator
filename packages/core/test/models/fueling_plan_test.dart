@@ -19,6 +19,34 @@ void main() {
   });
 
   group('PlanEntry', () {
+    PlanEntry baseEntry({
+      Duration timeMark = const Duration(minutes: 30),
+      double? distanceMark,
+      List<ProductServing> products = const [],
+      double carbsGlucose = 10.0,
+      double carbsFructose = 6.0,
+      double carbsTotal = 16.0,
+      double cumulativeCarbs = 16.0,
+      double cumulativeCaffeine = 0.0,
+      double waterMl = 100.0,
+      List<Warning> warnings = const [],
+      double effectiveDrinkCarbs = 0.0,
+      AidStation? aidStation,
+    }) => PlanEntry(
+      timeMark: timeMark,
+      distanceMark: distanceMark,
+      products: products,
+      carbsGlucose: carbsGlucose,
+      carbsFructose: carbsFructose,
+      carbsTotal: carbsTotal,
+      cumulativeCarbs: cumulativeCarbs,
+      cumulativeCaffeine: cumulativeCaffeine,
+      waterMl: waterMl,
+      warnings: warnings,
+      effectiveDrinkCarbs: effectiveDrinkCarbs,
+      aidStation: aidStation,
+    );
+
     test('creates with all fields', () {
       final entry = PlanEntry(
         timeMark: Duration(minutes: 20),
@@ -93,6 +121,97 @@ void main() {
       expect(updated.effectiveDrinkCarbs, 13);
       expect(updated.aidStation?.timeMinutes, 90);
       expect(updated.warnings, hasLength(1));
+    });
+
+    test('copyWith with no args returns an equal instance', () {
+      final e = baseEntry(
+        distanceMark: 12.5,
+        aidStation: const AidStation(timeMinutes: 30),
+      );
+      expect(e.copyWith(), equals(e));
+    });
+
+    test('copyWith updates timeMark', () {
+      final e = baseEntry();
+      expect(
+        e.copyWith(timeMark: const Duration(minutes: 60)).timeMark,
+        const Duration(minutes: 60),
+      );
+    });
+
+    test('copyWith updates distanceMark', () {
+      final e = baseEntry(distanceMark: 5.0);
+      expect(e.copyWith(distanceMark: 10.0).distanceMark, 10.0);
+    });
+
+    test('copyWith updates products', () {
+      final e = baseEntry();
+      final next = e.copyWith(
+        products: const [
+          ProductServing(productId: 'g', productName: 'Gel', servings: 1),
+        ],
+      );
+      expect(next.products, hasLength(1));
+    });
+
+    test('copyWith updates carbsGlucose', () {
+      final e = baseEntry();
+      expect(e.copyWith(carbsGlucose: 20.0).carbsGlucose, 20.0);
+    });
+
+    test('copyWith updates carbsFructose', () {
+      final e = baseEntry();
+      expect(e.copyWith(carbsFructose: 8.0).carbsFructose, 8.0);
+    });
+
+    test('copyWith updates carbsTotal', () {
+      final e = baseEntry();
+      expect(e.copyWith(carbsTotal: 30.0).carbsTotal, 30.0);
+    });
+
+    test('copyWith updates cumulativeCarbs', () {
+      final e = baseEntry();
+      expect(e.copyWith(cumulativeCarbs: 80.0).cumulativeCarbs, 80.0);
+    });
+
+    test('copyWith updates cumulativeCaffeine', () {
+      final e = baseEntry();
+      expect(e.copyWith(cumulativeCaffeine: 50.0).cumulativeCaffeine, 50.0);
+    });
+
+    test('copyWith updates waterMl', () {
+      final e = baseEntry();
+      expect(e.copyWith(waterMl: 250.0).waterMl, 250.0);
+    });
+
+    test('copyWith updates warnings', () {
+      final e = baseEntry();
+      final next = e.copyWith(
+        warnings: const [Warning(severity: Severity.advisory, message: 'm')],
+      );
+      expect(next.warnings, hasLength(1));
+    });
+
+    test('copyWith updates effectiveDrinkCarbs', () {
+      final e = baseEntry();
+      expect(e.copyWith(effectiveDrinkCarbs: 13.0).effectiveDrinkCarbs, 13.0);
+    });
+
+    test('copyWith updates aidStation', () {
+      final e = baseEntry();
+      const station = AidStation(timeMinutes: 90, refill: ['x']);
+      expect(e.copyWith(aidStation: station).aidStation?.timeMinutes, 90);
+    });
+
+    test('copyWith preserves distanceMark when null is passed explicitly', () {
+      final e = baseEntry(distanceMark: 12.5);
+      expect(e.copyWith(distanceMark: null).distanceMark, 12.5);
+    });
+
+    test('copyWith preserves aidStation when null is passed explicitly', () {
+      const station = AidStation(timeMinutes: 60);
+      final e = baseEntry(aidStation: station);
+      expect(e.copyWith(aidStation: null).aidStation, station);
     });
 
     test('toJson omits aidStation when null (no schema noise)', () {
