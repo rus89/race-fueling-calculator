@@ -41,7 +41,15 @@ class Product extends Equatable {
     this.waterRequiredMl = 0.0,
     this.servingDescription,
     this.isBuiltIn = false,
-  }) : glucoseGrams = glucoseGrams ?? carbsPerServing;
+  }) : glucoseGrams = glucoseGrams ?? carbsPerServing {
+    if (!carbsPerServing.isFinite || carbsPerServing <= 0) {
+      throw ArgumentError.value(
+        carbsPerServing,
+        'carbsPerServing',
+        'must be a finite positive number',
+      );
+    }
+  }
 
   factory Product.fromJson(Map<String, dynamic> json) =>
       _$ProductFromJson(json);

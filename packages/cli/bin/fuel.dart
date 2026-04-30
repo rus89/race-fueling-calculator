@@ -29,6 +29,9 @@ Future<void> main(List<String> args) async {
       ..addCommand(ProductsCommand(storage))
       ..addCommand(PlanCommand(storage));
     exitCode = await runFuel(runner, args);
+  } on FormatException catch (e) {
+    stderr.writeln(e.message);
+    exitCode = kExitUsage;
   } catch (e) {
     stderr.writeln('Internal error: $e');
     exitCode = kExitInternal;

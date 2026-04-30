@@ -223,4 +223,50 @@ void main() {
           ]));
     });
   });
+
+  group('Product carbsPerServing validation', () {
+    Product build({required double carbsPerServing}) => Product(
+          id: 'p',
+          name: 'P',
+          type: ProductType.gel,
+          carbsPerServing: carbsPerServing,
+        );
+
+    test('constructor rejects zero carbsPerServing', () {
+      expect(() => build(carbsPerServing: 0), throwsArgumentError);
+    });
+
+    test('constructor rejects negative carbsPerServing', () {
+      expect(() => build(carbsPerServing: -1), throwsArgumentError);
+    });
+
+    test('constructor rejects NaN carbsPerServing', () {
+      expect(() => build(carbsPerServing: double.nan), throwsArgumentError);
+    });
+
+    test('constructor rejects infinite carbsPerServing', () {
+      expect(
+          () => build(carbsPerServing: double.infinity), throwsArgumentError);
+    });
+
+    test('fromJson rejects zero carbsPerServing', () {
+      final json = {
+        'id': 'p',
+        'name': 'P',
+        'type': 'gel',
+        'carbsPerServing': 0,
+      };
+      expect(() => Product.fromJson(json), throwsArgumentError);
+    });
+
+    test('fromJson rejects negative carbsPerServing', () {
+      final json = {
+        'id': 'p',
+        'name': 'P',
+        'type': 'gel',
+        'carbsPerServing': -25.0,
+      };
+      expect(() => Product.fromJson(json), throwsArgumentError);
+    });
+  });
 }

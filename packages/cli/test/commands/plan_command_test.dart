@@ -523,6 +523,21 @@ void main() {
       expect(code, kExitUsage);
       expect(captured.stderr, contains('Plan not found'));
     });
+
+    test('rejects path-traversal plan name with kExitUsage and no crash',
+        () async {
+      late final int code;
+      final captured = await captureOutput(() async {
+        code = await runFuel(
+          buildRunner(),
+          ['plan', 'show', '../etc/passwd'],
+        );
+      });
+
+      expect(code, kExitUsage);
+      expect(captured.stderr, contains('plan name'));
+      expect(captured.stderr, isNot(contains('Internal error')));
+    });
   });
 
   group('plan delete', () {

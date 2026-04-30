@@ -7,8 +7,35 @@ import 'package:race_fueling_core/core.dart';
 
 String resolveDefaultBaseDir(Map<String, String> env) {
   final fuelHome = env['FUEL_HOME']?.trim();
-  if (fuelHome != null && fuelHome.isNotEmpty) return fuelHome;
+  if (fuelHome != null && fuelHome.isNotEmpty) {
+    if (!p.isAbsolute(fuelHome)) {
+      throw FormatException(
+        'FUEL_HOME must be an absolute path, got "$fuelHome".',
+      );
+    }
+    if (p.split(fuelHome).contains('..')) {
+      throw FormatException(
+        'FUEL_HOME must not contain ".." segments, got "$fuelHome".',
+      );
+    }
+    return fuelHome;
+  }
   return p.join(env['HOME'] ?? '.', '.race-fueling');
+}
+
+/// Plan names map directly to file basenames under `_plansDir`. Allow only
+/// the slug character set so an attacker cannot craft a name like
+/// `../etc/passwd` and read or write outside the storage directory.
+final RegExp _safePlanNamePattern = RegExp(r'^[A-Za-z0-9_-]+$');
+
+void _assertSafePlanName(String name) {
+  if (!_safePlanNamePattern.hasMatch(name)) {
+    throw ArgumentError.value(
+      name,
+      'name',
+      'plan name must contain only letters, digits, hyphens, and underscores',
+    );
+  }
 }
 
 class FileStorageAdapter implements StorageAdapter {
@@ -72,6 +99,7 @@ class FileStorageAdapter implements StorageAdapter {
 
   @override
   Future<RaceConfig?> loadPlan(String name) async {
+    _assertSafePlanName(name);
     final file = File(p.join(_plansDir, '$name.json'));
     if (!await file.exists()) return null;
     final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
@@ -81,6 +109,7 @@ class FileStorageAdapter implements StorageAdapter {
 
   @override
   Future<void> savePlan(String name, RaceConfig config) async {
+    _assertSafePlanName(name);
     await _ensureDir(_plansDir);
     final file = File(p.join(_plansDir, '$name.json'));
     await file.writeAsString(
@@ -101,6 +130,7 @@ class FileStorageAdapter implements StorageAdapter {
 
   @override
   Future<void> deletePlan(String name) async {
+    _assertSafePlanName(name);
     final file = File(p.join(_plansDir, '$name.json'));
     if (await file.exists()) {
       await file.delete();
