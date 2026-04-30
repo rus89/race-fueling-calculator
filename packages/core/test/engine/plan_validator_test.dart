@@ -372,27 +372,34 @@ void main() {
   });
 
   group('validateAidStationDefinitions', () {
-    test('emits critical when aid station has no time and no distance', () {
-      final cfg = RaceConfig(
-        name: 'X',
-        duration: const Duration(hours: 4),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 80,
-        strategy: Strategy.steady,
-        selectedProducts: [],
-        aidStations: [const AidStation()],
-      );
-      final warnings = validateAidStationDefinitions(cfg);
-      expect(
-        warnings.any(
-          (w) =>
-              w.severity == Severity.critical &&
-              w.message.contains('no time or distance'),
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'emits critical with station index when aid station has no time and no distance',
+      () {
+        final cfg = RaceConfig(
+          name: 'X',
+          duration: const Duration(hours: 4),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 80,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+          aidStations: [
+            const AidStation(timeMinutes: 60),
+            const AidStation(), // broken — gets index #2
+          ],
+        );
+        final warnings = validateAidStationDefinitions(cfg);
+        expect(
+          warnings.any(
+            (w) =>
+                w.severity == Severity.critical &&
+                w.message.contains('Aid station #2') &&
+                w.message.contains('no time or distance'),
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('emits advisory when distance set without total race distance', () {
       final cfg = RaceConfig(
@@ -408,10 +415,130 @@ void main() {
       final warnings = validateAidStationDefinitions(cfg);
       expect(
         warnings.any(
-          (w) => w.severity == Severity.advisory && w.message.contains('km 30'),
+          (w) =>
+              w.severity == Severity.advisory &&
+              w.message.contains(
+                'km 30 ',
+              ) && // trailing space — confirms int format
+              !w.message.contains('km 30.0'),
         ),
         isTrue,
       );
+    });
+
+    test('emits critical when timeMinutes is negative', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation(timeMinutes: -5)],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('Aid station #1') &&
+              w.message.toLowerCase().contains('negative'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('emits critical when distanceKm is negative', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        distanceKm: 90,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation(distanceKm: -1)],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('Aid station #1') &&
+              w.message.toLowerCase().contains('negative'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('emits critical when timeMinutes exceeds race duration', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 2), // 120 min
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation(timeMinutes: 200)],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('Aid station #1') &&
+              w.message.toLowerCase().contains('beyond'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('emits critical when distanceKm exceeds total race distance', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        distanceKm: 90,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [const AidStation(distanceKm: 100)],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(
+        warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.contains('Aid station #1') &&
+              w.message.toLowerCase().contains('beyond'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('multi-station aggregation includes index in each message', () {
+      final cfg = RaceConfig(
+        name: 'X',
+        duration: const Duration(hours: 4),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [
+          const AidStation(), // #1 critical
+          const AidStation(distanceKm: 30), // #2 advisory
+          const AidStation(timeMinutes: 90), // #3 ok
+        ],
+      );
+      final warnings = validateAidStationDefinitions(cfg);
+      expect(warnings, hasLength(2));
+      expect(warnings.any((w) => w.message.contains('#1')), isTrue);
+      expect(warnings.any((w) => w.message.contains('#2')), isTrue);
     });
 
     test('no warning when distance + total are both set', () {
@@ -445,32 +572,5 @@ void main() {
         expect(validateAidStationDefinitions(cfg), isEmpty);
       },
     );
-
-    test('aggregates warnings across multiple stations', () {
-      final cfg = RaceConfig(
-        name: 'X',
-        duration: const Duration(hours: 4),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 80,
-        strategy: Strategy.steady,
-        selectedProducts: [],
-        aidStations: [
-          const AidStation(),
-          const AidStation(distanceKm: 30),
-          const AidStation(timeMinutes: 90),
-        ],
-      );
-      final warnings = validateAidStationDefinitions(cfg);
-      expect(warnings, hasLength(2));
-      expect(
-        warnings.where((w) => w.severity == Severity.critical),
-        hasLength(1),
-      );
-      expect(
-        warnings.where((w) => w.severity == Severity.advisory),
-        hasLength(1),
-      );
-    });
   });
 }
