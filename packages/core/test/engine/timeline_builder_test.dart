@@ -26,25 +26,47 @@ void main() {
       expect(slots.every((s) => !s.isAidStation), true);
     });
 
-    test('90-min race with 20-min intervals produces 4 slots (last at 80min)',
-        () {
+    test(
+      '90-min race with 20-min intervals produces 4 slots (last at 80min)',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(minutes: 90),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [],
+        );
+
+        final slots = buildTimeline(config);
+
+        expect(slots.length, 4);
+        expect(slots.last.timeMark, Duration(minutes: 80));
+      },
+    );
+
+    test('aligned aid station marks the existing 60-min slot', () {
       final config = RaceConfig(
         name: 'Test',
-        duration: Duration(minutes: 90),
+        duration: Duration(hours: 2),
         timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
+        intervalMinutes: 30,
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
         selectedProducts: [],
+        aidStations: [AidStation(timeMinutes: 60)],
       );
 
       final slots = buildTimeline(config);
 
-      expect(slots.length, 4);
-      expect(slots.last.timeMark, Duration(minutes: 80));
+      expect(slots.length, 4); // 30, 60, 90, 120
+      expect(slots.where((s) => s.isAidStation).length, 1);
+      final marked = slots.firstWhere((s) => s.isAidStation);
+      expect(marked.timeMark, Duration(minutes: 60));
     });
 
-    test('aid stations add slots at correct positions', () {
+    test('non-aligned timeMinutes does not insert a new slot', () {
       final config = RaceConfig(
         name: 'Test',
         duration: Duration(hours: 2),
@@ -55,12 +77,14 @@ void main() {
         selectedProducts: [],
         aidStations: [AidStation(timeMinutes: 45)],
       );
-
       final slots = buildTimeline(config);
-
-      final aidSlots = slots.where((s) => s.isAidStation).toList();
-      expect(aidSlots.length, 1);
-      expect(aidSlots[0].timeMark, Duration(minutes: 45));
+      expect(slots.length, 4); // 30, 60, 90, 120 — no extra at 45
+      expect(
+        slots.every((s) => !s.isAidStation),
+        isTrue,
+        reason: 'non-aligned aid station should not mark any slot',
+      );
+      expect(slots.map((s) => s.timeMark.inMinutes), [30, 60, 90, 120]);
     });
   });
 
@@ -85,7 +109,7 @@ void main() {
       expect(slots[9].distanceMark, 100.0);
     });
 
-    test('aid station at 45km inserts between 40km and 50km', () {
+    test('aligned aid station at 50km marks the existing 50km slot', () {
       final config = RaceConfig(
         name: 'Test',
         duration: Duration(hours: 5),
@@ -95,15 +119,36 @@ void main() {
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
         selectedProducts: [],
-        aidStations: [AidStation(distanceKm: 45.0)],
+        aidStations: [AidStation(distanceKm: 50.0)],
       );
 
       final slots = buildTimeline(config);
 
-      expect(slots.length, 11); // 10 regular + 1 aid station
+      expect(slots.length, 10); // aligned position uses an existing slot
       final aidSlots = slots.where((s) => s.isAidStation).toList();
       expect(aidSlots.length, 1);
-      expect(aidSlots[0].distanceMark, 45.0);
+      expect(aidSlots[0].distanceMark, 50.0);
+    });
+
+    test('non-aligned distanceKm does not insert a new slot', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+        aidStations: [AidStation(distanceKm: 45)],
+      );
+      final slots = buildTimeline(config);
+      expect(slots.length, 10); // 10, 20, ..., 100 — no extra at 45
+      expect(
+        slots.every((s) => !s.isAidStation),
+        isTrue,
+        reason: 'non-aligned aid station should not mark any slot',
+      );
     });
   });
 

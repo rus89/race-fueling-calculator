@@ -1,5 +1,5 @@
 // ABOUTME: Builds the sequence of time or distance slots for a race fueling timeline.
-// ABOUTME: Inserts aid station slots at specified positions alongside regular intervals.
+// ABOUTME: Marks slots that align with an aid station so the allocator can act on them.
 import '../models/race_config.dart';
 
 class TimeSlot {
@@ -38,22 +38,18 @@ List<TimeSlot> _buildTimeBased(RaceConfig config) {
     slots.add(TimeSlot(timeMark: Duration(minutes: min)));
   }
 
-  // Insert aid station slots
+  // Mark aid station slots when they align with an existing interval.
+  // Non-aligned stations are surfaced by the allocator from
+  // config.aidStations directly via projectAidStationMin.
   for (final station in config.aidStations) {
     final stationMin = station.timeMinutes;
     if (stationMin == null) continue;
     final idx = slots.indexWhere((s) => s.timeMark.inMinutes == stationMin);
     if (idx >= 0) {
-      // Mark existing slot as aid station
       slots[idx] = TimeSlot(
         timeMark: Duration(minutes: stationMin),
         isAidStation: true,
       );
-    } else {
-      slots.add(TimeSlot(
-        timeMark: Duration(minutes: stationMin),
-        isAidStation: true,
-      ));
     }
   }
 
@@ -77,12 +73,17 @@ List<TimeSlot> _buildDistanceBased(RaceConfig config) {
 
   for (var i = 1; i * intervalKm <= totalKm; i++) {
     final km = i * intervalKm;
-    slots.add(TimeSlot(
-      timeMark: Duration(minutes: (km * paceMinPerKm).round()),
-      distanceMark: km,
-    ));
+    slots.add(
+      TimeSlot(
+        timeMark: Duration(minutes: (km * paceMinPerKm).round()),
+        distanceMark: km,
+      ),
+    );
   }
 
+  // Mark aid station slots when they align with an existing interval.
+  // Non-aligned stations are surfaced by the allocator from
+  // config.aidStations directly via projectAidStationMin.
   for (final station in config.aidStations) {
     final stationKm = station.distanceKm;
     if (stationKm == null) continue;
@@ -96,12 +97,6 @@ List<TimeSlot> _buildDistanceBased(RaceConfig config) {
         distanceMark: stationKm,
         isAidStation: true,
       );
-    } else {
-      slots.add(TimeSlot(
-        timeMark: Duration(minutes: (stationKm * paceMinPerKm).round()),
-        distanceMark: stationKm,
-        isAidStation: true,
-      ));
     }
   }
 
