@@ -107,30 +107,72 @@ void main() {
       expect(migrateRaceConfig(v2Json), equals(v2Json));
     });
 
-    test('v1 missing schema_version (legacy default) migrates to v2', () {
-      final v1Json = {
-        'name': 'Older',
-        'duration': 'PT2H',
+    test(
+      'migration leaves non-Map elements in selectedProducts/aidStations untouched',
+      () {
+        // Defensive shape-handling: if a corrupted v1 file has a non-Map entry
+        // mixed in (string, number, etc.), the migration should pass it through
+        // unchanged rather than crashing. RaceConfig.fromJson will then surface
+        // the type error, which is the right place to fail.
+        final v1Json = {
+          'name': 'Corrupt',
+          'duration': 'PT2H',
+          'timelineMode': 'time_based',
+          'intervalMinutes': 20,
+          'targetCarbsGPerHr': 60.0,
+          'strategy': 'steady',
+          'selectedProducts': [
+            {'productId': 'p1', 'quantity': 2, 'isAidStationOnly': true},
+            'not-a-map',
+          ],
+          'aidStations': [
+            {'timeMinutes': 60},
+            42,
+          ],
+          'schema_version': 1,
+        };
+        final migrated = migrateRaceConfig(v1Json);
+        expect(migrated['schema_version'], 2);
+        // Map element migrated, non-Map element preserved verbatim
+        expect(
+          (migrated['selectedProducts'] as List).first.containsKey(
+            'isAidStationOnly',
+          ),
+          isFalse,
+        );
+        expect((migrated['selectedProducts'] as List)[1], 'not-a-map');
+        expect((migrated['aidStations'] as List).first['refill'], isEmpty);
+        expect((migrated['aidStations'] as List)[1], 42);
+      },
+    );
+
+    test('v2 passthrough preserves non-empty aidStations with set refill', () {
+      final v2Json = {
+        'name': 'Already migrated',
+        'duration': 'PT4H',
         'timelineMode': 'time_based',
-        'intervalMinutes': 20,
-        'targetCarbsGPerHr': 60.0,
+        'intervalMinutes': 15,
+        'targetCarbsGPerHr': 80.0,
         'strategy': 'steady',
         'selectedProducts': [
-          {'productId': 'p1', 'quantity': 2, 'isAidStationOnly': false},
+          {'productId': 'p1', 'quantity': 2},
         ],
         'aidStations': [
-          {'timeMinutes': 90},
+          {
+            'timeMinutes': 90,
+            'refill': ['sis-beta-fuel'],
+          },
+          {
+            'timeMinutes': 180,
+            'refill': ['sis-beta-fuel', 'maurten-160'],
+          },
         ],
+        'schema_version': 2,
       };
-      final migrated = migrateRaceConfig(v1Json);
+      final migrated = migrateRaceConfig(v2Json);
       expect(migrated['schema_version'], 2);
-      expect(
-        (migrated['selectedProducts'] as List).first.containsKey(
-          'isAidStationOnly',
-        ),
-        isFalse,
-      );
-      expect((migrated['aidStations'] as List).first['refill'], isEmpty);
+      expect(migrated['aidStations'], v2Json['aidStations']);
+      expect(migrated['selectedProducts'], v2Json['selectedProducts']);
     });
   });
 }

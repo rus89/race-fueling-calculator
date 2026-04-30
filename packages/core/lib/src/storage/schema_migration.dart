@@ -30,7 +30,7 @@ Map<String, dynamic> validateSchemaVersion(
       'Please update the app.',
     );
   }
-  // TODO(migration): add migration logic for version < currentVersion
+  // Add new version chains here when bumping schema (see migrateRaceConfig).
   return json;
 }
 
@@ -41,11 +41,12 @@ Map<String, dynamic> validateSchemaVersion(
 /// - Defaults `refill: []` on every aid station that lacks the key
 /// - Bumps `schema_version` to 2
 ///
-/// v2 input passes through unchanged. Missing `schema_version` is treated
-/// as v1 (legacy files written before the field was introduced).
+/// v2 input passes through as a defensive shallow copy. The caller MUST have
+/// already validated that `schema_version` is present and an int (e.g., via
+/// [validateSchemaVersion]) before calling.
 Map<String, dynamic> migrateRaceConfig(Map<String, dynamic> json) {
-  final v = json['schema_version'] as int? ?? 1;
-  if (v >= 2) return json;
+  final v = json['schema_version'] as int;
+  if (v >= 2) return Map<String, dynamic>.from(json);
 
   final out = Map<String, dynamic>.from(json);
 
