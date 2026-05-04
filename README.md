@@ -57,7 +57,8 @@ ADVISORY:
 
 ## Installation
 
-Requires the **Dart SDK ≥ 3.6.0** (workspace feature).
+Requires the **Dart SDK ≥ 3.8.0** (workspace feature, plus
+`json_serializable`'s null-aware-element codegen).
 
 ```bash
 git clone <repo-url> race-fueling-calculator
@@ -144,13 +145,21 @@ RaceConfig + AthleteProfile + Products
 3. Distribute carbs (steady / front-load / back-load / custom curve)
         │
         ▼
-4. Allocate products (round-to-nearest with overage advisory)
+4. Allocate products
+   • Drinks contribute as a sip background spread across each product's
+     `sipMinutes`, capped at 65% of the per-slot target so gels stay in
+     the rotation.
+   • Unmet target accumulates into a gel-debt pool across slots; gels
+     fire when the pool justifies a well-fitting one.
+   • Aid stations refill inventory at their projected minute mark via
+     `AidStation.refill` (a list of product IDs).
         │
         ▼
 5. Per-entry water adjustment (additional ml/slot from heat)
         │
         ▼
-6. Validate (gut tolerance, G:F ratio, caffeine, under-delivery)
+6. Validate (aid-station definitions, gut tolerance, G:F ratio,
+   caffeine, under-delivery)
         │
         ▼
        FuelingPlan with entries, summary, warnings
@@ -200,8 +209,8 @@ dart pub get
 dart analyze
 
 # Run all tests
-cd packages/core && dart test    # 177 tests
-cd packages/cli  && dart test    # 228 tests
+cd packages/core && dart test    # 257 tests
+cd packages/cli  && dart test    # 279 tests
 
 # Single test file
 dart test test/engine/timeline_builder_test.dart
@@ -220,19 +229,41 @@ Plans, profiles, and custom products are JSON files under
 `schema_version` field; the storage layer rejects files written with
 versions newer than the running binary supports.
 
+`RaceConfig` is at schema v2 as of v1.1. Loading a v1 file transparently
+upgrades it on read (drops the obsolete `isAidStationOnly` flag, defaults
+empty `refill` lists on aid stations). The first save after a migration
+also writes the original bytes to `<name>.json.v1.bak` so a future
+migration regression is recoverable.
+
 ## Versioning
 
-Semantic versioning. The current release is **v1.0.0**.
+Semantic versioning. The current release is **v1.1.0-rc.1** (engine RC,
+tagged on the version-bump commit). The full v1.1.0 ships when the
+Flutter app (Phases B–F) lands; until then the CLI on this branch is
+the only consumer of the new engine.
 
 Known limitations (tracked in `JOURNAL.md`):
 
 - Caffeine validation is one-size-fits-all (400 mg cap, 6 mg/kg) — no
-  per-athlete sensitivity field. Tracked as KI-9, deferred to v1.1.
+  per-athlete sensitivity field. Tracked as KI-9.
 - The under-delivery advisory covers carbs only; an analogous
   water-side advisory is tracked as KI-69.
-- The product allocator's round-to-nearest can deliver 0 servings when
-  the per-slot target is below half the smallest product's serving size.
-  Tracked as KI-64.
+- A refill landing on the very last slot is silently unused — the
+  drink-start guard skips the final slot to avoid wasting inventory on
+  a single sip step. Pinned by test in `product_allocator_test.dart`,
+  deferred per the v1.1 plan-review.
+- Distance-based timelines round slot times to integer minutes; the
+  allocator's per-slot window can drift ±1 at the rounding boundary
+  for a station whose projected minute lands on a slot edge. Documented
+  for revisit when distance mode becomes a primary user-facing path.
+- The CLI cannot set `RaceConfig.discipline` or `AidStation.refill` —
+  those fields are forward-prep for the Flutter UI (Phases B–F). They
+  read/write through storage correctly; only the input surface is
+  missing.
+
+KI-64 (allocator round-down silent under-delivery) is **obsoleted** by
+the v1.1 allocator rewrite — the gel-debt pool absorbs slot-level
+shortfalls across the timeline.
 
 See `JOURNAL.md` for the full backlog.
 

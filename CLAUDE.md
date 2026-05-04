@@ -6,22 +6,37 @@
 
 Dart 3.x workspace with two packages:
 
-- `packages/core` — pure Dart domain logic (models, plan engine, storage interface). Zero I/O dependencies. Reusable by a future Flutter app.
+- `packages/core` — pure Dart domain logic (models, plan engine, storage interface). Zero I/O dependencies. Reusable by the Flutter app planned for Phases B–F.
 - `packages/cli` — CLI interface using `args`. Depends on `core`. Provides `FileStorageAdapter` and terminal formatting.
 
-The engine is composed of pure functions: `generatePlan()` computes environmental adjustments first, then runs timeline building → carb distribution (rate scaled by altitude) → product allocation → per-entry water adjustment → validation. No state, trivially testable.
+The engine is composed of pure functions: `generatePlan()` computes environmental adjustments first, then runs timeline building → carb distribution (rate scaled by altitude) → product allocation → per-entry water adjustment → validation (including aid-station definition checks). No state, trivially testable.
+
+The allocator (`packages/core/lib/src/engine/product_allocator.dart`) is the heart of the engine. As of v1.1 it implements:
+
+- **Drinks as sip background.** Each liquid product with `Product.sipMinutes` is consumed across `sipMinutes / stepMin` slots, contributing `carbsPerServing / drinkSteps` per slot.
+- **65% drink cap.** Per-slot drink contribution is capped at `0.65 × target` so gels stay in the rotation.
+- **Gel-debt accumulator.** Unmet target accumulates across slots; gels fire when the pool justifies a well-fitting one (threshold + oversize cutoff).
+- **Aid-station refill.** Stations refill inventory at the slot whose `timeMark` matches the projected minute (`projectAidStationMin`). `AidStation.refill` is a list of product IDs.
+
+The constants (`_drinkCapFraction`, `_gelDebtFireThreshold`, `_gelOversizeFactor`, `_gelOversizeCushion`, `_drinkStartGramsPerHr`, `_gelDebtFloorFactor`, `_slotOverageAdvisoryThreshold`, `_maxGelPicksPerSlot`) live at the top of the file with one-paragraph docstrings each.
 
 ## Progress & Source of Truth
 
-- `JOURNAL.md` — phase-by-phase progress log. Read at session start. Also contains a "Known Issues — Address After Phase 8" catalogue (16 items: allocator over-allocation, heat-index formula, coverage gaps); check before starting bug-fix work.
-- `docs/superpowers/plans/v1.md` — implementation plan with per-task checkboxes.
-- `docs/superpowers/specs/2026-04-02-race-fueling-calculator-design.md` — design spec.
+- `JOURNAL.md` — phase-by-phase progress log. Read at session start. Also contains a "Known Issues" catalogue from earlier reviews (some superseded by v1.1; KI-64 is now obsolete).
+- `docs/superpowers/plans/2026-04-30-v1.1-flutter-app.md` — current implementation plan (Phases A–F).
+- `docs/superpowers/plans/v1.md` — original v1.0 plan (Phases 0–8 complete).
+- `docs/superpowers/specs/2026-04-02-race-fueling-calculator-design.md` — original engine spec.
+- `docs/superpowers/specs/2026-04-30-flutter-app-design.md` — Flutter app spec for Phases B–F.
 
-Phases 0–5 complete (scaffolding, models, engine + integration, built-in products, storage). Phase 6 (CLI commands) is current; a worktree for it lives at `.worktrees/phase6-cli` on branch `feat/v1-phase6-cli`. Phases 7 (output formatting) and 8 (integration & polish) follow.
+**v1.0 (Phases 0–8): complete.** Tagged `v1.0.0`.
+
+**v1.1 Phase A (engine port): complete.** Tagged `v1.1.0-rc.1` on commit `76b3928` of branch `feat/v1.1-phase-a-engine`. Drink-as-sip + 65% cap + gel-debt allocator, `Product.sipMinutes`, `RaceConfig.discipline`, `AidStation.refill`, schema v2 with migration, aid-station validator, CLI sip/aid markers.
+
+**v1.1 Phases B–F (Flutter app): pending.** Adds `packages/app` Flutter package; not started.
 
 ## Commands
 
-Requires Dart SDK ≥ 3.0 (for the workspace feature).
+Requires Dart SDK ≥ 3.8.0 (workspace feature plus `json_serializable`'s null-aware-element codegen used by `@JsonKey(includeIfNull: false)`).
 
 ```bash
 dart pub get                                              # install deps (resolves workspace)
@@ -42,11 +57,13 @@ cd packages/core && dart run build_runner build --delete-conflicting-outputs
 
 ## Storage
 
-`FileStorageAdapter` writes JSON files to `~/.race-fueling/` (path hardcoded in `packages/cli/lib/src/storage/file_storage_adapter.dart`).
+`FileStorageAdapter` writes JSON files to `~/.race-fueling/` (path hardcoded in `packages/cli/lib/src/storage/file_storage_adapter.dart`, overridable via `FUEL_HOME` env var).
 
-Every JSON file carries a `schema_version` field. To introduce a breaking format change: bump the `schemaVersion` default in the relevant model (`race_config.dart`, `athlete_profile.dart`), update callers that pass `currentVersion` to `validateSchemaVersion()`, and add migration logic at the `TODO(migration)` marker in `packages/core/lib/src/storage/schema_migration.dart`.
+Every JSON file carries a `schema_version` field. `RaceConfig` is at v2 as of v1.1; `AthleteProfile` and the user-products envelope remain at v1. To bump a schema: change the default `schemaVersion` in the model, bump the `currentVersion: N` argument at the relevant `validateSchemaVersion()` call in `file_storage_adapter.dart`, and extend `migrateRaceConfig` (or add a sibling migrator) in `packages/core/lib/src/storage/schema_migration.dart` with the new `if (v >= N) return ...` guard.
 
-The product library is two-tier: built-in defaults (Dart constants in `packages/core/lib/src/data/built_in_products.dart`) merged with user overrides at load time.
+The first save of a previously-v1 race config triggers a `<name>.json.v1.bak` backup of the original bytes. Backup happens once per file (never overwrites an existing `.bak`).
+
+The product library is two-tier: built-in defaults (Dart constants in `packages/core/lib/src/data/built_in_products.dart`) merged with user overrides at load time. Each liquid built-in carries `sipMinutes: 60` (500 ml drink mixes sipped over an hour); non-liquid products keep `sipMinutes: null`.
 
 ## Custom Claude Tooling
 

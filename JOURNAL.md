@@ -672,3 +672,58 @@ or in a follow-on:
 - 1 commit landed (Commit 1: dead-code removal, collision handling, doc)
 - 1 commit landed (Commit 2: 9 new tests for coverage gaps)
 - 0 fixes deferred to a future v1.x pass
+
+## 2026-05-04 — v1.1 Phase A complete (engine port)
+
+Phase A of the v1.1 plan (`docs/superpowers/plans/2026-04-30-v1.1-flutter-app.md`) shipped on branch `feat/v1.1-phase-a-engine`, tagged `v1.1.0-rc.1` on commit `76b3928`. 25 commits ahead of `main`.
+
+The engine port replaces the v1.0 per-slot greedy allocator with a stateful sip+gel-debt allocator that matches the design's reference engine. The CLI consumes the new engine; Flutter app (Phases B–F) builds on top later.
+
+### What shipped
+
+- **Models.** Added `Product.sipMinutes` (A1), populated 60 on every built-in liquid (A2). Added `Discipline { xcm, road, run, tri, ultra }` and `RaceConfig.discipline` (A3, plumbed but unused — forward-prep). Added `AidStation.refill: List<String>` (A4) and removed `ProductSelection.isAidStationOnly` (A5). Added `PlanEntry.effectiveDrinkCarbs` and `PlanEntry.aidStation` (A6).
+- **Storage.** Bumped `RaceConfig` schema to v2 with `migrateRaceConfig` migrator (A7). Wired migration into the CLI storage adapter; `<name>.json.v1.bak` backup on first migrated save (Round 2 fix-up).
+- **Engine.**
+  - `projectAidStationMin` helper: linear km→min projection with `timeMinutes`-precedence (A8).
+  - `buildTimeline` no longer inserts non-aligned aid-station slots — uniform-duration slots are required by the new allocator's window math (A8b).
+  - `validateAidStationDefinitions` validator: critical for missing/negative/out-of-range fields, advisory for distance-without-total (A9, hardened in Round 3 fix-up).
+  - Wholesale allocator rewrite (A10+A11, combined into one commit because the project's pre-commit hook disallows RED commits): drinks-as-sip + 65% drink cap + cross-slot gel-debt + aid-station refill via `projectAidStationMin`. Resolves the open question on sip-drink depletion warnings via `lastContribSlot` tracking.
+  - Validator wired into `generatePlan` (A12) so its warnings reach the user.
+- **CLI.** Sip-bottle continuation marker `~ sip bottle (Ng)` for slots where the rider is mid-sip; aid-station divider line `── AID @ +Nmin ── refill: <ids>` above slots where a station fires (A13). `[aid station]` per-product tag dropped (A5).
+- **Toolchain.** Bumped Dart SDK floor from `^3.6.0` to `^3.8.0` (Round 1 fix-up) — required by `json_serializable`'s null-aware-element codegen for `@JsonKey(includeIfNull: false)`.
+- **Verification + tag.** Final `dart analyze` clean; core 257 / CLI 279 tests green; pubspecs at 1.1.0 (A14).
+
+### Process
+
+- 14 plan tasks executed across 4 review rounds.
+- Each round: 3 implementers (sequential — the project's hook enforces "every commit green"), 3 parallel reviewers (architecture, test coverage, and either UX/a11y or numerical correctness depending on the batch's surface area), consolidated verdict table, fix-up batch.
+- 4 fix-up rounds landed 8 additional cleanup commits with new tests and tightened invariants.
+- One forced workflow change at A10: pre-commit hook refused to land RED, so A10 (failing tests) and A11 (passing implementation) collapsed into one commit. TDD discipline preserved internally — tests written first, observed RED, then implementation made them GREEN.
+
+### Test deltas
+
+| Suite | v1.0.0 | v1.1.0-rc.1 | Δ |
+|-------|-------:|------------:|---:|
+| `packages/core` | 188 | 257 | +69 |
+| `packages/cli`  | 271 | 279 | +8  |
+
+### Deferred to a future v1.x pass
+
+Captured during Round 4 review (commit `e517b15` and the entry above):
+
+- **A1** — Drink-start guard skips the last slot. A refill landing on the finish line is silently unused. Pinned as a known-limit test; real fix requires inventory-accounting rework.
+- **A4** — `discipline` parameter is plumbed end-to-end but unused. Kept with regression test as forward-prep for per-discipline tuning.
+- **A5/A6** — `tStart = tEnd - stepMin` window math drifts ±1 in distance-based mode. Acknowledged tradeoff per the plan; revisit when distance mode is a primary user-facing path.
+
+### Known Issues from earlier reviews — status after v1.1
+
+The "Known Issues" catalogue above (KI-1 through KI-72) was authored against the v1.0 engine. Many are now obsolete or partially addressed:
+
+- **KI-1, KI-12, KI-14** — refer to the per-slot greedy allocator and its `.ceil()` over-allocation, cumulative-carbs/caffeine test gaps, and circular distributor/allocator responsibility. **Obsolete** — the v1.1 allocator is structurally different (sip background + gel debt accumulator).
+- **KI-4** — altitude multiplier didn't reach the allocator. **Largely fixed** — sip drink contribution scales with the adjusted slot target; a debt-justified gel still fires at the higher target.
+- **KI-64, KI-65** — round-down silent under-delivery. **Obsolete** — gel-debt accumulator pools cross-slot shortfalls and clears them with the next well-fitting gel.
+- **KI-66** — overage advisory uses target-relative ratio only. Still applies (the v1.1 allocator carries the same `_slotOverageAdvisoryThreshold = 0.20` constant).
+- **KI-69** — water-side under-delivery warning missing. Still applies.
+- **KI-9, KI-3, KI-11, KI-29–KI-63** (formatter, CLI plumbing, validator coverage gaps, etc.) — distinct from the engine; still applies. Will be revisited when those areas are next touched.
+
+A comprehensive KI sweep is deferred to a v1.x cleanup pass.
