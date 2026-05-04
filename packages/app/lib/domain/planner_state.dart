@@ -1,6 +1,6 @@
 // ABOUTME: Aggregate working state for the planner — config + profile.
 // ABOUTME: Persisted as a single JSON blob; copyWith for immutable updates.
-import 'package:race_fueling_core/core.dart';
+import 'domain.dart';
 
 class PlannerState {
   final RaceConfig raceConfig;
