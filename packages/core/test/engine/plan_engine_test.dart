@@ -279,6 +279,82 @@ void main() {
     );
 
     test(
+      'plan surfaces aid-station warning for station with no time/distance',
+      () {
+        final config = RaceConfig(
+          name: 'X',
+          duration: Duration(hours: 4),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 80.0,
+          strategy: Strategy.steady,
+          selectedProducts: const [],
+          aidStations: const [AidStation()],
+        );
+
+        final plan = generatePlan(config, profile, [gel]);
+
+        expect(
+          plan.warnings.any(
+            (w) =>
+                w.severity == Severity.critical &&
+                w.message.contains('Aid station #1') &&
+                w.message.contains('no time or distance'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('plan surfaces aid-station warning for time beyond race duration', () {
+      final config = RaceConfig(
+        name: 'X',
+        duration: Duration(hours: 2), // 120 min
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: const [],
+        aidStations: const [AidStation(timeMinutes: 200)],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      expect(
+        plan.warnings.any(
+          (w) =>
+              w.severity == Severity.critical &&
+              w.message.toLowerCase().contains('beyond'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('valid aid stations produce no aid-station warnings in the plan', () {
+      final config = RaceConfig(
+        name: 'X',
+        duration: Duration(hours: 4),
+        distanceKm: 100,
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 80.0,
+        strategy: Strategy.steady,
+        selectedProducts: const [],
+        aidStations: const [
+          AidStation(timeMinutes: 60),
+          AidStation(distanceKm: 50),
+        ],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      final aidWarnings = plan.warnings
+          .where((w) => w.message.contains('Aid station #'))
+          .toList();
+      expect(aidWarnings, isEmpty);
+    });
+
+    test(
       'heat-only under-delivery does not trigger altitude-carb advisory',
       () {
         // 2-hour race at 35°C / 80% RH (Danger heat zone) but altitude 0.

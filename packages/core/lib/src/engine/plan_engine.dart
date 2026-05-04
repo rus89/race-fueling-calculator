@@ -74,6 +74,7 @@ FuelingPlan generatePlan(
     profile,
     config.duration,
   );
+  final aidStationWarnings = validateAidStationDefinitions(config);
 
   // Step 6b: Detect under-delivery vs. altitude-adjusted carb target.
   // Without this, the altitude carb multiplier scales the target rate
@@ -105,6 +106,7 @@ FuelingPlan generatePlan(
   }
 
   final allWarnings = <Warning>[
+    ...aidStationWarnings,
     ...validationWarnings,
     ...allocation.depletionWarnings.map(
       (msg) => Warning(severity: Severity.critical, message: msg),
