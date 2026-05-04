@@ -2,7 +2,7 @@
 // ABOUTME: Use BonkBreakpoint.forWidth(MediaQuery.sizeOf(context).width) at the page root.
 enum BonkBreakpoint {
   wide, // ≥1480: 320 / flex / 300
-  medium, // 1380-1480: 300 / flex / 280; hide stat cols 5-6
+  medium, // 1380-1480: 280 / flex / 280; hide stat cols 5-6
   noDiagnostics, // 1080-1380: 280 / flex (no diagnostics rail)
   narrow, // 880-1080: 280 / flex; stats drop to 3 cols
   mobile; // <880: single column; rails via slide-overs
