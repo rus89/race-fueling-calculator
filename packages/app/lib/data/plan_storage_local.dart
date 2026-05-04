@@ -23,6 +23,11 @@ class PlanStorageLocal implements PlanStorage {
       return PlannerState.fromJson(migrated);
     } on FormatException {
       return null;
+    } catch (_) {
+      // Defensive: any deserialization error (TypeError on bad shape, missing
+      // required fields, etc.) returns null so the app falls back to the seed.
+      // Without this, a corrupted blob crashes the app on launch.
+      return null;
     }
   }
 
