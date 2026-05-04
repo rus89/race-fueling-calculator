@@ -637,3 +637,38 @@ Catalogued 2026-04-29 from 8 dedicated per-KI reviewers on the `feat/v1-engine-c
 72. **KI-8 comment cites optimal range but gate is outer tolerance** (`plan_validator.dart:158-159`, LOW)
     - Comment cites "1:0.8–1:1 is recommended" for >60 g/hr but the implemented gate accepts as low as 0.5 from 50 g/hr+. Minor inconsistency between cited guidance (optimum) and implemented threshold (outer tolerance band)
     - Fix: add a sentence to the comment clarifying that 0.5 is the *outer* tolerance band, not the optimum, to avoid confusion when readers compare the cited research to the gate
+
+## 2026-05-04 — Phase A Round 4 review (allocator rewrite)
+
+The new allocator (commit `825394f`) is in good shape but three concerns
+were deferred from this round and should be addressed before v1.1 ships
+or in a follow-on:
+
+### Deferred items
+
+- **A1 — Drink-start guard skips last slot.** `i < slots.length - 1`
+  prevents starting a new drink in the final slot. If a rider's only
+  refill is at the finish line, the refilled bottle is wasted.
+  Behavior pinned by test in commit 2 (Round 4 fix-up). Real fix
+  requires inventory-accounting rework: only skip when `drinkSteps > 1`
+  for the picked drink. Out of scope for v1.1.
+
+- **A4 — `discipline` parameter plumbed but unused.** Kept as forward-
+  prep with regression test that two configs differing only by
+  discipline produce identical entries. When the allocator gains
+  per-discipline tuning, the existing plumbing is in place.
+
+- **A5/A6 — `tStart` window math drifts ±1 in distance-based mode.**
+  In distance-based timelines, slot times round to integer minutes;
+  the per-slot window `(tStart, tEnd]` derived from a single `stepMin`
+  can misplace an aid station at the rounding boundary. Acknowledged
+  by the plan as a v1.1 tradeoff. Fix when distance-mode lands as a
+  user-facing feature: derive `tStart` per-slot as
+  `slots[i-1].timeMark.inMinutes` (or 0 for i==0).
+
+### Round 4 summary
+
+- 3 reviewers (architecture, test coverage, numerical correctness)
+- 1 commit landed (Commit 1: dead-code removal, collision handling, doc)
+- 1 commit landed (Commit 2: 9 new tests for coverage gaps)
+- 0 fixes deferred to a future v1.x pass
