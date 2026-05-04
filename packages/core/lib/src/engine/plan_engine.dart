@@ -36,35 +36,44 @@ FuelingPlan generatePlan(
   // Step 3: Distribute carbs, applying altitude multiplier to the target rate
   final adjustedRate = config.targetCarbsGPerHr * adjustments.carbMultiplier;
   final targetCarbs = distributeCarbs(slots, config, adjustedRate);
-  final curveCoverageWarning =
-      detectCustomCurveCoverageWarning(config, adjustedRate);
+  final curveCoverageWarning = detectCustomCurveCoverageWarning(
+    config,
+    adjustedRate,
+  );
 
   // Step 4: Allocate products
+  final stepMin = slots.length >= 2
+      ? slots[1].timeMark.inMinutes - slots[0].timeMark.inMinutes
+      : (slots.isNotEmpty
+            ? slots[0].timeMark.inMinutes
+            : (config.intervalMinutes ?? 20));
   final allocation = allocateProducts(
     slots: slots,
     targetCarbsPerSlot: targetCarbs,
     products: products,
     selections: config.selectedProducts,
+    aidStations: config.aidStations,
+    stepMin: stepMin,
+    discipline: config.discipline,
+    totalKm: config.distanceKm,
+    durationMin: config.duration.inMinutes,
   );
 
   // Step 5: Add environmental water adjustments to each entry
-  final adjustedEntries = allocation.entries.map((entry) {
-    return PlanEntry(
-      timeMark: entry.timeMark,
-      distanceMark: entry.distanceMark,
-      products: entry.products,
-      carbsGlucose: entry.carbsGlucose,
-      carbsFructose: entry.carbsFructose,
-      carbsTotal: entry.carbsTotal,
-      cumulativeCarbs: entry.cumulativeCarbs,
-      cumulativeCaffeine: entry.cumulativeCaffeine,
-      waterMl: entry.waterMl + adjustments.additionalWaterMlPerSlot,
-    );
-  }).toList();
+  final adjustedEntries = allocation.entries
+      .map(
+        (entry) => entry.copyWith(
+          waterMl: entry.waterMl + adjustments.additionalWaterMlPerSlot,
+        ),
+      )
+      .toList();
 
   // Step 6: Validate assembled entries
-  final validationWarnings =
-      validatePlan(adjustedEntries, profile, config.duration);
+  final validationWarnings = validatePlan(
+    adjustedEntries,
+    profile,
+    config.duration,
+  );
 
   // Step 6b: Detect under-delivery vs. altitude-adjusted carb target.
   // Without this, the altitude carb multiplier scales the target rate
@@ -73,17 +82,22 @@ FuelingPlan generatePlan(
   // when it doesn't. Heat affects water only (not carbs), so it does not
   // gate this warning.
   final carbTargetAdjusted = adjustments.carbMultiplier > 1.0;
-  final adjustedTargetTotal =
-      targetCarbs.fold<double>(0.0, (sum, t) => sum + t);
-  final actualTotal =
-      adjustedEntries.fold<double>(0.0, (sum, e) => sum + e.carbsTotal);
+  final adjustedTargetTotal = targetCarbs.fold<double>(
+    0.0,
+    (sum, t) => sum + t,
+  );
+  final actualTotal = adjustedEntries.fold<double>(
+    0.0,
+    (sum, e) => sum + e.carbsTotal,
+  );
   Warning? underDeliveryWarning;
   if (carbTargetAdjusted && adjustedTargetTotal > 0) {
     final ratio = actualTotal / adjustedTargetTotal;
     if (ratio < _underDeliveryThreshold) {
       underDeliveryWarning = Warning(
         severity: Severity.advisory,
-        message: 'Plan delivers only ${(ratio * 100).toStringAsFixed(0)}% '
+        message:
+            'Plan delivers only ${(ratio * 100).toStringAsFixed(0)}% '
             'of altitude-adjusted carb target — add more product to fully '
             'compensate.',
       );
@@ -92,22 +106,29 @@ FuelingPlan generatePlan(
 
   final allWarnings = <Warning>[
     ...validationWarnings,
-    ...allocation.depletionWarnings
-        .map((msg) => Warning(severity: Severity.critical, message: msg)),
+    ...allocation.depletionWarnings.map(
+      (msg) => Warning(severity: Severity.critical, message: msg),
+    ),
     if (curveCoverageWarning != null) curveCoverageWarning,
     if (underDeliveryWarning != null) underDeliveryWarning,
   ];
 
   // Step 7: Build summary
-  final totalCarbs =
-      adjustedEntries.isEmpty ? 0.0 : adjustedEntries.last.cumulativeCarbs;
-  final totalCaffeine =
-      adjustedEntries.isEmpty ? 0.0 : adjustedEntries.last.cumulativeCaffeine;
+  final totalCarbs = adjustedEntries.isEmpty
+      ? 0.0
+      : adjustedEntries.last.cumulativeCarbs;
+  final totalCaffeine = adjustedEntries.isEmpty
+      ? 0.0
+      : adjustedEntries.last.cumulativeCaffeine;
   final totalWater = adjustedEntries.fold(0.0, (sum, e) => sum + e.waterMl);
-  final totalGlucose =
-      adjustedEntries.fold(0.0, (sum, e) => sum + e.carbsGlucose);
-  final totalFructose =
-      adjustedEntries.fold(0.0, (sum, e) => sum + e.carbsFructose);
+  final totalGlucose = adjustedEntries.fold(
+    0.0,
+    (sum, e) => sum + e.carbsGlucose,
+  );
+  final totalFructose = adjustedEntries.fold(
+    0.0,
+    (sum, e) => sum + e.carbsFructose,
+  );
   final hours = config.duration.inMinutes / 60.0;
 
   final summary = PlanSummary(

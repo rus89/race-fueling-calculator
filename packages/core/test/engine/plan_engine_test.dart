@@ -33,9 +33,7 @@ void main() {
         intervalMinutes: 20,
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
-        selectedProducts: [
-          ProductSelection(productId: 'gel-1', quantity: 8),
-        ],
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 8)],
       );
 
       final plan = generatePlan(config, profile, [gel]);
@@ -46,22 +44,24 @@ void main() {
       expect(plan.summary.totalCarbs, greaterThan(0));
       expect(plan.summary.averageGPerHr, greaterThan(0));
       expect(
-          plan.warnings.where((w) => w.severity == Severity.critical), isEmpty);
+        plan.warnings.where((w) => w.severity == Severity.critical),
+        isEmpty,
+      );
     });
 
     test('altitude adjustment increases total carbs vs flat race', () {
-      // Use a fine-grained product (1g/serving) so the altitude carb multiplier
-      // produces a measurable difference after integer ceiling arithmetic.
-      // With 25g gels, both 20g and 21.33g ceil to 1 gel — the adjustment is invisible.
-      final powder = Product(
-        id: 'powder-1',
-        name: 'Drink Mix',
+      // The drink cap scales linearly with the per-slot target, so a sip
+      // drink with ample supply makes the altitude carb multiplier
+      // measurable. With 25g gels, debt-driven picks quantize and can hide
+      // a 5% target bump.
+      final drink = Product(
+        id: 'sip-drink',
+        name: 'Sip Drink',
         type: ProductType.liquid,
-        carbsPerServing: 1.0,
-        glucoseGrams: 0.6,
-        fructoseGrams: 0.4,
-        caffeineMg: 0.0,
-        waterRequiredMl: 10.0,
+        carbsPerServing: 80.0,
+        glucoseGrams: 44.0,
+        fructoseGrams: 36.0,
+        sipMinutes: 60,
       );
 
       final configFlat = RaceConfig(
@@ -72,7 +72,7 @@ void main() {
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
         selectedProducts: [
-          ProductSelection(productId: 'powder-1', quantity: 300)
+          ProductSelection(productId: 'sip-drink', quantity: 4),
         ],
       );
       final configMountain = RaceConfig(
@@ -83,16 +83,18 @@ void main() {
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.steady,
         selectedProducts: [
-          ProductSelection(productId: 'powder-1', quantity: 300)
+          ProductSelection(productId: 'sip-drink', quantity: 4),
         ],
         altitudeM: 2500,
       );
 
-      final planFlat = generatePlan(configFlat, profile, [powder]);
-      final planMountain = generatePlan(configMountain, profile, [powder]);
+      final planFlat = generatePlan(configFlat, profile, [drink]);
+      final planMountain = generatePlan(configMountain, profile, [drink]);
 
-      expect(planMountain.summary.totalCarbs,
-          greaterThan(planFlat.summary.totalCarbs));
+      expect(
+        planMountain.summary.totalCarbs,
+        greaterThan(planFlat.summary.totalCarbs),
+      );
       expect(planMountain.summary.environmentalNotes, isNotEmpty);
     });
 
@@ -236,66 +238,77 @@ void main() {
       final plan = generatePlan(config, profile, [gel]);
 
       expect(
-        plan.warnings.any((w) =>
-            w.severity == Severity.advisory &&
-            w.message.contains('altitude-adjusted carb target')),
+        plan.warnings.any(
+          (w) =>
+              w.severity == Severity.advisory &&
+              w.message.contains('altitude-adjusted carb target'),
+        ),
         true,
         reason: 'altitude-adjusted plan with insufficient supply must warn',
       );
     });
 
-    test('altitude with sufficient product emits no under-delivery warning',
-        () {
-      // 2-hour race at 2500m, plenty of gels. Plan should reach the
-      // boosted target → no under-delivery advisory.
-      final config = RaceConfig(
-        name: 'Mountain Stocked',
-        duration: Duration(hours: 2),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 60.0,
-        strategy: Strategy.steady,
-        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 12)],
-        altitudeM: 2500,
-      );
+    test(
+      'altitude with sufficient product emits no under-delivery warning',
+      () {
+        // 2-hour race at 2500m, plenty of gels. Plan should reach the
+        // boosted target → no under-delivery advisory.
+        final config = RaceConfig(
+          name: 'Mountain Stocked',
+          duration: Duration(hours: 2),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [
+            ProductSelection(productId: 'gel-1', quantity: 12),
+          ],
+          altitudeM: 2500,
+        );
 
-      final plan = generatePlan(config, profile, [gel]);
+        final plan = generatePlan(config, profile, [gel]);
 
-      expect(
-        plan.warnings
-            .any((w) => w.message.contains('altitude-adjusted carb target')),
-        false,
-        reason: 'sufficient supply must not emit under-delivery advisory',
-      );
-    });
+        expect(
+          plan.warnings.any(
+            (w) => w.message.contains('altitude-adjusted carb target'),
+          ),
+          false,
+          reason: 'sufficient supply must not emit under-delivery advisory',
+        );
+      },
+    );
 
-    test('heat-only under-delivery does not trigger altitude-carb advisory',
-        () {
-      // 2-hour race at 35°C / 80% RH (Danger heat zone) but altitude 0.
-      // Heat affects water only — carb target stays at baseline 60g/hr.
-      // Even with insufficient supply, the altitude-adjusted-carb-target
-      // advisory must NOT fire because no carb adjustment is in effect.
-      final config = RaceConfig(
-        name: 'Hot Flat',
-        duration: Duration(hours: 2),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 60.0,
-        strategy: Strategy.steady,
-        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
-        temperature: 35.0,
-        humidity: 80.0,
-      );
+    test(
+      'heat-only under-delivery does not trigger altitude-carb advisory',
+      () {
+        // 2-hour race at 35°C / 80% RH (Danger heat zone) but altitude 0.
+        // Heat affects water only — carb target stays at baseline 60g/hr.
+        // Even with insufficient supply, the altitude-adjusted-carb-target
+        // advisory must NOT fire because no carb adjustment is in effect.
+        final config = RaceConfig(
+          name: 'Hot Flat',
+          duration: Duration(hours: 2),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.steady,
+          selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 4)],
+          temperature: 35.0,
+          humidity: 80.0,
+        );
 
-      final plan = generatePlan(config, profile, [gel]);
+        final plan = generatePlan(config, profile, [gel]);
 
-      expect(
-        plan.warnings
-            .any((w) => w.message.contains('altitude-adjusted carb target')),
-        false,
-        reason: 'heat without altitude must not emit a carb-target advisory '
-            '(heat scales water only, not carbs)',
-      );
-    });
+        expect(
+          plan.warnings.any(
+            (w) => w.message.contains('altitude-adjusted carb target'),
+          ),
+          false,
+          reason:
+              'heat without altitude must not emit a carb-target advisory '
+              '(heat scales water only, not carbs)',
+        );
+      },
+    );
   });
 }
