@@ -4,3 +4,4 @@ environment:
 workspace:
   - packages/core
   - packages/cli
+  - packages/app
