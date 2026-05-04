@@ -1,6 +1,6 @@
 name: race_fueling_cli
 description: CLI interface for the Race Fueling Calculator
-version: 1.0.0
+version: 1.1.0
 publish_to: none
 resolution: workspace
 
