@@ -727,3 +727,70 @@ The "Known Issues" catalogue above (KI-1 through KI-72) was authored against the
 - **KI-9, KI-3, KI-11, KI-29–KI-63** (formatter, CLI plumbing, validator coverage gaps, etc.) — distinct from the engine; still applies. Will be revisited when those areas are next touched.
 
 A comprehensive KI sweep is deferred to a v1.x cleanup pass.
+
+## 2026-05-04 — v1.1 Phase B Batch 1 (foundation scaffolding)
+
+Started Phase B (Flutter app) on branch `feat/v1.1-phase-b-scaffolding`. Batch 1 covers the four foundation tasks that other batches depend on: workspace pubspec (B1), domain re-exports (B2), `PlanStorage` interface + `PlanStorageLocal` (B6), and `BonkBreakpoint` responsive helper (B8). Bootstrapping plus theme are in flight in later batches.
+
+### What shipped (10 commits)
+
+- **B1** — `packages/app/pubspec.yaml` (Flutter 0.1.0), root `pubspec.yaml` adds the package to the workspace, `analysis_options.yaml` extends `flutter_lints` with `prefer_single_quotes` / `require_trailing_commas` / `prefer_const_constructors`.
+- **B2** — `lib/domain/domain.dart` re-exports `package:race_fueling_core/core.dart` so app code never imports core internals directly.
+- **B6** — `PlannerState` aggregate root (RaceConfig + AthleteProfile, with copyWith / toJson / fromJson and the Andalucía Bike Race Stage 3 seed factory). `PlanStorage` interface + `PlanStorageLocal` (shared_preferences-backed, single JSON blob under `bonk_v1.working_plan`).
+- **B8** — `BonkBreakpoint` enum with five tiers (`wide` ≥1480 / `medium` 1380–1480 / `noDiagnostics` 1080–1380 / `narrow` 880–1080 / `mobile` <880) plus convenience getters (`showsDiagnosticsRail`, `showsSetupRail`, `setupRailWidth`, `diagnosticsRailWidth`).
+
+### Round 1 review (3 parallel reviewers: architecture / test coverage / accessibility-UX)
+
+**Verdict:** 1 CRITICAL + 5 HIGH fix-ups landed. Verdict matrix:
+
+| Severity | Total | Fixed in Round 1.5 | Deferred |
+|---|---:|---:|---:|
+| CRITICAL | 1 | 1 | 0 |
+| HIGH | 6 | 4 | 2 (UX — downstream wiring) |
+| MEDIUM | 6 | 2 | 4 |
+| LOW | 9 | 1 | 8 |
+
+**CRITICAL fix landed:** `PlanStorageLocal.load()` only caught `FormatException` — non-Map JSON, missing keys, and missing `schema_version` all threw uncaught `TypeError`, crashing the app on launch from any corrupted blob. Widened the catch to `catch (_) { return null; }` so any deserialization failure falls back to the seed. Hardened with three new tests (non-JSON, non-Map JSON, missing keys) plus a hand-rolled v1-blob migration test that locks the storage-boundary migration contract.
+
+**Architecture HIGH fixes landed:**
+- Moved `migrateRaceConfig` out of `PlannerState.fromJson` into `PlanStorageLocal.load()`. The domain layer no longer knows about persisted-version history; storage adapters own the migration contract (matches CLI's `FileStorageAdapter`).
+- `planner_state.dart` now imports through the local `domain.dart` barrel instead of reaching into `package:race_fueling_core/core.dart` directly. Sets the precedent for every downstream `domain/`/`data/`/`presentation/` file.
+
+**Test HIGH fixes landed:**
+- New `test/domain/planner_state_test.dart` — direct coverage of `copyWith` (no-args, partial), `seed()` field pinning, `fromJson(toJson())` identity, `toJson` shape stability.
+- New boundary equality tests in `breakpoints_test.dart` (1480/1479.999, etc.) plus a 5×4 getter table — flips of `>` vs `>=` are now visible.
+
+**Test counts:** 28 app tests (was 8 after initial Batch 1; +20 from Round 1.5). Core 257 / CLI 279 unchanged.
+
+### Deferred — captured here, not blocking Batch 2
+
+**UX (downstream wiring concerns, surface in F1/B5 acceptance):**
+
+- **PB-UX-1** — Diagnostics rail invisible at 1080–1380 px (typical 13–14" laptop at default scaling). Critical safety warnings (single-source carbs >60g/hr, gut-tolerance breach, caffeine ceiling) silently invisible to the modal user. **Fix when wiring lands:** F1/B5 must surface CRITICAL warnings via an unconditional inline banner above the timeline regardless of breakpoint, with the rail-or-slide-over carrying the full diagnostics. Consider lowering `medium` floor to 1280 once the rail is wired.
+- **PB-UX-2** — iPad portrait (820–834 pt) classified as `mobile`, collapses to phone layout. iPad mini portrait (~744 pt) is genuinely small enough to be `mobile`, but iPad/iPad Air/iPad Pro 11" deserve at least the setup rail. **Fix when wiring lands:** lower `mobile` threshold to `<768` so iPad portrait falls into `narrow` (or introduce a `tablet` tier). Pair with a real-device check.
+- **PB-UX-3** — Setup rail = 32% of screen at 880 px low end of `narrow`. Verify the 3-column stats fallback kicks in early enough once the stats grid lands (Batch 4).
+- **PB-UX-4** — `noDiagnostics` is the only behavior-defining tier name in a size-defining family. Rename to `compact` (or similar) if Batch 5 keeps the threshold; defer until then so we don't churn naming twice.
+- **PB-UX-5** — Seed inventory may overwhelm a first-run user. F1 needs to decide: load the Andalucía seed automatically (current behavior), surface a "Sample plan — clear or customize" banner, or only load via a "Load example" button. Defer the call to F1.
+
+**Architecture / engineering:**
+
+- **PB-ARCH-1** — Plan doc still says `sdk: ^3.6.0`; actual workspace is `^3.8.0` (Phase A bumped it). Plan should be reflected; this journal entry is the durable record.
+- **PB-ARCH-2** — Riverpod bumped 2.6.x → 3.3.x at Batch 1 because `riverpod_lint 2.6.1`'s `analyzer ^6.7.0` constraint conflicts with `flutter_test`'s `analyzer >=8.0.0`. `custom_lint` and `riverpod_lint` dropped from dev_deps. Milan approved staying on 3.x. **Implication for Batch 3 (B7):** plan code samples at lines 2660–2879 were written for Riverpod 2.x; re-validate against 3.x docs (`Ref` typing, `AsyncNotifier` lifecycle, codegen output) before paste-and-build.
+- **PB-ARCH-3** — `analysis_options.yaml` lint posture diverges from core/cli (which only `include: package:lints/recommended.yaml`). App adds three rules. Either unify in a workspace-root analysis_options or document the divergence in CLAUDE.md. Deferred to v1.x cleanup pass.
+- **PB-ARCH-4** — Storage key `bonk_v1.working_plan` mixes a key-level version prefix with the in-blob `schema_version`. The migrator already handles content upgrades, so the `_v1` is cosmetic. Decide before v2 ships whether to drop the prefix or document the v2 upgrade path (load `bonk_v2`, fall back to `bonk_v1`, migrate).
+
+**Coverage gap discovered in Phase A core:**
+
+- **PB-CORE-1** — `migrateRaceConfig` (`packages/core/lib/src/storage/schema_migration.dart`) drops `isAidStationOnly`, defaults `refill: []`, and bumps `schema_version` — but does **not** inject a default `discipline`. A migrated v1 blob has `discipline == null`, not `Discipline.xcm`. Today this is fine because the `discipline` field is plumbed-but-unused (Phase A deferred A4). When per-discipline tuning lands (post-v1.1), the migrator must default it. Found by Round 1's hand-rolled v1 blob test in `plan_storage_local_test.dart`.
+
+**Test coverage backlog:**
+
+- **PB-TEST-1** — `PlanStorage` interface not exercised polymorphically anywhere. First polymorphic test arrives in Batch 3 (B7 uses `FakePlanStorage`).
+- **PB-TEST-2** — `seed()` const-stability assertion (`identical(seed(), seed())`) deferred. Trivial hardening, low value.
+- **PB-TEST-3** — `prefs.setString` failure path not testable via `setMockInitialValues`; consistent with the rest of the shared_preferences ecosystem.
+
+**Future tax:**
+
+- **PB-FUTURE-1** — No i18n scaffolding (`flutter_localizations` not added). Seed race name `Andalucía Bike Race — Stage 3` is hardcoded English. Fine for v1.1; route through `AppLocalizations` when l10n lands.
+- **PB-FUTURE-2** — Race name special characters render fine in Flutter; CLI Windows console (`cmd.exe`, code page 437/1252) may mojibake on em dash and `í`. Keep CLI output ASCII-safe-by-default for v1.x or document `chcp 65001` in CLI Windows guidance.
+
