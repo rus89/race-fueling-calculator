@@ -39,22 +39,27 @@ void main() {
   }
 
   PlanSummary summary() => PlanSummary(
-        totalCarbs: 50.0,
-        averageGPerHr: 75.0,
-        totalCaffeineMg: 0.0,
-        glucoseFructoseRatio: 0.67,
-        totalWaterMl: 200.0,
-      );
+    totalCarbs: 50.0,
+    averageGPerHr: 75.0,
+    totalCaffeineMg: 0.0,
+    glucoseFructoseRatio: 0.67,
+    totalWaterMl: 200.0,
+  );
 
   group('formatPlanTable — shape (time-based)', () {
     test('emits headers, divider, and one row per entry', () {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -78,10 +83,16 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(distanceMark: 10.0, products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 1),
-          ]),
+          entry(
+            distanceMark: 10.0,
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -98,10 +109,15 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -118,9 +134,15 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(productId: 'p1', productName: longName, servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'p1',
+                productName: longName,
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -137,10 +159,15 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -165,18 +192,26 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
 
       final output = formatPlanTable(plan, useColor: true);
 
-      expect(output.contains('\x1B[1m'), isTrue,
-          reason: 'header should be bolded under useColor: true');
+      expect(
+        output.contains('\x1B[1m'),
+        isTrue,
+        reason: 'header should be bolded under useColor: true',
+      );
     });
   });
 
@@ -233,7 +268,10 @@ void main() {
           entry(
             products: [
               ProductServing(
-                  productId: 'gel-1', productName: 'Test Gel', servings: 1),
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
             ],
             cumulativeCaffeine: 0.0,
             waterMl: 100.0,
@@ -257,7 +295,10 @@ void main() {
           entry(
             products: [
               ProductServing(
-                  productId: 'gel-1', productName: 'Test Gel', servings: 1),
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
             ],
             cumulativeCaffeine: 50.0,
             waterMl: 0.0,
@@ -278,10 +319,15 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 2),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 2,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -295,10 +341,12 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(productId: 'p1', productName: 'A', servings: 1),
-            ProductServing(productId: 'p2', productName: 'B', servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(productId: 'p1', productName: 'A', servings: 1),
+              ProductServing(productId: 'p2', productName: 'B', servings: 1),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -310,8 +358,7 @@ void main() {
   });
 
   group('formatPlanTable — mixed time/distance entries', () {
-    test(
-        'shows Dist column when any entry has distanceMark, '
+    test('shows Dist column when any entry has distanceMark, '
         'leaves null entries blank, and preserves alignment', () {
       final plan = FuelingPlan(
         raceConfig: testConfig,
@@ -321,7 +368,10 @@ void main() {
             distanceMark: 10.0,
             products: [
               ProductServing(
-                  productId: 'p1', productName: 'Gel A', servings: 1),
+                productId: 'p1',
+                productName: 'Gel A',
+                servings: 1,
+              ),
             ],
           ),
           entry(
@@ -329,7 +379,10 @@ void main() {
             // distanceMark intentionally null
             products: [
               ProductServing(
-                  productId: 'p2', productName: 'Gel B', servings: 1),
+                productId: 'p2',
+                productName: 'Gel B',
+                servings: 1,
+              ),
             ],
           ),
         ],
@@ -356,26 +409,24 @@ void main() {
 
   group('formatPlanTable — ASCII fallback under useColor: false', () {
     FuelingPlan multiRowPlan() => FuelingPlan(
-          raceConfig: testConfig,
-          entries: [
-            entry(
-              timeMark: const Duration(minutes: 20),
-              products: [
-                ProductServing(
-                    productId: 'p1', productName: 'Gel A', servings: 1),
-              ],
-            ),
-            entry(
-              timeMark: const Duration(minutes: 40),
-              products: [
-                ProductServing(
-                    productId: 'p2', productName: 'Gel B', servings: 2),
-              ],
-              cumulativeCaffeine: 50.0,
-            ),
+      raceConfig: testConfig,
+      entries: [
+        entry(
+          timeMark: const Duration(minutes: 20),
+          products: [
+            ProductServing(productId: 'p1', productName: 'Gel A', servings: 1),
           ],
-          summary: summary(),
-        );
+        ),
+        entry(
+          timeMark: const Duration(minutes: 40),
+          products: [
+            ProductServing(productId: 'p2', productName: 'Gel B', servings: 2),
+          ],
+          cumulativeCaffeine: 50.0,
+        ),
+      ],
+      summary: summary(),
+    );
 
     test('uses ASCII pipe " | " separator and not Unicode " │ "', () {
       final output = formatPlanTable(multiRowPlan(), useColor: false);
@@ -407,8 +458,11 @@ void main() {
       expect(visibleWidth(lines[dividerIdx - 1]), dividerWidth);
       // Every content row below the divider must match.
       for (var i = dividerIdx + 1; i < lines.length; i++) {
-        expect(visibleWidth(lines[i]), dividerWidth,
-            reason: 'row $i width mismatch');
+        expect(
+          visibleWidth(lines[i]),
+          dividerWidth,
+          reason: 'row $i width mismatch',
+        );
       }
     });
   });
@@ -418,10 +472,15 @@ void main() {
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'gel-1', productName: 'Test Gel', servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -433,15 +492,153 @@ void main() {
     });
   });
 
+  group('formatPlanTable — sip-bottle continuation', () {
+    test(
+      'renders sip placeholder when products empty and effectiveDrinkCarbs > 0',
+      () {
+        final plan = FuelingPlan(
+          raceConfig: testConfig,
+          entries: [
+            PlanEntry(
+              timeMark: const Duration(minutes: 30),
+              products: const [],
+              carbsGlucose: 7,
+              carbsFructose: 6,
+              carbsTotal: 13,
+              cumulativeCarbs: 13,
+              cumulativeCaffeine: 0,
+              waterMl: 125,
+              effectiveDrinkCarbs: 13,
+            ),
+          ],
+          summary: summary(),
+        );
+
+        final output = formatPlanTable(plan, useColor: false);
+
+        expect(output, contains('sip'));
+        expect(output, contains('13g'));
+      },
+    );
+
+    test('does not render sip placeholder when effectiveDrinkCarbs is 0', () {
+      final plan = FuelingPlan(
+        raceConfig: testConfig,
+        entries: [
+          PlanEntry(
+            timeMark: const Duration(minutes: 30),
+            products: const [],
+            carbsGlucose: 0,
+            carbsFructose: 0,
+            carbsTotal: 0,
+            cumulativeCarbs: 0,
+            cumulativeCaffeine: 0,
+            waterMl: 0,
+          ),
+        ],
+        summary: summary(),
+      );
+
+      final output = formatPlanTable(plan, useColor: false);
+
+      expect(output.toLowerCase(), isNot(contains('sip')));
+    });
+  });
+
+  group('formatPlanTable — aid-station marker', () {
+    test('renders AID marker with refill list above the entry row', () {
+      final plan = FuelingPlan(
+        raceConfig: testConfig,
+        entries: [
+          PlanEntry(
+            timeMark: const Duration(minutes: 90),
+            products: const [],
+            carbsGlucose: 0,
+            carbsFructose: 0,
+            carbsTotal: 0,
+            cumulativeCarbs: 50,
+            cumulativeCaffeine: 0,
+            waterMl: 0,
+            aidStation: const AidStation(
+              timeMinutes: 90,
+              refill: ['sis-beta-fuel-drink', 'maurten-160'],
+            ),
+          ),
+        ],
+        summary: summary(),
+      );
+
+      final output = formatPlanTable(plan, useColor: false);
+
+      expect(output.toUpperCase(), contains('AID'));
+      expect(output, contains('90'));
+      expect(output, contains('sis-beta-fuel-drink'));
+      expect(output, contains('maurten-160'));
+    });
+
+    test('renders AID marker with no-refill placeholder when refill empty', () {
+      final plan = FuelingPlan(
+        raceConfig: testConfig,
+        entries: [
+          PlanEntry(
+            timeMark: const Duration(minutes: 60),
+            products: const [],
+            carbsGlucose: 0,
+            carbsFructose: 0,
+            carbsTotal: 0,
+            cumulativeCarbs: 30,
+            cumulativeCaffeine: 0,
+            waterMl: 0,
+            aidStation: const AidStation(timeMinutes: 60),
+          ),
+        ],
+        summary: summary(),
+      );
+
+      final output = formatPlanTable(plan, useColor: false);
+
+      expect(output.toUpperCase(), contains('AID'));
+      expect(output.toLowerCase(), contains('no refill'));
+    });
+
+    test('does not render AID marker for entries without aidStation', () {
+      final plan = FuelingPlan(
+        raceConfig: testConfig,
+        entries: [
+          entry(
+            products: [
+              ProductServing(
+                productId: 'gel-1',
+                productName: 'Test Gel',
+                servings: 1,
+              ),
+            ],
+          ),
+        ],
+        summary: summary(),
+      );
+
+      final output = formatPlanTable(plan, useColor: false);
+
+      expect(output.toUpperCase(), isNot(contains('AID')));
+    });
+  });
+
   group('formatPlanTable — truncation boundary', () {
     test('keeps product cell of exactly 25 visible chars without ellipsis', () {
       final exact25 = 'A' * 25;
       final plan = FuelingPlan(
         raceConfig: testConfig,
         entries: [
-          entry(products: [
-            ProductServing(productId: 'p1', productName: exact25, servings: 1),
-          ]),
+          entry(
+            products: [
+              ProductServing(
+                productId: 'p1',
+                productName: exact25,
+                servings: 1,
+              ),
+            ],
+          ),
         ],
         summary: summary(),
       );
@@ -452,24 +649,31 @@ void main() {
       expect(output, isNot(contains('…')));
     });
 
-    test('truncates product cell of 26 visible chars to 24 chars + ellipsis',
-        () {
-      final overflow26 = 'A' * 26;
-      final plan = FuelingPlan(
-        raceConfig: testConfig,
-        entries: [
-          entry(products: [
-            ProductServing(
-                productId: 'p1', productName: overflow26, servings: 1),
-          ]),
-        ],
-        summary: summary(),
-      );
+    test(
+      'truncates product cell of 26 visible chars to 24 chars + ellipsis',
+      () {
+        final overflow26 = 'A' * 26;
+        final plan = FuelingPlan(
+          raceConfig: testConfig,
+          entries: [
+            entry(
+              products: [
+                ProductServing(
+                  productId: 'p1',
+                  productName: overflow26,
+                  servings: 1,
+                ),
+              ],
+            ),
+          ],
+          summary: summary(),
+        );
 
-      final output = formatPlanTable(plan, useColor: false);
+        final output = formatPlanTable(plan, useColor: false);
 
-      expect(output, contains('${'A' * 24}…'));
-      expect(output, isNot(contains('A' * 25)));
-    });
+        expect(output, contains('${'A' * 24}…'));
+        expect(output, isNot(contains('A' * 25)));
+      },
+    );
   });
 }

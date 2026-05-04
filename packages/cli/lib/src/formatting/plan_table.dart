@@ -20,15 +20,7 @@ String formatPlanTable(FuelingPlan plan, {required bool useColor}) {
     'Caffeine',
     'Water',
   ];
-  final widths = <int>[
-    8,
-    if (hasDistance) 7,
-    25,
-    14,
-    8,
-    10,
-    8,
-  ];
+  final widths = <int>[8, if (hasDistance) 7, 25, 14, 8, 10, 8];
 
   final totalWidth =
       widths.reduce((a, b) => a + b) + (widths.length - 1) * _separatorWidth;
@@ -37,6 +29,11 @@ String formatPlanTable(FuelingPlan plan, {required bool useColor}) {
   buf.writeln((useColor ? '─' : '-') * totalWidth);
 
   for (final entry in plan.entries) {
+    final aid = entry.aidStation;
+    if (aid != null) {
+      buf.writeln(_aidStationLine(entry.timeMark, aid, useColor: useColor));
+    }
+
     final cells = <String>[
       _formatDuration(entry.timeMark),
       if (hasDistance)
@@ -58,8 +55,27 @@ String formatPlanTable(FuelingPlan plan, {required bool useColor}) {
   return buf.toString();
 }
 
+String _aidStationLine(
+  Duration timeMark,
+  AidStation aid, {
+  required bool useColor,
+}) {
+  final dash = useColor ? '──' : '--';
+  final mins = timeMark.inMinutes;
+  final refillStr = aid.refill.isEmpty
+      ? '(no refill)'
+      : 'refill: ${aid.refill.join(', ')}';
+  return '$dash AID @ +${mins}min $dash $refillStr';
+}
+
 String _productCell(PlanEntry entry, {required bool useColor}) {
   if (entry.products.isEmpty) {
+    if (entry.effectiveDrinkCarbs > 0) {
+      // Sip-bottle continuation: rider is mid-sip on a previously-started
+      // bottle, so no new product fires this slot.
+      final carbs = entry.effectiveDrinkCarbs.toStringAsFixed(0);
+      return dim('~ sip bottle (${carbs}g)', enabled: useColor);
+    }
     return dim('—', enabled: useColor);
   }
   final raw = entry.products
