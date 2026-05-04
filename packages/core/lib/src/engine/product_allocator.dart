@@ -16,8 +16,9 @@ const _drinkCapFraction = 0.65;
 /// [_gelOversizeFactor] and [_gelOversizeCushion]).
 const _gelDebtFireThreshold = 12.0;
 
-/// A gel is rejected as "too big" if its carbs exceed both
-/// debt × factor AND debt + cushion.
+/// A gel is rejected as "too big" only when BOTH conditions hold:
+/// `carbs > debt × _gelOversizeFactor` AND `carbs > debt + _gelOversizeCushion`.
+/// If either fails, the gel fires.
 const _gelOversizeFactor = 1.6;
 const _gelOversizeCushion = 6.0;
 
@@ -46,7 +47,6 @@ class _ActiveDrink {
   final double caffeinePerStep;
   final double waterPerStep;
   int stepsRemaining;
-  bool firstStep;
   _ActiveDrink({
     required this.productId,
     required this.carbsPerStep,
@@ -55,7 +55,6 @@ class _ActiveDrink {
     required this.caffeinePerStep,
     required this.waterPerStep,
     required this.stepsRemaining,
-    required this.firstStep,
   });
 }
 
@@ -94,15 +93,19 @@ AllocationResult allocateProducts({
   var cumulativeCaffeine = 0.0;
   var gelDebt = 0.0;
 
-  // Pre-project aid stations to their effective minute marks
-  final stationByMin = <int, AidStation>{};
+  // Pre-project aid stations to their effective minute marks. Multiple
+  // stations may project to the same minute; aggregate them so all
+  // refill lists are honored at that slot.
+  final stationByMin = <int, List<AidStation>>{};
   for (final s in aidStations) {
     final m = projectAidStationMin(
       s,
       totalKm: totalKm,
       durationMin: durationMin ?? slots.length * stepMin,
     );
-    if (m != null) stationByMin[m] = s;
+    if (m != null) {
+      stationByMin.putIfAbsent(m, () => <AidStation>[]).add(s);
+    }
   }
 
   for (var i = 0; i < slots.length; i++) {
@@ -117,13 +120,28 @@ AllocationResult allocateProducts({
     final servings = <ProductServing>[];
     final slotWarnings = <Warning>[];
 
-    // 1. Aid station refill at slot start
+    // 1. Aid station refill at slot start. When several stations project
+    // to the same minute, merge all their refill lists into the inventory
+    // and surface an advisory so the collision is visible.
     AidStation? aidHere;
     for (final entry in stationByMin.entries) {
       if (entry.key > tStart && entry.key <= tEnd) {
-        aidHere = entry.value;
-        for (final pid in entry.value.refill) {
-          inventory[pid] = (inventory[pid] ?? 0) + 1;
+        final stations = entry.value;
+        aidHere = stations.first;
+        for (final s in stations) {
+          for (final pid in s.refill) {
+            inventory[pid] = (inventory[pid] ?? 0) + 1;
+          }
+        }
+        if (stations.length > 1) {
+          slotWarnings.add(
+            Warning(
+              severity: Severity.advisory,
+              message:
+                  'Multiple aid stations at minute $tEnd — refill lists merged',
+              entryIndex: i,
+            ),
+          );
         }
         break;
       }
@@ -142,22 +160,15 @@ AllocationResult allocateProducts({
       drinkFru += a.fructosePerStep;
       drinkCaf += a.caffeinePerStep;
       drinkWater += a.waterPerStep;
-      if (a.firstStep) {
-        servings.add(
-          ProductServing(
-            productId: a.productId,
-            productName:
-                '${productMap[a.productId]?.name ?? a.productId} (sip start)',
-            servings: 1,
-          ),
-        );
-        a.firstStep = false;
-      }
       lastContribSlot[a.productId] = i;
       a.stepsRemaining -= 1;
     }
 
-    // 3. Start a new drink if needed
+    // 3. Start a new drink if needed.
+    // Only one drink active at a time — multiple overlapping sip bottles
+    // would over-count water and per-slot carbs. The last-slot guard is a
+    // known limitation: a refill landing on the final slot cannot start a
+    // new drink, so its inventory is wasted (see plan-review 2026-04-30).
     final stepHrs = stepMin / 60.0;
     if (activeDrinks.isEmpty && i < slots.length - 1) {
       final unmetPerHr = (target - drinkCarbs) / stepHrs;
@@ -190,7 +201,6 @@ AllocationResult allocateProducts({
             caffeinePerStep: p.caffeineMg / drinkSteps,
             waterPerStep: p.waterRequiredMl / drinkSteps,
             stepsRemaining: drinkSteps,
-            firstStep: false,
           );
           activeDrinks.add(ad);
           drinkCarbs += ad.carbsPerStep;

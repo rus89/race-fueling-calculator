@@ -91,7 +91,7 @@ void main() {
       expect(gelCount, inInclusiveRange(4, 6));
     });
 
-    test('40g gel does NOT fire when debt is only 7g', () {
+    test('40g gel does NOT fire when pooled debt is 14g', () {
       final drink = _drink(sip: 60, carbs: 80);
       final bigGel = _gel(carbs: 40);
       final result = allocateProducts(
