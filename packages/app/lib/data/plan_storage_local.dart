@@ -2,6 +2,7 @@
 // ABOUTME: Works on web (localStorage), mobile (NSUserDefaults / Prefs), desktop.
 import 'dart:convert';
 
+import 'package:race_fueling_core/core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/planner_state.dart';
@@ -17,7 +18,9 @@ class PlanStorageLocal implements PlanStorage {
     if (raw == null) return null;
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
-      return PlannerState.fromJson(json);
+      final rawCfg = json['raceConfig'] as Map<String, dynamic>;
+      final migrated = {...json, 'raceConfig': migrateRaceConfig(rawCfg)};
+      return PlannerState.fromJson(migrated);
     } on FormatException {
       return null;
     }

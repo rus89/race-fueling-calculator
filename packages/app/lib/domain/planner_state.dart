@@ -22,12 +22,7 @@ class PlannerState {
   };
 
   factory PlannerState.fromJson(Map<String, dynamic> json) => PlannerState(
-    // Run the v1→v2 RaceConfig migration on the way in. shared_preferences
-    // is greenfield in v1.1 (no v1 data exists), but wiring this from
-    // day one means a future schema bump won't trip a stale blob.
-    raceConfig: RaceConfig.fromJson(
-      migrateRaceConfig(json['raceConfig'] as Map<String, dynamic>),
-    ),
+    raceConfig: RaceConfig.fromJson(json['raceConfig'] as Map<String, dynamic>),
     athleteProfile: AthleteProfile.fromJson(
       json['athleteProfile'] as Map<String, dynamic>,
     ),
