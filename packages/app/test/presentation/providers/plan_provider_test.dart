@@ -2,24 +2,12 @@
 // ABOUTME: Verifies engine wiring through PlannerNotifier with FakePlanStorage.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:race_fueling_app/data/plan_storage.dart';
-import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/providers/plan_provider.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
 import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
 import 'package:race_fueling_app/presentation/providers/warnings_provider.dart';
 
-class FakePlanStorage implements PlanStorage {
-  PlannerState? loaded;
-  @override
-  Future<PlannerState?> load() async => loaded;
-  @override
-  Future<void> save(PlannerState state) async {}
-  @override
-  Future<void> clear() async {
-    loaded = null;
-  }
-}
+import '../../test_helpers/fake_plan_storage.dart';
 
 void main() {
   test('planProvider is null while planner state is still loading', () {

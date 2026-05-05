@@ -4,43 +4,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:race_fueling_app/data/plan_storage.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
 import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
 
-class FakePlanStorage implements PlanStorage {
-  PlannerState? loaded;
-  PlannerState? lastSaved;
-  int saveCount = 0;
-  // When set, load() returns a Completer-backed Future that does not resolve
-  // until `loadGate.complete()` fires. Lets a test observe AsyncLoading state.
-  Completer<void>? loadGate;
-  // When set, load() returns Future.error(loadError) — used to assert that
-  // PlannerNotifier surfaces store failures as AsyncError.
-  Object? loadError;
-  @override
-  Future<PlannerState?> load() async {
-    if (loadError != null) {
-      throw loadError!;
-    }
-    if (loadGate != null) {
-      await loadGate!.future;
-    }
-    return loaded;
-  }
-
-  @override
-  Future<void> save(PlannerState state) async {
-    lastSaved = state;
-    saveCount++;
-  }
-
-  @override
-  Future<void> clear() async {
-    loaded = null;
-  }
-}
+import '../../test_helpers/fake_plan_storage.dart';
 
 ProviderContainer _makeContainer(FakePlanStorage fake) {
   final c = ProviderContainer(

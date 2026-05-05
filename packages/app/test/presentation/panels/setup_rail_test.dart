@@ -3,26 +3,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:race_fueling_app/data/plan_storage.dart';
-import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/setup_rail.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
 
+import '../../test_helpers/fake_plan_storage.dart';
 import '../../test_helpers/google_fonts_setup.dart';
-
-class _NoOpStorage implements PlanStorage {
-  @override
-  Future<PlannerState?> load() async => null;
-  @override
-  Future<void> save(PlannerState state) async {}
-  @override
-  Future<void> clear() async {}
-}
 
 Future<void> _pump(WidgetTester tester) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [planStorageProvider.overrideWithValue(_NoOpStorage())],
+      overrides: [planStorageProvider.overrideWithValue(FakePlanStorage())],
       child: const MaterialApp(home: Scaffold(body: SetupRail())),
     ),
   );
