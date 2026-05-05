@@ -341,4 +341,56 @@ void main() {
     expect(fake.saveCount, beforeSaves);
     expect(c.read(plannerNotifierProvider).hasValue, isTrue);
   });
+
+  test('retryLoad stays in AsyncError when storage still fails', () async {
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+
+    // Prime AsyncError.
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+    // First retry — storage still throws. State must remain AsyncError;
+    // no stealth save can land while we're still unrecovered.
+    final notifier = c.read(plannerNotifierProvider.notifier);
+    await notifier.retryLoad().then<Object?>(
+      (_) => null,
+      onError: (Object e) => e,
+    );
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+    expect(fake.saveCount, 0);
+
+    // Second retry — also throws. No deadlock, no extraneous save.
+    await notifier.retryLoad().then<Object?>(
+      (_) => null,
+      onError: (Object e) => e,
+    );
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+    expect(fake.saveCount, 0);
+  });
+
+  test('debugEmit goes through _emit and respects the AsyncError guard', () async {
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+
+    // Prime the notifier into AsyncError.
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+    // debugEmit calls _emit. With state in AsyncError, the guard short-circuits
+    // and the save chain is NOT pushed. This pins the AsyncError guard
+    // independently of the _currentOrNull short-circuit on the public mutators.
+    final notifier = c.read(plannerNotifierProvider.notifier);
+    notifier.debugEmit(PlannerState.seed());
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+    expect(fake.saveCount, 0);
+  });
 }
