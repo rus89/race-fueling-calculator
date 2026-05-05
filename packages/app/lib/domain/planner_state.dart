@@ -6,16 +6,29 @@ class PlannerState {
   final RaceConfig raceConfig;
   final AthleteProfile athleteProfile;
 
-  const PlannerState({required this.raceConfig, required this.athleteProfile});
+  /// True when this state was synthesised from `seed()` because storage was
+  /// empty (first run) — never persisted, set by the notifier on a fresh
+  /// drive. Loaded blobs always materialise with this flag false.
+  final bool isSeedFallback;
+
+  const PlannerState({
+    required this.raceConfig,
+    required this.athleteProfile,
+    this.isSeedFallback = false,
+  });
 
   PlannerState copyWith({
     RaceConfig? raceConfig,
     AthleteProfile? athleteProfile,
+    bool? isSeedFallback,
   }) => PlannerState(
     raceConfig: raceConfig ?? this.raceConfig,
     athleteProfile: athleteProfile ?? this.athleteProfile,
+    isSeedFallback: isSeedFallback ?? this.isSeedFallback,
   );
 
+  // WHY: isSeedFallback is a runtime-only flag. A saved blob is by definition
+  // a real plan, so reloading one always yields isSeedFallback == false.
   Map<String, dynamic> toJson() => {
     'raceConfig': raceConfig.toJson(),
     'athleteProfile': athleteProfile.toJson(),
@@ -59,5 +72,6 @@ class PlannerState {
       unitSystem: UnitSystem.metric,
       bodyWeightKg: 72,
     ),
+    isSeedFallback: true,
   );
 }

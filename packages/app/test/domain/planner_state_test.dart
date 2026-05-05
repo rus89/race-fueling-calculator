@@ -41,6 +41,37 @@ void main() {
       expect(s.athleteProfile.gutToleranceGPerHr, 75);
       expect(s.athleteProfile.bodyWeightKg, 72);
     });
+
+    test('seed() flags isSeedFallback true', () {
+      expect(PlannerState.seed().isSeedFallback, isTrue);
+    });
+  });
+
+  group('PlannerState.isSeedFallback', () {
+    test('default constructor leaves isSeedFallback false', () {
+      const s = PlannerState(
+        raceConfig: RaceConfig(
+          name: 'X',
+          duration: Duration(hours: 1),
+          targetCarbsGPerHr: 60,
+          intervalMinutes: 15,
+          timelineMode: TimelineMode.timeBased,
+          strategy: Strategy.steady,
+          discipline: Discipline.xcm,
+          selectedProducts: [],
+        ),
+        athleteProfile: AthleteProfile(
+          gutToleranceGPerHr: 60,
+          unitSystem: UnitSystem.metric,
+        ),
+      );
+      expect(s.isSeedFallback, isFalse);
+    });
+
+    test('copyWith(isSeedFallback: false) flips the flag off the seed', () {
+      final s = PlannerState.seed().copyWith(isSeedFallback: false);
+      expect(s.isSeedFallback, isFalse);
+    });
   });
 
   group('PlannerState JSON', () {
@@ -53,6 +84,18 @@ void main() {
     test('toJson produces a stable two-key structure', () {
       final json = PlannerState.seed().toJson();
       expect(json.keys.toSet(), {'raceConfig', 'athleteProfile'});
+    });
+
+    test('toJson does not include isSeedFallback (runtime-only flag)', () {
+      final json = PlannerState.seed().toJson();
+      expect(json.containsKey('isSeedFallback'), isFalse);
+    });
+
+    test('fromJson defaults isSeedFallback to false', () {
+      // Round-tripping a saved blob never yields a fallback, regardless of
+      // the in-memory source's flag.
+      final round = PlannerState.fromJson(PlannerState.seed().toJson());
+      expect(round.isSeedFallback, isFalse);
     });
   });
 }
