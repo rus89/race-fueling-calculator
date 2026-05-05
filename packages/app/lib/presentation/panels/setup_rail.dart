@@ -76,9 +76,9 @@ class _RailBody extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _DurationRow(state: state, notifier: notifier),
+            const _DurationRow(),
             const SizedBox(height: 12),
-            _BodyMassAndDistanceRow(state: state, notifier: notifier),
+            const _BodyMassAndDistanceRow(),
             const SizedBox(height: 12),
             BonkFieldShell(
               label: 'Discipline',
@@ -114,12 +114,12 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-class _DurationRow extends StatelessWidget {
-  final PlannerState state;
-  final PlannerNotifier notifier;
-  const _DurationRow({required this.state, required this.notifier});
+class _DurationRow extends ConsumerWidget {
+  const _DurationRow();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(plannerNotifierProvider).requireValue;
+    final notifier = ref.read(plannerNotifierProvider.notifier);
     final dur = state.raceConfig.duration;
     final h = dur.inHours;
     final m = dur.inMinutes % 60;
@@ -176,12 +176,12 @@ class _DurationRow extends StatelessWidget {
   }
 }
 
-class _BodyMassAndDistanceRow extends StatelessWidget {
-  final PlannerState state;
-  final PlannerNotifier notifier;
-  const _BodyMassAndDistanceRow({required this.state, required this.notifier});
+class _BodyMassAndDistanceRow extends ConsumerWidget {
+  const _BodyMassAndDistanceRow();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(plannerNotifierProvider).requireValue;
+    final notifier = ref.read(plannerNotifierProvider.notifier);
     final unit = state.athleteProfile.unitSystem == UnitSystem.imperial
         ? 'lb'
         : 'kg';
