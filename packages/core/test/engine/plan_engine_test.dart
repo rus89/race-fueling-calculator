@@ -354,6 +354,31 @@ void main() {
       expect(aidWarnings, isEmpty);
     });
 
+    test('engine populates summary.totalGlucose and totalFructose', () {
+      final config = RaceConfig(
+        name: 'Macro split',
+        duration: Duration(hours: 2),
+        timelineMode: TimelineMode.timeBased,
+        intervalMinutes: 20,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [ProductSelection(productId: 'gel-1', quantity: 8)],
+      );
+
+      final plan = generatePlan(config, profile, [gel]);
+
+      final expectedGlucose = plan.entries.fold<double>(
+        0,
+        (a, e) => a + e.carbsGlucose,
+      );
+      final expectedFructose = plan.entries.fold<double>(
+        0,
+        (a, e) => a + e.carbsFructose,
+      );
+      expect(plan.summary.totalGlucose, closeTo(expectedGlucose, 1e-9));
+      expect(plan.summary.totalFructose, closeTo(expectedFructose, 1e-9));
+    });
+
     test(
       'heat-only under-delivery does not trigger altitude-carb advisory',
       () {

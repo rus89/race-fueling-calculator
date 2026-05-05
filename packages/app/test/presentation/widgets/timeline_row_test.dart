@@ -346,10 +346,106 @@ void main() {
       ),
     );
     // TODO(F1-RESPONSIVE): TimelineRow's fixed 64+160-pixel time/bar columns
-    // overflow at 200% scale on narrow viewports. F1's three-pane layout
-    // owns the responsive collapse; for now we only assert the row builds.
-    // ignore: unused_local_variable
-    final _ = tester.takeException();
+    // can overflow at 200% scale on narrow viewports. F1's three-pane
+    // layout owns the responsive collapse. On the default 800×600 test
+    // surface the row builds without throwing — pin that contract so a
+    // future regression that flips it (e.g. a Row child accidentally
+    // marked Expanded) shows up here.
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('bar widths reflect carbsTotal and target ratios', (
+    tester,
+  ) async {
+    // Force a known surface size so LayoutBuilder yields predictable
+    // trackWidth (the bar column's inner LayoutBuilder picks up the
+    // 160px column width handed down by the surrounding Row).
+    await tester.binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TimelineRow(
+            entry: PlanEntry(
+              timeMark: Duration(minutes: 30),
+              products: [],
+              carbsGlucose: 5,
+              carbsFructose: 5,
+              carbsTotal: 10,
+              cumulativeCarbs: 10,
+              cumulativeCaffeine: 0,
+              waterMl: 0,
+            ),
+            targetG: 20,
+            peakG: 50,
+            productsById: {},
+          ),
+        ),
+      ),
+    );
+
+    // actual/peak = 10/50 = 0.20; target/peak = 20/50 = 0.40 — so the
+    // actual bar should be exactly half the width of the target bar.
+    final actualSize = tester.getSize(find.byKey(const Key('bar.actual')));
+    final targetSize = tester.getSize(find.byKey(const Key('bar.target')));
+    expect(actualSize.width / targetSize.width, closeTo(0.5, 0.01));
+  });
+
+  group('item dot color by ProductType', () {
+    for (final entry in const {
+      ProductType.gel: 'gel',
+      ProductType.liquid: 'liquid',
+      ProductType.chew: 'chew',
+      ProductType.solid: 'solid',
+      ProductType.realFood: 'realFood',
+    }.entries) {
+      testWidgets('${entry.value} type renders a circle dot', (tester) async {
+        final product = Product(
+          id: 'p1',
+          name: 'Sample',
+          brand: 'Test',
+          type: entry.key,
+          carbsPerServing: 25,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TimelineRow(
+                entry: const PlanEntry(
+                  timeMark: Duration(minutes: 30),
+                  products: [
+                    ProductServing(
+                      productId: 'p1',
+                      productName: 'Sample',
+                      servings: 1,
+                    ),
+                  ],
+                  carbsGlucose: 12.5,
+                  carbsFructose: 12.5,
+                  carbsTotal: 25,
+                  cumulativeCarbs: 25,
+                  cumulativeCaffeine: 0,
+                  waterMl: 0,
+                ),
+                targetG: 20,
+                peakG: 50,
+                productsById: {'p1': product},
+              ),
+            ),
+          ),
+        );
+        // Every ProductType maps to a circular Container dot in _ItemLine.
+        final dots = find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).shape == BoxShape.circle,
+        );
+        expect(dots, findsAtLeastNWidgets(1));
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   testWidgets(

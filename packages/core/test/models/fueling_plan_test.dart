@@ -16,6 +16,38 @@ void main() {
       expect(serving.productId, 'gel-1');
       expect(serving.servings, 1);
     });
+
+    test('isDrinkStart defaults to false', () {
+      const s = ProductServing(productId: 'x', productName: 'X', servings: 1);
+      expect(s.isDrinkStart, isFalse);
+    });
+
+    test('copyWith flips the isDrinkStart flag', () {
+      const s = ProductServing(productId: 'x', productName: 'X', servings: 1);
+      expect(s.copyWith(isDrinkStart: true).isDrinkStart, isTrue);
+    });
+
+    test('toJson/fromJson roundtrip preserves isDrinkStart', () {
+      const s = ProductServing(
+        productId: 'x',
+        productName: 'X',
+        servings: 1,
+        isDrinkStart: true,
+      );
+      final json = s.toJson();
+      final round = ProductServing.fromJson(json);
+      expect(round.isDrinkStart, isTrue);
+    });
+
+    test('fromJson defaults isDrinkStart false when key absent', () {
+      const json = <String, dynamic>{
+        'productId': 'x',
+        'productName': 'X',
+        'servings': 1,
+      };
+      final s = ProductServing.fromJson(json);
+      expect(s.isDrinkStart, isFalse);
+    });
   });
 
   group('PlanEntry', () {

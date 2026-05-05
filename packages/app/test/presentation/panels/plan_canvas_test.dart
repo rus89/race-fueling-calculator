@@ -63,6 +63,28 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
+  testWidgets('loading indicator has Semantics liveRegion + label', (
+    tester,
+  ) async {
+    await sizeCanvas(tester);
+    final fake = FakePlanStorage()..loadGate = Completer<void>();
+    await tester.pumpWidget(wrap(fake));
+    await tester.pump();
+    final handle = tester.ensureSemantics();
+    final data = tester
+        .getSemantics(find.byType(CircularProgressIndicator))
+        .getSemanticsData();
+    expect(data.label, contains('Loading'));
+    expect(
+      data.flagsCollection.isLiveRegion,
+      isTrue,
+      reason: 'Loading indicator should announce dynamically',
+    );
+    fake.loadGate!.complete();
+    await tester.pumpAndSettle();
+    handle.dispose();
+  });
+
   testWidgets('empty race name renders "Untitled race"', (tester) async {
     await sizeCanvas(tester);
     final emptyNameSeed = PlannerState.seed();
@@ -73,6 +95,23 @@ void main() {
     await tester.pumpWidget(wrap(fake));
     await tester.pumpAndSettle();
     expect(find.text('Untitled race'), findsOneWidget);
+  });
+
+  testWidgets('long race name truncates with ellipsis at 2 lines', (
+    tester,
+  ) async {
+    await sizeCanvas(tester);
+    final seed = PlannerState.seed();
+    final longName = 'A' * 200;
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        raceConfig: seed.raceConfig.copyWith(name: longName),
+      );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    final text = tester.widget<Text>(find.text(longName));
+    expect(text.maxLines, 2);
+    expect(text.overflow, TextOverflow.ellipsis);
   });
 
   testWidgets('race name has Semantics header flag', (tester) async {
@@ -147,10 +186,10 @@ void main() {
     await tester.pumpAndSettle();
     // TODO(F1-RESPONSIVE): the 6-card stat grid is a fixed Row; at 200%
     // text scale on narrow surfaces it can overflow. F1 owns the Wrap
-    // collapse. This test documents the current state — the canvas builds
-    // successfully on a wide enough surface even at double scale.
-    // ignore: unused_local_variable
-    final _ = tester.takeException();
+    // collapse. On this 2400×3200 surface the canvas builds without
+    // throwing — pin that contract so a future regression that flips
+    // it shows up here.
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('renders an error state when storage load fails', (tester) async {
@@ -163,5 +202,8 @@ void main() {
     // for now, a static fallback proves planProvider's AsyncError reaches
     // the consumer.
     expect(find.text('Plan unavailable. Please reload.'), findsOneWidget);
+    // The raw error message must NOT be interpolated into UI text — users
+    // see the static copy, devs see the underlying error in debugPrint.
+    expect(find.textContaining('boom'), findsNothing);
   });
 }

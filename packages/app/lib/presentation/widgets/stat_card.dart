@@ -50,7 +50,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final composedLabel =
-        '$label: $value${unit ?? ''}'
+        '$label: $value${unit != null ? " $unit" : ""}'
         '${sub != null ? ", $sub" : ''}'
         '${severity != null ? ", ${severity!.name}" : ''}';
 

@@ -104,6 +104,7 @@ class TimelineRow extends StatelessWidget {
                             children: [
                               // target band underlay
                               Container(
+                                key: const Key('bar.target'),
                                 width: w * targetPct,
                                 height: 6,
                                 margin: const EdgeInsets.only(top: 4),
@@ -114,6 +115,7 @@ class TimelineRow extends StatelessWidget {
                               ),
                               // actual fill
                               Container(
+                                key: const Key('bar.actual'),
                                 width: w * pct,
                                 height: 8,
                                 margin: const EdgeInsets.only(top: 3),
