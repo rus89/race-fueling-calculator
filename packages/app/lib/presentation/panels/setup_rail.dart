@@ -20,8 +20,23 @@ class SetupRail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncState = ref.watch(plannerNotifierProvider);
     return asyncState.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Failed to load: $e')),
+      loading: () => Semantics(
+        liveRegion: true,
+        label: 'Loading planner',
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+      // PC-ERROR-UI: stub. F1 replaces with actionable banner per
+      // PB-DATA-1 (JOURNAL Phase B Round 3 closeout). Exception details
+      // are intentionally not interpolated — they could leak stack hints.
+      error: (e, _) => Semantics(
+        liveRegion: true,
+        child: Center(
+          child: Text(
+            'Failed to load planner state. Please reload.',
+            style: BonkType.sans(),
+          ),
+        ),
+      ),
       data: (state) => _RailBody(state: state),
     );
   }
