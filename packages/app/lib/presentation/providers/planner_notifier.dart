@@ -10,6 +10,10 @@ import '../../domain/planner_state.dart';
 import 'plan_storage_provider.dart';
 
 class PlannerNotifier extends AsyncNotifier<PlannerState> {
+  // Chain saves so they land in mutation order even if individual writes
+  // resolve out-of-order on the underlying store (e.g. Web IndexedDB).
+  Future<void> _lastSave = Future.value();
+
   @override
   Future<PlannerState> build() async {
     final storage = ref.watch(planStorageProvider);
@@ -21,13 +25,13 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
 
   void _emit(PlannerState next) {
     state = AsyncData(next);
-    unawaited(
-      ref.read(planStorageProvider).save(next).onError((e, st) {
-        // L1 observability: log the failure. L3 (UI surfacing via SaveStatus)
-        // is a Phase F prerequisite — see PB-DATA-1 in JOURNAL.
-        debugPrint('PlanStorage.save failed: $e');
-      }),
-    );
+    final storage = ref.read(planStorageProvider);
+    _lastSave = _lastSave.then((_) => storage.save(next)).onError((e, st) {
+      // L1 observability: log the failure. L3 (UI surfacing via SaveStatus)
+      // is a Phase F prerequisite — see PB-DATA-1 in JOURNAL.
+      debugPrint('PlanStorage.save failed: $e');
+    });
+    unawaited(_lastSave);
   }
 
   void updateRaceConfig(RaceConfig Function(RaceConfig) edit) {

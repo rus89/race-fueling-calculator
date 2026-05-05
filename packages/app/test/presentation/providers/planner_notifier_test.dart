@@ -53,6 +53,8 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
       100,
     );
+    // Drain pending microtasks so the chained save resolves.
+    await Future<void>.delayed(Duration.zero);
     expect(fake.saveCount, greaterThanOrEqualTo(1));
     expect(fake.lastSaved!.raceConfig.targetCarbsGPerHr, 100);
   });
@@ -68,5 +70,25 @@ void main() {
     addTearDown(c.dispose);
     final state = await c.read(plannerNotifierProvider.future);
     expect(state.raceConfig.name, 'My Custom Race');
+  });
+
+  test('two sequential mutations save in order and both persist', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+
+    // Drain pending microtasks so the chained saves resolve.
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.saveCount, 2);
+    expect(fake.lastSaved!.raceConfig.targetCarbsGPerHr, 100);
   });
 }
