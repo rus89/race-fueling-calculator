@@ -7,10 +7,11 @@ class PlannerState {
   final AthleteProfile athleteProfile;
 
   /// True when this state is a seed (either synthesised on first run or
-  /// written by `acceptSeedAfterError` during destructive recovery) and the
-  /// user has not yet edited it. Persisted across reloads so the UI can keep
-  /// surfacing a quickstart treatment until the first real edit. Auto-flipped
-  /// to false by [PlannerNotifier] on any user-driven mutation.
+  /// written by `discardCorruptedAndUseSeed` during destructive recovery)
+  /// and the user has not yet edited it. Persisted across reloads so the
+  /// UI can keep surfacing a quickstart treatment until the first real
+  /// edit. Auto-flipped to false by [PlannerNotifier] on any user-driven
+  /// mutation.
   ///
   /// Legacy blobs (pre-PB-DATA-1) lack this key; [fromJson] defaults to
   /// `false` because by definition those blobs represent a saved customised

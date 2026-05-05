@@ -49,7 +49,7 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
 
   // Refuses to emit while the prior state is AsyncError so a stealth save
   // cannot overwrite a recoverable corrupted blob with an in-memory seed.
-  // The user must explicitly opt in via `acceptSeedAfterError`.
+  // The user must explicitly opt in via `discardCorruptedAndUseSeed`.
   //
   // Any user-driven mutation flips `isSeedFallback` off — by definition
   // the working state is no longer a fallback once the user has touched it.
@@ -62,7 +62,8 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   }
 
   // Emits unconditionally and schedules a save. Used internally by `_emit`
-  // after the AsyncError guard, and by `acceptSeedAfterError` to escape it.
+  // after the AsyncError guard, and by `discardCorruptedAndUseSeed` to
+  // escape it.
   void _emitForce(PlannerState next) {
     state = AsyncData(next);
     final storage = ref.read(planStorageProvider);
@@ -93,10 +94,12 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     await future;
   }
 
-  /// User-driven recovery: clear the prior AsyncError and accept the seed
-  /// as the working state. Saves the seed (which overwrites the unreadable
-  /// blob — only call this when the user explicitly opts into "Start fresh").
-  void acceptSeedAfterError() {
+  /// Destructive recovery: writes the seed over an unreadable blob and
+  /// clears the AsyncError. PlanStorageLocal auto-backs up the prior bytes
+  /// to `${_key}.bak` once before the first overwrite, so the corrupted
+  /// payload remains recoverable post-mortem. Only call this from a
+  /// confirmed user action ("Start fresh"). No-op outside AsyncError.
+  void discardCorruptedAndUseSeed() {
     if (state is! AsyncError) return;
     _emitForce(PlannerState.seed());
   }

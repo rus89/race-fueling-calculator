@@ -225,7 +225,7 @@ void main() {
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
   });
 
-  test('acceptSeedAfterError clears error and saves seed', () async {
+  test('discardCorruptedAndUseSeed clears error and saves seed', () async {
     final fake = FakePlanStorage()..loadError = StateError('boom');
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
@@ -235,7 +235,7 @@ void main() {
         .then<Object?>((s) => null, onError: (Object e) => e);
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
 
-    c.read(plannerNotifierProvider.notifier).acceptSeedAfterError();
+    c.read(plannerNotifierProvider.notifier).discardCorruptedAndUseSeed();
     await Future<void>.delayed(Duration.zero);
 
     final after = c.read(plannerNotifierProvider);
@@ -245,18 +245,21 @@ void main() {
     expect(fake.lastSaved!.isSeedFallback, isTrue);
   });
 
-  test('acceptSeedAfterError is a no-op when state is AsyncData', () async {
-    final fake = FakePlanStorage();
-    final c = _makeContainer(fake);
-    addTearDown(c.dispose);
-    await c.read(plannerNotifierProvider.future);
+  test(
+    'discardCorruptedAndUseSeed is a no-op when state is AsyncData',
+    () async {
+      final fake = FakePlanStorage();
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      await c.read(plannerNotifierProvider.future);
 
-    c.read(plannerNotifierProvider.notifier).acceptSeedAfterError();
-    await Future<void>.delayed(Duration.zero);
+      c.read(plannerNotifierProvider.notifier).discardCorruptedAndUseSeed();
+      await Future<void>.delayed(Duration.zero);
 
-    // No extraneous save; the user wasn't in an error state.
-    expect(fake.saveCount, 0);
-  });
+      // No extraneous save; the user wasn't in an error state.
+      expect(fake.saveCount, 0);
+    },
+  );
 
   test(
     'retryLoad transitions AsyncError to AsyncData once storage recovers',
