@@ -225,6 +225,26 @@ void main() {
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
   });
 
+  test('two sequential mutations during AsyncError both no-op', () async {
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+
+    final notifier = c.read(plannerNotifierProvider.notifier);
+    notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 99));
+    notifier.updateAthleteProfile((p) => p.copyWith(gutToleranceGPerHr: 88));
+    await Future<void>.delayed(Duration.zero);
+
+    // Cumulative saves: zero. Both mutations short-circuit on the
+    // AsyncError guard so the corrupted blob remains recoverable.
+    expect(fake.saveCount, 0);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+  });
+
   test('discardCorruptedAndUseSeed clears error and saves seed', () async {
     final fake = FakePlanStorage()..loadError = StateError('boom');
     final c = _makeContainer(fake);
@@ -258,6 +278,33 @@ void main() {
 
       // No extraneous save; the user wasn't in an error state.
       expect(fake.saveCount, 0);
+    },
+  );
+
+  test(
+    'discardCorruptedAndUseSeed is a no-op while load is still in flight',
+    () async {
+      // Hold the load gate so state stays AsyncLoading. The recovery
+      // helper must NOT race-condition itself into firing before the
+      // load resolves — that would clobber a soon-to-be-good blob.
+      final fake = FakePlanStorage()..loadGate = Completer<void>();
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+
+      // Materialise the notifier so build() begins running.
+      final notifier = c.read(plannerNotifierProvider.notifier);
+      expect(c.read(plannerNotifierProvider).isLoading, isTrue);
+
+      notifier.discardCorruptedAndUseSeed();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(fake.saveCount, 0);
+      expect(c.read(plannerNotifierProvider).isLoading, isTrue);
+
+      // Let the load complete — state must resolve to the seed normally.
+      fake.loadGate!.complete();
+      final resolved = await c.read(plannerNotifierProvider.future);
+      expect(resolved.raceConfig.name, contains('Andalucía'));
     },
   );
 

@@ -116,4 +116,25 @@ void main() {
     final updatedWarnings = c.read(warningsProvider);
     expect(updatedWarnings, isNot(equals(initialWarnings)));
   });
+
+  test('planProvider recomputes after athleteProfile mutation', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+    final initialWarnings = c.read(planProvider).requireValue.warnings;
+
+    // Slamming gut tolerance below the carb target should re-derive the
+    // warnings list — this exercises the engine path that depends on
+    // athleteProfile, not just raceConfig.
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateAthleteProfile((p) => p.copyWith(gutToleranceGPerHr: 30));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      c.read(planProvider).requireValue.warnings,
+      isNot(equals(initialWarnings)),
+    );
+  });
 }
