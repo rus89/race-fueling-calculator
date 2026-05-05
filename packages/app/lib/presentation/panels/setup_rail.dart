@@ -1,6 +1,7 @@
 // ABOUTME: Setup rail — left pane. Race / strategy / inventory / aid-stations.
 // ABOUTME: All inputs route through PlannerNotifier; recompute is automatic.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/domain.dart';
@@ -71,6 +72,7 @@ class _RailBody extends ConsumerWidget {
                 key: const Key('setup.race_name'),
                 value: state.raceConfig.name,
                 labelText: 'Race name',
+                maxLength: 100,
                 onChanged: (v) =>
                     notifier.updateRaceConfig((c) => c.copyWith(name: v)),
               ),
@@ -83,6 +85,7 @@ class _RailBody extends ConsumerWidget {
             BonkFieldShell(
               label: 'Discipline',
               child: BonkSegControl<Discipline>(
+                key: const Key('setup.discipline'),
                 value: state.raceConfig.discipline ?? Discipline.xcm,
                 options: const [
                   (Discipline.xcm, 'MTB XCM'),
@@ -130,9 +133,12 @@ class _DurationRow extends ConsumerWidget {
           SizedBox(
             width: 56,
             child: BonkTextInput(
+              key: const Key('setup.duration_hours'),
               value: '$h',
               monoFont: true,
+              labelText: 'Hours',
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (v) {
                 final newH = int.tryParse(v) ?? h;
                 notifier.updateRaceConfig(
@@ -144,17 +150,22 @@ class _DurationRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Text(
-            'h',
-            style: BonkType.mono(size: 11).copyWith(color: BonkTokens.ink3),
+          ExcludeSemantics(
+            child: Text(
+              'h',
+              style: BonkType.mono(size: 11).copyWith(color: BonkTokens.ink3),
+            ),
           ),
           const SizedBox(width: 8),
           SizedBox(
             width: 56,
             child: BonkTextInput(
+              key: const Key('setup.duration_minutes'),
               value: '$m',
               monoFont: true,
+              labelText: 'Minutes',
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (v) {
                 final newM = int.tryParse(v) ?? m;
                 notifier.updateRaceConfig(
@@ -166,9 +177,11 @@ class _DurationRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 4),
-          Text(
-            'm',
-            style: BonkType.mono(size: 11).copyWith(color: BonkTokens.ink3),
+          ExcludeSemantics(
+            child: Text(
+              'm',
+              style: BonkType.mono(size: 11).copyWith(color: BonkTokens.ink3),
+            ),
           ),
         ],
       ),
@@ -182,30 +195,28 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(plannerNotifierProvider).requireValue;
     final notifier = ref.read(plannerNotifierProvider.notifier);
-    final unit = state.athleteProfile.unitSystem == UnitSystem.imperial
-        ? 'lb'
-        : 'kg';
-    final distUnit = state.athleteProfile.unitSystem == UnitSystem.imperial
-        ? 'mi'
-        : 'km';
+    // PC-UNIT-CONVERSION: hardcoded to canonical SI units until F1 wires real
+    // conversion. Imperial users see 'kg' / 'km' — accurate to the stored
+    // value even if the user's unitSystem preference says otherwise. See
+    // JOURNAL PB-Phase-C for the F1 follow-up.
+    const unit = 'kg';
+    const distUnit = 'km';
     return Row(
       children: [
         Expanded(
           child: BonkFieldShell(
             label: 'Body mass',
-            // PC-UNIT-CONVERSION: bodyWeightKg is canonical kg, but the
-            // adjacent label flips to "lb" when unitSystem == imperial.
-            // The displayed number is not converted, so an imperial user
-            // sees a kg value labelled lb. F1 will add the kg<->lb
-            // conversion when the unit toggle ships.
             child: Row(
               children: [
                 SizedBox(
                   width: 64,
                   child: BonkTextInput(
+                    key: const Key('setup.body_mass'),
                     value: '${state.athleteProfile.bodyWeightKg ?? 70}',
                     monoFont: true,
+                    labelText: 'Body mass',
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (v) {
                       final w = double.tryParse(v);
                       if (w != null && w > 0) {
@@ -217,11 +228,13 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  unit,
-                  style: BonkType.mono(
-                    size: 11,
-                  ).copyWith(color: BonkTokens.ink3),
+                ExcludeSemantics(
+                  child: Text(
+                    unit,
+                    style: BonkType.mono(
+                      size: 11,
+                    ).copyWith(color: BonkTokens.ink3),
+                  ),
                 ),
               ],
             ),
@@ -237,17 +250,21 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
             // input — the previous value is preserved. F1 will introduce
             // an explicit "clear distance" affordance or a sentinel-aware
             // copyWith if product needs the cleared state.
-            // PC-UNIT-CONVERSION: same kg/lb story applies for km/mi here.
             child: Row(
               children: [
                 SizedBox(
                   width: 64,
                   child: BonkTextInput(
+                    key: const Key('setup.distance_km'),
                     value: state.raceConfig.distanceKm == null
                         ? ''
                         : '${state.raceConfig.distanceKm!.round()}',
                     monoFont: true,
+                    labelText: 'Total distance',
                     keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                    ],
                     onChanged: (v) {
                       final km = double.tryParse(v);
                       notifier.updateRaceConfig(
@@ -257,11 +274,13 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  distUnit,
-                  style: BonkType.mono(
-                    size: 11,
-                  ).copyWith(color: BonkTokens.ink3),
+                ExcludeSemantics(
+                  child: Text(
+                    distUnit,
+                    style: BonkType.mono(
+                      size: 11,
+                    ).copyWith(color: BonkTokens.ink3),
+                  ),
                 ),
               ],
             ),
