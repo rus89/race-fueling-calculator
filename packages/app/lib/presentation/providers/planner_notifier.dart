@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/domain.dart';
 import '../../domain/planner_state.dart';
 import 'plan_storage_provider.dart';
+import 'save_status_provider.dart';
 
 class PlannerNotifier extends AsyncNotifier<PlannerState> {
   // Chain saves so they land in mutation order even if individual writes
@@ -59,10 +60,19 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   void _emitForce(PlannerState next) {
     state = AsyncData(next);
     final storage = ref.read(planStorageProvider);
-    _lastSave = _lastSave.then((_) => storage.save(next)).onError((e, st) {
-      // L1 observability: log the failure. L3 (UI surfacing via SaveStatus)
-      // is wired through saveStatusProvider — see save_status_provider.dart.
-      debugPrint('PlanStorage.save failed: $e');
+    final statusCtrl = ref.read(saveStatusProvider.notifier);
+    statusCtrl.markInFlight();
+    _lastSave = _lastSave.then((_) async {
+      try {
+        await storage.save(next);
+        statusCtrl.markSuccess();
+      } catch (e, st) {
+        // L1 observability: log the failure. L3 surfacing flows through
+        // saveStatusProvider so F1 can render a banner.
+        debugPrint('PlanStorage.save failed: $e\n$st');
+        statusCtrl.markFailed();
+        // Do NOT rethrow — the chain stays resolvable for subsequent writes.
+      }
     });
     unawaited(_lastSave);
   }
