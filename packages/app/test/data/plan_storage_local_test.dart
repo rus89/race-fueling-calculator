@@ -1,8 +1,9 @@
-// ABOUTME: Round-trip + corrupted-blob + v1 migration tests for PlanStorageLocal.
+// ABOUTME: Round-trip + corrupt-blob + schema-validation tests for PlanStorageLocal.
 // ABOUTME: Uses SharedPreferences in-memory mock (setMockInitialValues).
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:race_fueling_app/data/plan_storage.dart';
 import 'package:race_fueling_app/data/plan_storage_local.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +15,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('returns null when no value stored', () async {
+  test('returns null when no value stored (empty drive)', () async {
     final storage = PlanStorageLocal();
     expect(await storage.load(), isNull);
   });
@@ -35,25 +36,138 @@ void main() {
     expect(await storage.load(), isNull);
   });
 
-  test('returns null when stored value is not valid JSON', () async {
-    SharedPreferences.setMockInitialValues({
-      'bonk_v1.working_plan': 'not-json',
-    });
-    final storage = PlanStorageLocal();
-    expect(await storage.load(), isNull);
-  });
+  test(
+    'throws PlanStorageException when stored value is not valid JSON',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'bonk_v1.working_plan': 'not-json',
+      });
+      final storage = PlanStorageLocal();
+      await expectLater(
+        storage.load(),
+        throwsA(
+          isA<PlanStorageException>()
+              .having((e) => e.rawBytes, 'rawBytes', 'not-json')
+              .having((e) => e.cause, 'cause', isA<FormatException>()),
+        ),
+      );
+    },
+  );
 
-  test('returns null when stored JSON is not a Map', () async {
+  test('throws PlanStorageException when stored JSON is not a Map', () async {
     SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': '[1,2,3]'});
     final storage = PlanStorageLocal();
-    expect(await storage.load(), isNull);
+    await expectLater(
+      storage.load(),
+      throwsA(
+        isA<PlanStorageException>().having(
+          (e) => e.rawBytes,
+          'rawBytes',
+          '[1,2,3]',
+        ),
+      ),
+    );
   });
 
-  test('returns null when stored Map is missing required keys', () async {
-    SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': '{}'});
-    final storage = PlanStorageLocal();
-    expect(await storage.load(), isNull);
-  });
+  test(
+    'throws PlanStorageException when raceConfig is the wrong shape',
+    () async {
+      // raceConfig is a string — fromJson will fail with TypeError.
+      final blob = jsonEncode({
+        'raceConfig': 'not-a-map',
+        'athleteProfile': PlannerState.seed().athleteProfile.toJson(),
+      });
+      SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': blob});
+      final storage = PlanStorageLocal();
+      await expectLater(
+        storage.load(),
+        throwsA(
+          isA<PlanStorageException>().having(
+            (e) => e.rawBytes,
+            'rawBytes',
+            blob,
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'throws PlanStorageException when stored Map is missing required keys',
+    () async {
+      SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': '{}'});
+      final storage = PlanStorageLocal();
+      await expectLater(storage.load(), throwsA(isA<PlanStorageException>()));
+    },
+  );
+
+  test(
+    'throws PlanStorageException when raceConfig schema_version is missing',
+    () async {
+      final cfg = Map<String, dynamic>.from(
+        PlannerState.seed().raceConfig.toJson(),
+      )..remove('schema_version');
+      final blob = jsonEncode({
+        'raceConfig': cfg,
+        'athleteProfile': PlannerState.seed().athleteProfile.toJson(),
+      });
+      SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': blob});
+      final storage = PlanStorageLocal();
+      await expectLater(
+        storage.load(),
+        throwsA(
+          isA<PlanStorageException>().having(
+            (e) => e.rawBytes,
+            'rawBytes',
+            blob,
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'throws PlanStorageException when raceConfig schema_version is from the future',
+    () async {
+      final cfg = Map<String, dynamic>.from(
+        PlannerState.seed().raceConfig.toJson(),
+      );
+      cfg['schema_version'] = 99;
+      final blob = jsonEncode({
+        'raceConfig': cfg,
+        'athleteProfile': PlannerState.seed().athleteProfile.toJson(),
+      });
+      SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': blob});
+      final storage = PlanStorageLocal();
+      await expectLater(
+        storage.load(),
+        throwsA(
+          isA<PlanStorageException>().having(
+            (e) => e.rawBytes,
+            'rawBytes',
+            blob,
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'throws PlanStorageException when raceConfig schema_version is the wrong type',
+    () async {
+      final cfg = Map<String, dynamic>.from(
+        PlannerState.seed().raceConfig.toJson(),
+      );
+      cfg['schema_version'] = 'two';
+      final blob = jsonEncode({
+        'raceConfig': cfg,
+        'athleteProfile': PlannerState.seed().athleteProfile.toJson(),
+      });
+      SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': blob});
+      final storage = PlanStorageLocal();
+      await expectLater(storage.load(), throwsA(isA<PlanStorageException>()));
+    },
+  );
 
   test('migrates a v1-shaped raceConfig blob through load', () async {
     // Hand-rolled v1 blob — no `discipline`, `selectedProducts` carrying the
