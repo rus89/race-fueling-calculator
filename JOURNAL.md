@@ -852,4 +852,86 @@ These were NOT fixed in Round 2.5 because they need the consumer code to exist. 
 - **PB-A11Y-7** — Print stylesheet (Cmd+P from Flutter Web) burns toner on cream `bg`. Spec §13 lists print/PDF as future. Swap surfaces to white via `@media print` when feature lands.
 - **PB-TEST-4** — Radii (3) and spacing (10) constants untested. Trivial doubles; drift would surface visually on first use. Skip unless a single "spacing scale stable" snapshot test feels worth one line.
 
+## 2026-05-04 — v1.1 Phase B Batch 3 (BonkApp + Riverpod 3.x provider chain)
+
+Tasks B5 (`main.dart` + root `BonkApp` + stub `PlannerPage`) and B7 (Riverpod providers — storage / library / planner notifier / plan / warnings) shipped. 7 implementer commits + 8 Round-3 fix-up commits.
+
+### What shipped (15 net commits, after Round 3.5)
+
+- **B5** — `main.dart` boots `BonkApp` inside `ProviderScope`. `app.dart` constructs the full M3 theme: `ColorScheme.fromSeed(accent).copyWith(primary: ink, onPrimary: bg, outline: ink3, outlineVariant: rule, error: bad, onError: white)` + `GoogleFonts.interTightTextTheme(...)` covering every Material text slot. `PlannerPage` is a single-Text stub for now.
+- **B7** — 5 Riverpod providers: `planStorageProvider`, `productLibraryProvider`, `plannerNotifierProvider` (`AsyncNotifier`), `planProvider`, `warningsProvider`. PlannerNotifier loads from storage with seed fallback, exposes `updateRaceConfig` / `updateAthleteProfile` mutators that emit new state and serialize saves through a chained Future.
+- **Test infra** — `test/app_test.dart` (3 tests: byType render, theme value pinning, textTheme Inter Tight cascade); `test/presentation/providers/planner_notifier_test.dart` (7 tests including pre-build mutator guard, sequential save serialization, AsyncError-on-load, updateAthleteProfile); `test/presentation/providers/plan_provider_test.dart` (6 tests including recompute-after-mutation).
+
+### Riverpod 2.x → 3.x adaptations (verified against `riverpod-3.2.1` source)
+
+Two surgical fixes were required:
+
+- **`asyncState.valueOrNull` → `asyncState.value`.** Riverpod 3.x removed `valueOrNull`; the unified `value` getter returns `T?` and falls through to the previous `AsyncData` payload on error. For our planner this means a transient storage error during refresh would render the stale plan rather than the seed — acceptable given `PlanStorageLocal.load` already swallows recoverable errors to null.
+- **Public `update(PlannerState)` → private `_emit(PlannerState)`.** The plan template defined a public `void update(PlannerState)` method on `PlannerNotifier`. **Correction to the c70cd1e commit body:** the inherited `AsyncClassModifier.update` exists in Riverpod 2.x as well (`Future<T> Function(FutureOr<T> Function(T))`), not just 3.x. The rename was always necessary regardless of major version — the commit body's Riverpod-3-specific framing is wrong. Future readers should not infer a 2.x→3.x API shift from the rename.
+
+### Round 3 review (3 parallel reviewers)
+
+Heaviest round so far. The cascade of seed-derived ColorScheme + silent-error-handling + provider test gaps drove a 9-commit fix-up batch (8 fix-ups + this journal entry).
+
+| Severity | Total | Fixed in Round 3.5 | Deferred (acceptance constraints) | Defer to backlog |
+|---|---:|---:|---:|---:|
+| CRITICAL | 0 | 0 | 0 | 0 |
+| HIGH | 9 | 7 | 2 (silent error UI surfacing → L3 Phase F prereq) | 0 |
+| MEDIUM | 14 | 9 | 1 (FakePlanStorage dedup → 3rd consumer trigger) | 4 |
+| LOW | 8 | 0 | 0 | 8 |
+
+**Test counts:** 73 app tests (was 66; +7 from Round 3.5: serialize, pre-build guard, updateAthleteProfile, AsyncError-on-load, planProvider recompute, warningsProvider re-derive, theme assertions). Core 257 / CLI 279 unchanged.
+
+### Decisions locked in (Milan, post-Round 3)
+
+**Q1 → L1+L2 now; L3 documented as Phase F prerequisite.**
+- L1 (landed): `unawaited(... .onError((e, st) { debugPrint(...); }))` on save. Errors logged.
+- L2 (landed): saves serialized through `_lastSave` Future chain so writes land in mutation order (no out-of-order under Web/IndexedDB).
+- **L3 (DEFERRED — required before F1 wires real UI mutators):** see PB-DATA-1 below.
+
+**Q2 → Yes (theme overhaul landed):** ColorScheme.copyWith now pins primary/onPrimary/outline/outlineVariant/error/onError. textTheme is `GoogleFonts.interTightTextTheme(baseTextTheme).apply(bodyColor: ink, displayColor: ink)` covering every Material slot.
+
+### 🚨 Phase F prerequisite — PB-DATA-1 (L3, must land before F1)
+
+When F1 wires real UI mutators, the following architectural fix MUST land first or race-day silent data loss is a real risk:
+
+1. **`planProvider` preserves `AsyncError`** instead of collapsing to null — change return type from `FuelingPlan?` to `AsyncValue<FuelingPlan>` (or sibling `Provider<Object?> planErrorProvider`).
+2. **`isSeedFallback` flag on `PlannerState`** (or sibling provider) — set when `build()` returns `seed()` because storage load was empty OR errored. Lets F1 distinguish "user customized this" from "we showed sample data because their drive was empty/corrupt."
+3. **`PlannerNotifier._emit` guards against overwriting on error state until user opts in** — if the prior state was `AsyncError`, refuse to save until the user explicitly accepts the seed (via a "Start fresh" button or similar). Without this, the first mutation post-error overwrites the recoverable corrupted blob with the seed, making data permanently unrecoverable.
+4. **F1 surfaces the error state** — banner: "Stored plan could not be read — showing the sample plan. [Try recovery] [Start fresh]" (WCAG 3.3.1 Error Identification).
+
+Round 3 review's combined finding from architecture+UX reviewers — the data layer is currently silently fault-tolerant in ways that will mask real bugs in production. Logging via debugPrint (L1) and write serialization (L2) buy us observability without UI surface; L3 closes the loop.
+
+### Acceptance constraints carried forward (still live)
+
+- **PB-A11Y-1** — Diagnostics rail must encode severity as text label + icon (not color alone). 1 in 12 male users in XCM target audience can't distinguish bad/ok by color.
+- **PB-A11Y-2** — iPad portrait threshold to <768.
+- **PB-A11Y-4** — `textScaler 2.0` widget test in stat grid batch.
+- **PB-UX-5** — First-run UX: F1 decides on sample-plan affordance (paired with L3 above — once `isSeedFallback` exists, F1 can render the banner naturally).
+
+### New Round 3 carry-overs
+
+- **PB-A11Y-8** — `MediaQuery.textScaler` propagation untested at app level. Add a 200% scale test in Batch 3-D when stat grid lands.
+- **PB-A11Y-9** — Topbar a11y prep for F1: M3 IconButton uses `colorScheme.onSurfaceVariant` overlays for focus, NOT `theme.focusColor`. Topbar elements may need explicit per-widget focus styling or a `*ButtonTheme.styleFrom(overlayColor: ink)` set in `ThemeData`.
+- **PB-A11Y-10** — `localizationsDelegates` / `supportedLocales` not configured. Material widgets emit English-only labels (incl. screen-reader announcements). Defer to v1.x; English-first ship is acceptable per spec.
+- **PB-DATA-2** — `FakePlanStorage` duplicated across `planner_notifier_test.dart` and `plan_provider_test.dart` with diverging shape (full vs slim). Lift to `test/test_helpers/fake_plan_storage.dart` when 3rd consumer arrives (likely F1 widget tests) — just-in-time DRY.
+- **PB-ARCH-8** — `warnings_provider` is a one-line selector. Threshold for "earn its own provider" not codified. When F1 lands the diagnostics rail, decide whether to inline `plan?.warnings ?? const []` at the call site and delete this provider.
+- **PB-ARCH-9** — `FuelingPlan?` nullable return on `planProvider` collapses three states (loading, error, ready) into two. Migrate to `AsyncValue<FuelingPlan>` when L3 lands (covered by PB-DATA-1).
+- **PB-ARCH-10** — Riverpod 3.x's `value` getter (replacing 2.x's `valueOrNull`) returns previous `AsyncData` on error. For `plan_provider`, this means a transient storage error renders the stale plan rather than the seed. Documented as a **deliberate** choice — for an auto-saving planner this is the right behavior, but if the contract changes, switch to `asyncState.unwrapPrevious().value`.
+
+### Phase B status
+
+All 8 Phase B tasks shipped:
+- B1 (workspace pubspec) ✓
+- B2 (domain re-exports) ✓
+- B3 (theme tokens) ✓
+- B4 (typography) ✓
+- B5 (BonkApp bootstrap + stub PlannerPage) ✓
+- B6 (PlanStorage + PlanStorageLocal) ✓
+- B7 (Riverpod providers) ✓
+- B8 (BonkBreakpoint) ✓
+
+35 commits ahead of `main`. 73 app tests, 257 core tests, 279 cli tests — all green. `dart analyze` and `flutter analyze` clean. Ready for branch finishing.
+
+
 
