@@ -7,6 +7,19 @@ import '../theme/tokens.dart';
 import '../theme/typography.dart';
 import 'stepper.dart';
 
+/// Short, human-readable label for a [ProductType]. Surfaces the product
+/// kind in mono sublines and as the [Semantics.label] on the kind dot so
+/// screen readers receive the type via text — color alone is decorative.
+extension ProductTypeShortLabel on ProductType {
+  String get shortLabel => switch (this) {
+    ProductType.gel => 'Gel',
+    ProductType.liquid => 'Liquid',
+    ProductType.chew => 'Chew',
+    ProductType.solid => 'Solid',
+    ProductType.realFood => 'Real food',
+  };
+}
+
 class InventoryRow extends StatelessWidget {
   final Product product;
   final int count;
@@ -28,6 +41,7 @@ class InventoryRow extends StatelessWidget {
       product.brand,
       product.name,
     ].where((s) => s != null && s.isNotEmpty).join(' ');
+    final typeLabel = product.type.shortLabel;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -46,7 +60,7 @@ class InventoryRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${product.carbsPerServing.round()}g · $ratio',
+                  '${product.carbsPerServing.round()}g · $ratio · $typeLabel',
                   style: BonkType.mono(
                     size: 11,
                   ).copyWith(color: BonkTokens.ink3),
@@ -79,10 +93,13 @@ class _KindDot extends StatelessWidget {
       ProductType.solid => BonkTokens.ink3,
       ProductType.realFood => BonkTokens.rule,
     };
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    return Semantics(
+      label: type.shortLabel,
+      child: Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
     );
   }
 }

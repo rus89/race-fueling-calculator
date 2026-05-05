@@ -189,12 +189,30 @@ class _RailBody extends ConsumerWidget {
                             )
                             .quantity,
                         onChanged: (n) {
-                          final next = [
-                            for (final s in selections)
-                              if (s.productId != p.id) s,
-                            if (n > 0)
+                          // Preserve existing order on increment / decrement.
+                          // Removing a count zeroes the entry out; adding a
+                          // brand-new one appends.
+                          final List<ProductSelection> next;
+                          if (n == 0) {
+                            next = selections
+                                .where((s) => s.productId != p.id)
+                                .toList();
+                          } else if (selections.any(
+                            (s) => s.productId == p.id,
+                          )) {
+                            next = [
+                              for (final s in selections)
+                                if (s.productId == p.id)
+                                  ProductSelection(productId: p.id, quantity: n)
+                                else
+                                  s,
+                            ];
+                          } else {
+                            next = [
+                              ...selections,
                               ProductSelection(productId: p.id, quantity: n),
-                          ];
+                            ];
+                          }
                           notifier.updateRaceConfig(
                             (c) => c.copyWith(selectedProducts: next),
                           );
