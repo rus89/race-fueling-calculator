@@ -113,8 +113,53 @@ class _RailBody extends ConsumerWidget {
                     notifier.updateRaceConfig((c) => c.copyWith(discipline: d)),
               ),
             ),
-            // Subsequent sections (carb strategy, inventory, aid stations) are
-            // wired up in tasks C3-C5.
+            const Divider(height: 1, color: BonkTokens.rule),
+            const _SectionLabel(label: 'CARB STRATEGY'),
+            BonkFieldShell(
+              label:
+                  'Target intake — ${state.raceConfig.targetCarbsGPerHr.round()} g/hr',
+              child: Slider(
+                min: 30,
+                max: 120,
+                divisions: 18,
+                value: state.raceConfig.targetCarbsGPerHr.clamp(30.0, 120.0),
+                onChanged: (v) => notifier.updateRaceConfig(
+                  (c) => c.copyWith(targetCarbsGPerHr: v),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            BonkFieldShell(
+              label:
+                  'Gut-trained ceiling — ${state.athleteProfile.gutToleranceGPerHr.round()} g/hr',
+              child: Slider(
+                min: 30,
+                max: 120,
+                divisions: 18,
+                value: state.athleteProfile.gutToleranceGPerHr.clamp(
+                  30.0,
+                  120.0,
+                ),
+                activeColor: BonkTokens.ink3,
+                onChanged: (v) => notifier.updateAthleteProfile(
+                  (p) => p.copyWith(gutToleranceGPerHr: v),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            BonkFieldShell(
+              label: 'Distribution',
+              child: BonkSegControl<Strategy>(
+                value: state.raceConfig.strategy,
+                options: const [
+                  (Strategy.frontLoad, 'Front-load'),
+                  (Strategy.steady, 'Steady'),
+                  (Strategy.backLoad, 'Back-load'),
+                ],
+                onChanged: (s) =>
+                    notifier.updateRaceConfig((c) => c.copyWith(strategy: s)),
+              ),
+            ),
           ],
         ),
       ),

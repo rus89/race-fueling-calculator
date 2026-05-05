@@ -176,4 +176,51 @@ void main() {
     await tester.pump();
     expect(find.text('External Change'), findsOneWidget);
   });
+
+  testWidgets('target slider live label updates as drag changes value', (
+    tester,
+  ) async {
+    await _pump(tester);
+    expect(find.textContaining('Target intake — 80 g/hr'), findsOneWidget);
+  });
+
+  testWidgets('distribution segmented control renders three options', (
+    tester,
+  ) async {
+    await _pumpTall(tester);
+    expect(find.text('Front-load'), findsOneWidget);
+    expect(find.text('Steady'), findsOneWidget);
+    expect(find.text('Back-load'), findsOneWidget);
+  });
+
+  testWidgets('changing target slider updates state', (tester) async {
+    final c = await _pumpTall(tester);
+    final targetSlider = find.byType(Slider).first;
+    await tester.drag(targetSlider, const Offset(40, 0));
+    await tester.pump();
+    expect(
+      c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
+      isNot(equals(80.0)),
+    );
+  });
+
+  testWidgets('tapping Front-load distribution updates strategy', (
+    tester,
+  ) async {
+    final c = await _pumpTall(tester);
+    await tester.tap(find.text('Front-load'));
+    await tester.pump();
+    expect(
+      c.read(plannerNotifierProvider).requireValue.raceConfig.strategy,
+      Strategy.frontLoad,
+    );
+  });
+}
+
+/// Pumps the rail under a 360x2400 surface so all sections (carb strategy,
+/// inventory, aid stations) lay out without scrolling and tap targets resolve.
+Future<ProviderContainer> _pumpTall(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(360, 2400));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  return _pump(tester);
 }
