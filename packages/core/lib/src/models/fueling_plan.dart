@@ -122,6 +122,10 @@ class PlanSummary extends Equatable {
   final double averageGPerHr;
   final double totalCaffeineMg;
   final double glucoseFructoseRatio;
+  @JsonKey(defaultValue: 0.0)
+  final double totalGlucose;
+  @JsonKey(defaultValue: 0.0)
+  final double totalFructose;
   final double totalWaterMl;
   final List<String> environmentalNotes;
 
@@ -131,8 +135,15 @@ class PlanSummary extends Equatable {
     required this.totalCaffeineMg,
     required this.glucoseFructoseRatio,
     required this.totalWaterMl,
+    this.totalGlucose = 0.0,
+    this.totalFructose = 0.0,
     this.environmentalNotes = const [],
   });
+
+  /// glucose / fructose. Inverse of [glucoseFructoseRatio]. Returns 0.0 when
+  /// fructose is 0 to keep the math safe and let UIs render an em-dash.
+  double get glucoseToFructoseRatio =>
+      totalFructose <= 0 ? 0.0 : totalGlucose / totalFructose;
 
   factory PlanSummary.fromJson(Map<String, dynamic> json) =>
       _$PlanSummaryFromJson(json);
@@ -145,6 +156,8 @@ class PlanSummary extends Equatable {
     averageGPerHr,
     totalCaffeineMg,
     glucoseFructoseRatio,
+    totalGlucose,
+    totalFructose,
     totalWaterMl,
     environmentalNotes,
   ];

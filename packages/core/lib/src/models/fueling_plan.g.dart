@@ -64,6 +64,8 @@ PlanSummary _$PlanSummaryFromJson(Map<String, dynamic> json) => PlanSummary(
   totalCaffeineMg: (json['totalCaffeineMg'] as num).toDouble(),
   glucoseFructoseRatio: (json['glucoseFructoseRatio'] as num).toDouble(),
   totalWaterMl: (json['totalWaterMl'] as num).toDouble(),
+  totalGlucose: (json['totalGlucose'] as num?)?.toDouble() ?? 0.0,
+  totalFructose: (json['totalFructose'] as num?)?.toDouble() ?? 0.0,
   environmentalNotes:
       (json['environmentalNotes'] as List<dynamic>?)
           ?.map((e) => e as String)
@@ -77,6 +79,8 @@ Map<String, dynamic> _$PlanSummaryToJson(PlanSummary instance) =>
       'averageGPerHr': instance.averageGPerHr,
       'totalCaffeineMg': instance.totalCaffeineMg,
       'glucoseFructoseRatio': instance.glucoseFructoseRatio,
+      'totalGlucose': instance.totalGlucose,
+      'totalFructose': instance.totalFructose,
       'totalWaterMl': instance.totalWaterMl,
       'environmentalNotes': instance.environmentalNotes,
     };

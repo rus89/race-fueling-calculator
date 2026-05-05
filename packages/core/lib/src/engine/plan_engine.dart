@@ -138,6 +138,8 @@ FuelingPlan generatePlan(
     averageGPerHr: hours > 0 ? totalCarbs / hours : 0,
     totalCaffeineMg: totalCaffeine,
     glucoseFructoseRatio: totalGlucose > 0 ? totalFructose / totalGlucose : 0,
+    totalGlucose: totalGlucose,
+    totalFructose: totalFructose,
     totalWaterMl: totalWater,
     environmentalNotes: adjustments.advisories,
   );

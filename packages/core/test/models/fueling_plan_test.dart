@@ -241,6 +241,51 @@ void main() {
       );
       expect(summary.averageGPerHr, 66.7);
     });
+
+    test('glucoseToFructoseRatio returns 0 when fructose is 0', () {
+      final summary = PlanSummary(
+        totalCarbs: 100.0,
+        averageGPerHr: 50.0,
+        totalCaffeineMg: 0.0,
+        glucoseFructoseRatio: 0.0,
+        totalGlucose: 100.0,
+        totalFructose: 0.0,
+        totalWaterMl: 0.0,
+      );
+      expect(summary.glucoseToFructoseRatio, 0.0);
+    });
+
+    test(
+      'glucoseToFructoseRatio returns glucose / fructose for valid case',
+      () {
+        final summary = PlanSummary(
+          totalCarbs: 100.0,
+          averageGPerHr: 50.0,
+          totalCaffeineMg: 0.0,
+          glucoseFructoseRatio: 0.5,
+          totalGlucose: 60.0,
+          totalFructose: 40.0,
+          totalWaterMl: 0.0,
+        );
+        expect(summary.glucoseToFructoseRatio, closeTo(1.5, 1e-9));
+      },
+    );
+
+    test('glucoseToFructoseRatio is the inverse of glucoseFructoseRatio', () {
+      final summary = PlanSummary(
+        totalCarbs: 100.0,
+        averageGPerHr: 50.0,
+        totalCaffeineMg: 0.0,
+        glucoseFructoseRatio: 40.0 / 60.0,
+        totalGlucose: 60.0,
+        totalFructose: 40.0,
+        totalWaterMl: 0.0,
+      );
+      expect(
+        summary.glucoseToFructoseRatio * summary.glucoseFructoseRatio,
+        closeTo(1.0, 1e-9),
+      );
+    });
   });
 
   final testConfig = RaceConfig(
