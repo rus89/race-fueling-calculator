@@ -171,12 +171,16 @@ Flutter app via the `core.dart` barrel.
 ## Flutter app (in progress)
 
 `packages/app` hosts the Bonk Race Fueling Planner — a Material 3 web
-app that consumes the same engine. As of v1.1 Phase B the scaffolding
-is shipped: design tokens, typography (Inter Tight + JetBrains Mono),
-responsive breakpoints, `shared_preferences`-backed plan storage,
-Riverpod 3.x provider chain, `BonkApp` bootstrap with full theme. The
-actual UI (setup rail, plan canvas, diagnostics rail) lands in Phases
-C–F. Run the current state in a browser:
+app that consumes the same engine. v1.1 Phase B shipped the
+scaffolding (design tokens, typography, breakpoints, storage, Riverpod
+provider chain, MaterialApp bootstrap). v1.1 Phase C shipped the
+**Setup rail** — race / carb-strategy / inventory / aid-stations input
+sections — plus four reusable widgets (`BonkTextInput`,
+`BonkSegControl`, `BonkStepper`, `BonkFieldShell`). Phase D (plan
+canvas), Phase E (diagnostics rail), and Phase F (three-pane assembly)
+are pending — until F1 lands, the SetupRail is fully built and tested
+but not yet wired into `PlannerPage`. Run the current state in a
+browser:
 
 ```bash
 cd packages/app
@@ -186,7 +190,7 @@ flutter run -d chrome
 
 You should see a cream background with `Bonk planner — coming online…`
 centered in Inter Tight ink. That's the stub `PlannerPage` waiting for
-Phase C.
+Phase F.
 
 ## Project structure
 
@@ -220,10 +224,14 @@ race-fueling-calculator/
 │       │   ├── data/               # PlanStorage + PlanStorageLocal
 │       │   └── presentation/
 │       │       ├── theme/          # tokens, typography, breakpoints
-│       │       ├── pages/          # PlannerPage (stub)
+│       │       ├── widgets/        # BonkSegControl, BonkStepper,
+│       │       │                   # BonkFieldShell, BonkTextInput,
+│       │       │                   # InventoryRow, AidStationRow
+│       │       ├── panels/         # SetupRail (composes the above)
+│       │       ├── pages/          # PlannerPage (stub until F1)
 │       │       └── providers/      # Riverpod 3.x chain
 │       ├── test/
-│       │   └── test_helpers/       # google_fonts_setup
+│       │   └── test_helpers/       # google_fonts_setup, fake_plan_storage
 │       └── web/                    # index.html, manifest, icons
 ├── docs/superpowers/
 │   ├── plans/v1.md                                  # v1.0 plan
@@ -246,7 +254,7 @@ cd packages/app && flutter analyze          # Flutter-specific (separate analyze
 # Run all tests
 cd packages/core && dart test               # 257 tests
 cd packages/cli  && dart test               # 279 tests
-cd packages/app  && flutter test            # 73 tests
+cd packages/app  && flutter test            # 135 tests
 
 # Single test file
 dart test test/engine/timeline_builder_test.dart
@@ -278,11 +286,14 @@ migration regression is recoverable.
 
 Semantic versioning. The current release is **v1.1.0-rc.1** (engine RC,
 tagged on the version-bump commit). The full v1.1.0 ships when the
-Flutter app (Phases B–F) lands. **Phase B (scaffolding) is complete**
-on `feat/v1.1-phase-b-scaffolding` (`packages/app` 0.1.0 — tokens,
-typography, breakpoints, storage, Riverpod chain, BonkApp bootstrap).
-Phases C–F (Setup rail, plan canvas, diagnostics rail, assembly) are
-pending.
+Flutter app (Phases B–F) lands.
+
+- **Phase B (scaffolding)** — complete (`packages/app` 0.1.0; tokens,
+  typography, breakpoints, storage, Riverpod chain, BonkApp bootstrap).
+- **Phase C (Setup rail)** — complete (4 reusable widgets +
+  `SetupRail` panel with race / carb-strategy / inventory /
+  aid-stations sections; 135 widget/unit tests).
+- **Phases D–F (Plan canvas + Diagnostics rail + Assembly)** — pending.
 
 Known limitations (tracked in `JOURNAL.md`):
 
