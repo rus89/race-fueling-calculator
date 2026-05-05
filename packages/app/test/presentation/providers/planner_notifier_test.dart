@@ -203,4 +203,38 @@ void main() {
     // No extraneous save; the user wasn't in an error state.
     expect(fake.saveCount, 0);
   });
+
+  test(
+    'retryLoad transitions AsyncError to AsyncData once storage recovers',
+    () async {
+      final fake = FakePlanStorage()..loadError = StateError('boom');
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+
+      await c
+          .read(plannerNotifierProvider.future)
+          .then<Object?>((s) => null, onError: (Object e) => e);
+      expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+      // Storage recovers (e.g., user fixed permissions, switched browsers, etc.)
+      fake.loadError = null;
+      await c.read(plannerNotifierProvider.notifier).retryLoad();
+
+      expect(c.read(plannerNotifierProvider).hasValue, isTrue);
+      expect(c.read(plannerNotifierProvider).hasError, isFalse);
+    },
+  );
+
+  test('retryLoad is a no-op when state is AsyncData', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+    final beforeSaves = fake.saveCount;
+
+    await c.read(plannerNotifierProvider.notifier).retryLoad();
+
+    expect(fake.saveCount, beforeSaves);
+    expect(c.read(plannerNotifierProvider).hasValue, isTrue);
+  });
 }
