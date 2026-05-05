@@ -68,8 +68,8 @@ void main() {
     await tester.pumpAndSettle();
     // PB-DATA-1: the panel surfaces the error rather than silently
     // showing seed data. F1 will replace this with the recovery banner;
-    // for now, a textual fallback proves planProvider's AsyncError reaches
+    // for now, a static fallback proves planProvider's AsyncError reaches
     // the consumer.
-    expect(find.textContaining('Plan unavailable'), findsOneWidget);
+    expect(find.text('Plan unavailable. Please reload.'), findsOneWidget);
   });
 }

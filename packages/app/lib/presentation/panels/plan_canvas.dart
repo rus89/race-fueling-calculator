@@ -75,13 +75,31 @@ class _ErrorFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // TODO(F1-ERROR-COPY): F1 will surface typed error bucketing per
+    // PB-DATA-1 hand-off. For now the underlying error reaches devs via
+    // debugPrint while users see a static, screen-reader-friendly copy.
+    debugPrint('PlanCanvas error: $error');
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          'Plan unavailable — $error',
-          style: BonkType.sans(size: 14).copyWith(color: BonkTokens.bad),
-          textAlign: TextAlign.center,
+      child: Semantics(
+        liveRegion: true,
+        container: true,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 4, height: 32, color: BonkTokens.bad),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Plan unavailable. Please reload.',
+                  style: BonkType.sans(
+                    size: 14,
+                  ).copyWith(color: BonkTokens.ink),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
