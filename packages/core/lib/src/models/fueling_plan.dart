@@ -14,10 +14,17 @@ class ProductServing extends Equatable {
   final String productName;
   final int servings;
 
+  /// Marks the synthetic entry the allocator emits when a sip-bottle drink
+  /// starts. UIs use this to render a "drink start" affordance without
+  /// string-matching the product name.
+  @JsonKey(defaultValue: false)
+  final bool isDrinkStart;
+
   const ProductServing({
     required this.productId,
     required this.productName,
     required this.servings,
+    this.isDrinkStart = false,
   });
 
   factory ProductServing.fromJson(Map<String, dynamic> json) =>
@@ -25,8 +32,20 @@ class ProductServing extends Equatable {
 
   Map<String, dynamic> toJson() => _$ProductServingToJson(this);
 
+  ProductServing copyWith({
+    String? productId,
+    String? productName,
+    int? servings,
+    bool? isDrinkStart,
+  }) => ProductServing(
+    productId: productId ?? this.productId,
+    productName: productName ?? this.productName,
+    servings: servings ?? this.servings,
+    isDrinkStart: isDrinkStart ?? this.isDrinkStart,
+  );
+
   @override
-  List<Object?> get props => [productId, productName, servings];
+  List<Object?> get props => [productId, productName, servings, isDrinkStart];
 }
 
 @JsonSerializable(explicitToJson: true)

@@ -11,6 +11,7 @@ ProductServing _$ProductServingFromJson(Map<String, dynamic> json) =>
       productId: json['productId'] as String,
       productName: json['productName'] as String,
       servings: (json['servings'] as num).toInt(),
+      isDrinkStart: json['isDrinkStart'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ProductServingToJson(ProductServing instance) =>
@@ -18,6 +19,7 @@ Map<String, dynamic> _$ProductServingToJson(ProductServing instance) =>
       'productId': instance.productId,
       'productName': instance.productName,
       'servings': instance.servings,
+      'isDrinkStart': instance.isDrinkStart,
     };
 
 PlanEntry _$PlanEntryFromJson(Map<String, dynamic> json) => PlanEntry(

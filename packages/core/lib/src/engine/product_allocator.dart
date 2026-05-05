@@ -213,6 +213,7 @@ AllocationResult allocateProducts({
               productId: p.id,
               productName: '${p.name} (sip start)',
               servings: 1,
+              isDrinkStart: true,
             ),
           );
           lastContribSlot[p.id] = i;

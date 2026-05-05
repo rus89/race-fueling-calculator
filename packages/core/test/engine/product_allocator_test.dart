@@ -73,6 +73,26 @@ void main() {
       }
     });
 
+    test('synthetic drink-start serving carries isDrinkStart = true', () {
+      final drink = _drink(sip: 60, carbs: 80);
+      final result = allocateProducts(
+        slots: _slots(18),
+        targetCarbsPerSlot: _evenTargets(18, 80),
+        products: [drink],
+        selections: [ProductSelection(productId: drink.id, quantity: 1)],
+        aidStations: [],
+        stepMin: _stepMin,
+      );
+      final drinkStartServings = result.entries
+          .expand((e) => e.products)
+          .where((p) => p.productId == drink.id && p.isDrinkStart)
+          .toList();
+      expect(drinkStartServings, isNotEmpty);
+      for (final s in drinkStartServings) {
+        expect(s.productName, contains('(sip start)'));
+      }
+    });
+
     test('drink does NOT start when target rate is below 30 g/hr threshold', () {
       // target = 20 g/hr × 0.25 hr/slot = 5 g/slot. unmetPerHr = 5 / 0.25 = 20.
       // 20 < 30 → drink-start guard skips; effectiveDrinkCarbs stays 0
