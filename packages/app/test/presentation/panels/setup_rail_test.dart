@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:race_fueling_app/domain/domain.dart';
+import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/setup_rail.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
 import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
@@ -177,7 +178,7 @@ void main() {
     expect(find.text('External Change'), findsOneWidget);
   });
 
-  testWidgets('target slider live label updates as drag changes value', (
+  testWidgets('target slider initial label shows current value', (
     tester,
   ) async {
     await _pump(tester);
@@ -193,14 +194,33 @@ void main() {
     expect(find.text('Back-load'), findsOneWidget);
   });
 
-  testWidgets('changing target slider updates state', (tester) async {
+  testWidgets('target slider drag rightward increases the stored value', (
+    tester,
+  ) async {
     final c = await _pumpTall(tester);
     final targetSlider = find.byType(Slider).first;
     await tester.drag(targetSlider, const Offset(40, 0));
     await tester.pump();
     expect(
       c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
-      isNot(equals(80.0)),
+      greaterThan(80.0),
+    );
+  });
+
+  testWidgets('gut-tolerance slider drag updates athleteProfile', (
+    tester,
+  ) async {
+    final c = await _pumpTall(tester);
+    final gutSlider = find.byType(Slider).at(1);
+    await tester.drag(gutSlider, const Offset(40, 0));
+    await tester.pump();
+    expect(
+      c
+          .read(plannerNotifierProvider)
+          .requireValue
+          .athleteProfile
+          .gutToleranceGPerHr,
+      greaterThan(75.0),
     );
   });
 
@@ -238,12 +258,52 @@ void main() {
         .quantity;
     expect(updatedCount, 5);
   });
+
+  testWidgets('+ Add aid station appends a station at duration / 2', (
+    tester,
+  ) async {
+    final c = await _pumpTall(tester);
+    final originalCount = c
+        .read(plannerNotifierProvider)
+        .requireValue
+        .raceConfig
+        .aidStations
+        .length;
+    final addButton = find.text('+ Add aid station');
+    await tester.ensureVisible(addButton);
+    await tester.pump();
+    await tester.tap(addButton);
+    await tester.pump();
+    final stations = c
+        .read(plannerNotifierProvider)
+        .requireValue
+        .raceConfig
+        .aidStations;
+    expect(stations.length, originalCount + 1);
+    // Seed duration is 4h30m = 270 min, so half is 135.
+    expect(stations.last.timeMinutes, 135);
+  });
+
+  testWidgets('empty aid stations list renders the carrying-everything copy', (
+    tester,
+  ) async {
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        raceConfig: seed.raceConfig.copyWith(aidStations: const []),
+      );
+    await _pumpTall(tester, storage: fake);
+    expect(find.textContaining('carrying everything'), findsOneWidget);
+  });
 }
 
 /// Pumps the rail under a 360x2400 surface so all sections (carb strategy,
 /// inventory, aid stations) lay out without scrolling and tap targets resolve.
-Future<ProviderContainer> _pumpTall(WidgetTester tester) async {
+Future<ProviderContainer> _pumpTall(
+  WidgetTester tester, {
+  FakePlanStorage? storage,
+}) async {
   await tester.binding.setSurfaceSize(const Size(360, 2400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
-  return _pump(tester);
+  return _pump(tester, storage: storage);
 }
