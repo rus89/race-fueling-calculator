@@ -91,4 +91,85 @@ void main() {
     );
     expect(find.textContaining('sipping bottle'), findsOneWidget);
   });
+
+  testWidgets('sip-bottle line is hidden when entry has an isDrinkStart '
+      'product (allocator already emitted the start)', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TimelineRow(
+            entry: PlanEntry(
+              timeMark: Duration(minutes: 30),
+              products: [
+                ProductServing(
+                  productId: 'mix-1',
+                  productName: 'Maurten Mix (sip start)',
+                  servings: 1,
+                  isDrinkStart: true,
+                ),
+              ],
+              carbsGlucose: 7,
+              carbsFructose: 6,
+              carbsTotal: 13,
+              cumulativeCarbs: 26,
+              cumulativeCaffeine: 0,
+              waterMl: 125,
+              effectiveDrinkCarbs: 13,
+            ),
+            targetG: 20,
+            peakG: 25,
+            productsById: {},
+          ),
+        ),
+      ),
+    );
+    expect(find.textContaining('sipping bottle'), findsNothing);
+  });
+
+  testWidgets(
+    'renders normally when products contain only non-drink-start items',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TimelineRow(
+              entry: const PlanEntry(
+                timeMark: Duration(minutes: 30),
+                products: [
+                  ProductServing(
+                    productId: 'gel-1',
+                    productName: 'Maurten Gel 100',
+                    servings: 1,
+                  ),
+                ],
+                carbsGlucose: 16,
+                carbsFructose: 9,
+                carbsTotal: 25,
+                cumulativeCarbs: 25,
+                cumulativeCaffeine: 0,
+                waterMl: 0,
+              ),
+              targetG: 20,
+              peakG: 25,
+              productsById: {
+                'gel-1': Product(
+                  id: 'gel-1',
+                  name: 'Maurten Gel 100',
+                  brand: 'Maurten',
+                  type: ProductType.gel,
+                  carbsPerServing: 25,
+                  glucoseGrams: 16,
+                  fructoseGrams: 9,
+                  caffeineMg: 0,
+                  waterRequiredMl: 100,
+                ),
+              },
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Maurten Gel 100'), findsOneWidget);
+      expect(find.textContaining('sipping bottle'), findsNothing);
+    },
+  );
 }

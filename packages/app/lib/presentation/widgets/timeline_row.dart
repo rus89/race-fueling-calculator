@@ -37,14 +37,10 @@ class TimelineRow extends StatelessWidget {
     final stepCarbs = entry.carbsTotal;
     final pct = peakG > 0 ? (stepCarbs / peakG).clamp(0.0, 1.0) : 0.0;
     final targetPct = peakG > 0 ? (targetG / peakG).clamp(0.0, 1.0) : 0.0;
-    final hasNonDrinkItems = entry.products.any(
-      (s) => !(s.productName).toLowerCase().contains('sip start'),
-    );
+    final hasNonDrinkItems = entry.products.any((s) => !s.isDrinkStart);
     final hasSipping =
         entry.effectiveDrinkCarbs > 0 &&
-        !entry.products.any(
-          (s) => s.productName.toLowerCase().contains('sip start'),
-        );
+        !entry.products.any((s) => s.isDrinkStart);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
