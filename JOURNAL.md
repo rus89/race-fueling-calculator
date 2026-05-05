@@ -989,6 +989,73 @@ Heaviest a11y round so far. Three CRITICAL WCAG Level A failures all caught befo
 - Plan template at line 3125 used `BonkType.fieldLabel()` (method-call form). Phase B Round 2 refactored to `static final` field. Implementer correctly used `BonkType.fieldLabel`. Test now locks the static-final reference via fontSize + color assertions.
 - Plan template at line 3010 had a tautological selection assertion (`expect(selected, isNotNull)`). Replaced with structural assertion against `BoxDecoration.color == BonkTokens.ink`.
 
+## 2026-05-05 — v1.1 Phase C Batch 2 (C2: SetupRail + race section)
+
+The Setup rail's first user-facing surface — race name, duration, body mass, total distance, discipline. 7 net commits after Round 2 fix-ups (1 baseline + 6 fix-ups).
+
+### What shipped
+
+- **SetupRail** — `ConsumerWidget` rendering the seed-loaded `PlannerState` via `asyncState.when(loading, error, data)`. Loading state announced via `Semantics(liveRegion, label: 'Loading planner')`. Error state has a stub message + `// PC-ERROR-UI` breadcrumb pointing to PB-DATA-1's F1 deliverable.
+- **Race section** — race name input, duration (h/m), body mass + total distance row, discipline seg control. Each input wired through `notifier.updateRaceConfig` / `notifier.updateAthleteProfile`. Discipline default falls back to `Discipline.xcm` (handles PB-CORE-1 carry-over).
+- **`BonkTextInput`** (promoted from private `_BonkTextInput` per Q3=yes) — public widget under `lib/presentation/widgets/text_input.dart` with cursor-preserving `didUpdateWidget`, `labelText` (accessible name), `maxLength`, `inputFormatters`. Material-3-friendly defaults: `enabledBorder` at `ink3` (3:1 contrast on bg), `focusedBorder` at `ink` width 2.0, `vertical: 12` content padding (~44pt field height).
+- **Row leaves are `ConsumerWidget`s** — `_DurationRow` and `_BodyMassAndDistanceRow` pull state via `ref.watch` instead of receiving `notifier`/`state` props. No prop drilling for downstream sections.
+- **Test infra** — `FakePlanStorage` lifted to `test/test_helpers/fake_plan_storage.dart` (PB-DATA-2 closed at 4th consumer). New `_pump` helper returns a `ProviderContainer` so widget tests can read state directly: `c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm`.
+
+### Round 2 review (3 parallel reviewers)
+
+Heaviest round so far. **Two CRITICAL runtime bugs** were originally flagged as `PC-*` TODO comments but the a11y reviewer correctly noted "a comment is not a guard." Plus 8 HIGH a11y/test gaps.
+
+| Severity | Total | Fixed in Round 2.5 | Deferred |
+|---|---:|---:|---:|
+| CRITICAL | 2 | 2 (PC-UNIT-CONVERSION display guard + PC-PRESERVE-DIST behavior lock) | 0 |
+| HIGH | 12 | 10 | 2 (race-name maxLength carry-over to other text inputs; full keyboard-tab-order test deferred to F1 assembly) |
+| MEDIUM | 11 | 7 | 4 (`_RailBody` could be ConsumerWidget too; file-split decision; abbreviation tooltips; F1 `errorBorder`) |
+| LOW | 13 | 6 | 7 |
+
+**Test counts:** 110 app tests (was 97; +13 from Round 2.5 — 4 BonkTextInput tests, 9 setup_rail expansion). Core 257 / CLI 279 unchanged.
+
+### Decisions locked in (Milan, post-Round 2)
+
+**Q1 → A (hardcode unit display).** PC-UNIT-CONVERSION runtime safety bug: imperial user entering "150 lb" produces a fueling plan calibrated for 150 kg → off by ~2.2× (race-day risk). Until F1 wires real unit conversion, **the displayed unit labels are hardcoded to "kg" and "km" regardless of `unitSystem`**. Imperial users see "kg" — display is wrong for them but the value-vs-label is now consistent. Locked by test `'PC-UNIT-CONVERSION: unit labels are hardcoded kg/km regardless of unitSystem'`.
+
+**Q2 → A (lock current behavior).** PC-PRESERVE-DIST: empty distance input is a no-op (`RaceConfig.copyWith(distanceKm: null)` falls through `??` to `this.distanceKm`). User cannot clear distance via input; "Backspace appears broken." Until F1 lands a sentinel-aware `copyWith` or an explicit Clear button, **the bug remains but is locked by test** `'PC-PRESERVE-DIST: empty distance input preserves prior value'`. The test's `reason:` field documents the bug for F1 to intentionally flip.
+
+**Q3 → Yes (promote `_BonkTextInput`).** Now `BonkTextInput` under `lib/presentation/widgets/text_input.dart`. C3-C5 reuse without copy-paste.
+
+**Q4 → No (defer file split).** `setup_rail.dart` stays as one file until C3 lands the second section and motivates a per-section directory. Deferred per "smallest reasonable changes."
+
+### New conventions established for Phase C
+
+- **PC-* breadcrumb pattern** for documented-but-deferred runtime concerns. Tests pin the documented behavior so F1 can intentionally flip. Active breadcrumbs: `PC-RESPONSIVE` (320px hardcoded width), `PC-UNIT-CONVERSION` (display hardcoded kg/km), `PC-PRESERVE-DIST` (empty distance no-op), `PC-ERROR-UI` (stub error stub awaiting PB-DATA-1).
+- **`UncontrolledProviderScope` + `_pump` returning `ProviderContainer`** for widget tests that need to read state directly. Pattern: `final c = await _pump(tester); ...; expect(c.read(plannerNotifierProvider).requireValue.<...>, expected);`. Lets tests assert wiring contracts instead of just rendered output.
+- **`InputDecoration.labelText`** is the canonical accessible name for `TextField`. Avoids implementation-undefined `Semantics(container, label)` ancestor merging across SR engines (VoiceOver / TalkBack / NVDA).
+- **`inputFormatters: [FilteringTextInputFormatter.digitsOnly]`** on integer inputs (h, m, body mass) and `RegExp(r'^\d*\.?\d*')` on decimal inputs (distance). Filters at the source — no display flicker, no silent revert.
+- **`Key('setup.<field_name>')`** addressing convention for setup-rail inputs. Lets tests use `find.byKey(...)` instead of brittle `find.text(...)`.
+- **`ExcludeSemantics` on inline unit Text widgets** (h, m, kg, km). Each TextField now carries its full accessible name via `labelText`; the inline unit is decorative.
+- **`liveRegion: true` on loading/error states** — screen reader announces transitions.
+- **Cursor-preserving `_ctrl.value = TextEditingValue(...)` instead of `_ctrl.text = ...`**. Default `controller.text =` setter resets cursor to position 0; preserving via clamped `TextSelection` matches the user's typing flow.
+
+### Closed carry-overs
+
+- **PB-DATA-2** — `FakePlanStorage` was duplicated across two test files; this batch lifted it to `test_helpers/fake_plan_storage.dart` (4th consumer trigger reached: setup_rail_test joined planner_notifier_test + plan_provider_test).
+
+### Active carry-overs (still live)
+
+- **PC-RESPONSIVE** — 320px hardcoded width. F1 wires `BonkBreakpoint.setupRailWidth`.
+- **PC-PRESERVE-DIST** — empty distance preserves prior value. F1 fixes via sentinel-aware copyWith or Clear button.
+- **PC-UNIT-CONVERSION** — labels hardcoded kg/km until F1 wires real unit conversion.
+- **PC-ERROR-UI** — stub error message awaiting PB-DATA-1's F1 actionable banner with [Try recovery] [Start fresh].
+- **PB-A11Y-4** — fixed-pixel input widths (56/64) at risk under 200% text scaling. Carry-over to D2 stat grid widget test.
+- **PB-A11Y-1, PB-A11Y-2, PB-UX-5** — earlier Phase B carry-overs unchanged.
+
+### Plan-vs-reality drift caught (and fixed)
+
+- **`BonkType.<role>()` → `BonkType.<role>`** — 4 callsites in plan template lines 3338-3395 used the deprecated method-call form. All fixed.
+- **Cursor reset on `_ctrl.text = widget.value`** — plan template at lines 3423-3425 had this pattern. Fixed in promoted `BonkTextInput` to use `_ctrl.value = TextEditingValue(text:, selection:)` with clamped selection preservation.
+- **Notifier prop drilling** — plan had `_DurationRow` and `_BodyMassAndDistanceRow` taking `notifier: PlannerNotifier`. Refactored to `ConsumerWidget` reading via `ref.read(plannerNotifierProvider.notifier)` at the leaf.
+- **`BonkType.sectionLabel()` (and railEyebrow/railTitle/railSub)** — plan template at line 3395 used method form; converted to field form.
+
+
 
 
 
