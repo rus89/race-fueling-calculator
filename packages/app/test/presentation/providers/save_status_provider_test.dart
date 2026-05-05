@@ -1,5 +1,7 @@
 // ABOUTME: Tests for saveStatusProvider — sticky-until-success failure semantics.
 // ABOUTME: Drives status transitions through PlannerNotifier mutations.
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
@@ -138,4 +140,83 @@ void main() {
       expect(fake.lastSaved!.raceConfig.targetCarbsGPerHr, 100);
     },
   );
+
+  test('two queued saves: status stays inFlight until both complete', () {
+    // Direct controller test: pending counter must keep state at inFlight
+    // while two save lifecycles are open, and only flip to idle once both
+    // have ended successfully.
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final ctrl = c.read(saveStatusProvider.notifier);
+
+    ctrl.beginSave();
+    ctrl.beginSave();
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+    expect(ctrl.pendingCount, 2);
+
+    ctrl.endSaveSuccess();
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+    expect(ctrl.pendingCount, 1);
+
+    ctrl.endSaveSuccess();
+    expect(c.read(saveStatusProvider), SaveStatus.idle);
+    expect(ctrl.pendingCount, 0);
+  });
+
+  test('failed status while another save is still in flight', () {
+    // A fails mid-chain, B is still pending. Surface "failed" immediately —
+    // a known broken save outranks "still saving" as the user-facing signal.
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final ctrl = c.read(saveStatusProvider.notifier);
+
+    ctrl.beginSave();
+    ctrl.beginSave();
+    ctrl.endSaveFailure();
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+    expect(ctrl.pendingCount, 1);
+
+    // B then succeeds → chain drains, status returns to idle (last outcome wins).
+    ctrl.endSaveSuccess();
+    expect(c.read(saveStatusProvider), SaveStatus.idle);
+    expect(ctrl.pendingCount, 0);
+  });
+
+  test('in-flight counter is decremented on completion', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final ctrl = c.read(saveStatusProvider.notifier);
+
+    ctrl.beginSave();
+    ctrl.beginSave();
+    ctrl.beginSave();
+    expect(ctrl.pendingCount, 3);
+
+    ctrl.endSaveSuccess();
+    ctrl.endSaveFailure();
+    ctrl.endSaveSuccess();
+    expect(ctrl.pendingCount, 0);
+  });
+
+  test('inFlight is observable mid-save via saveGate', () async {
+    final fake = FakePlanStorage()..saveGate = Completer<void>();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+
+    // Microtask drain so the chained save begins. Status flips to inFlight
+    // because beginSave() was called synchronously inside _emitForce.
+    await Future<void>.delayed(Duration.zero);
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+
+    // Resolve the gate; status returns to idle once the save settles.
+    fake.saveGate!.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.read(saveStatusProvider), SaveStatus.idle);
+  });
 }

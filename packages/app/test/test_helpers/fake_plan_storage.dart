@@ -27,6 +27,11 @@ class FakePlanStorage implements PlanStorage {
   /// When non-null, `save()` throws this object instead of recording the call.
   Object? saveError;
 
+  /// When non-null, `save()` awaits this completer before completing, so the
+  /// caller can observe `inFlight` state mid-save. Tests should call
+  /// `saveGate!.complete()` to let the save resolve.
+  Completer<void>? saveGate;
+
   @override
   Future<PlannerState?> load() async {
     if (loadGate != null) await loadGate!.future;
@@ -42,6 +47,7 @@ class FakePlanStorage implements PlanStorage {
 
   @override
   Future<void> save(PlannerState state) async {
+    if (saveGate != null) await saveGate!.future;
     if (saveError != null) throw saveError!;
     lastSaved = state;
     saveCount++;

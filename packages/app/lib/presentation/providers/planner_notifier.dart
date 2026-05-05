@@ -70,16 +70,16 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     state = AsyncData(next);
     final storage = ref.read(planStorageProvider);
     final statusCtrl = ref.read(saveStatusProvider.notifier);
-    statusCtrl.markInFlight();
+    statusCtrl.beginSave();
     _lastSave = _lastSave.then((_) async {
       try {
         await storage.save(next);
-        statusCtrl.markSuccess();
+        statusCtrl.endSaveSuccess();
       } catch (e, st) {
         // L1 observability: log the failure. L3 surfacing flows through
         // saveStatusProvider so F1 can render a banner.
         debugPrint('PlanStorage.save failed: $e\n$st');
-        statusCtrl.markFailed();
+        statusCtrl.endSaveFailure();
         // Do NOT rethrow — the chain stays resolvable for subsequent writes.
       }
     });
