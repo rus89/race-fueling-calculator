@@ -27,11 +27,18 @@ class AidStationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final markValue = _isDistance
-        ? (station.distanceKm!).toStringAsFixed(
-            station.distanceKm! % 1 == 0 ? 0 : 1,
-          )
-        : '${station.timeMinutes ?? 0}';
+    // The toggle-clear path stores 0 / 0.0 in the active unit so the user
+    // gets a fresh, empty input box and re-types from scratch. Render those
+    // sentinel zeros as empty strings so the user is not asked to delete a
+    // "0" before typing.
+    final String markValue;
+    if (_isDistance) {
+      final km = station.distanceKm!;
+      markValue = km == 0.0 ? '' : km.toStringAsFixed(km % 1 == 0 ? 0 : 1);
+    } else {
+      final m = station.timeMinutes ?? 0;
+      markValue = m == 0 ? '' : '$m';
+    }
     final unitLabel = _isDistance ? 'km' : 'min';
 
     return Padding(
@@ -45,26 +52,17 @@ class AidStationRow extends StatelessWidget {
                 child: BonkSegControl<bool>(
                   value: _isDistance,
                   options: const [(false, 'Time'), (true, 'Distance')],
+                  // Clears the inactive unit's value on toggle (Q2=C).
+                  // copyWith cannot clear timeMinutes / distanceKm to null,
+                  // so the toggle constructs a fresh AidStation.
                   onChanged: (toDistance) {
-                    if (toDistance) {
-                      onChanged(
-                        AidStation(
-                          distanceKm:
-                              station.distanceKm ??
-                              ((station.timeMinutes ?? 0) / 3.0),
-                          refill: station.refill,
-                        ),
-                      );
-                    } else {
-                      onChanged(
-                        AidStation(
-                          timeMinutes:
-                              station.timeMinutes ??
-                              ((station.distanceKm ?? 0) * 3).round(),
-                          refill: station.refill,
-                        ),
-                      );
-                    }
+                    onChanged(
+                      AidStation(
+                        timeMinutes: toDistance ? null : 0,
+                        distanceKm: toDistance ? 0.0 : null,
+                        refill: station.refill,
+                      ),
+                    );
                   },
                 ),
               ),
@@ -97,16 +95,12 @@ class AidStationRow extends StatelessWidget {
                     if (_isDistance) {
                       final km = double.tryParse(v);
                       if (km != null) {
-                        onChanged(
-                          AidStation(distanceKm: km, refill: station.refill),
-                        );
+                        onChanged(station.copyWith(distanceKm: km));
                       }
                     } else {
                       final m = int.tryParse(v);
                       if (m != null) {
-                        onChanged(
-                          AidStation(timeMinutes: m, refill: station.refill),
-                        );
+                        onChanged(station.copyWith(timeMinutes: m));
                       }
                     }
                   },
@@ -132,12 +126,9 @@ class AidStationRow extends StatelessWidget {
                 _RefillChip(
                   product: _findProduct(id),
                   onRemove: () {
-                    final next = [...station.refill]..remove(id);
                     onChanged(
-                      AidStation(
-                        timeMinutes: station.timeMinutes,
-                        distanceKm: station.distanceKm,
-                        refill: next,
+                      station.copyWith(
+                        refill: station.refill.where((x) => x != id).toList(),
                       ),
                     );
                   },
@@ -146,14 +137,7 @@ class AidStationRow extends StatelessWidget {
                 library: library,
                 excluded: station.refill,
                 onPick: (id) {
-                  final next = [...station.refill, id];
-                  onChanged(
-                    AidStation(
-                      timeMinutes: station.timeMinutes,
-                      distanceKm: station.distanceKm,
-                      refill: next,
-                    ),
-                  );
+                  onChanged(station.copyWith(refill: [...station.refill, id]));
                 },
               ),
             ],
@@ -204,13 +188,17 @@ class _RefillChip extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          InkWell(
-            onTap: onRemove,
-            borderRadius: BorderRadius.circular(BonkTokens.rSm),
-            child: const Padding(
-              padding: EdgeInsets.all(2),
-              child: Icon(Icons.close, size: 12),
-            ),
+          // 24×24 hit area enforces WCAG 2.5.8 minimum without making the
+          // chip itself oversized. IconButton's default 48×48 padding would
+          // inflate the chip — the constraints crop it back to chip-scale.
+          IconButton(
+            icon: const Icon(Icons.close, size: 14),
+            iconSize: 14,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            tooltip: 'Remove $label from refills',
+            onPressed: onRemove,
           ),
         ],
       ),
@@ -232,7 +220,17 @@ class _AddProductButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final available = library.where((p) => !excluded.contains(p.id)).toList();
     if (available.isEmpty) {
-      return const SizedBox.shrink();
+      return Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: BonkTokens.rule2),
+          borderRadius: BorderRadius.circular(BonkTokens.rSm),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          'All products added',
+          style: BonkType.sans(size: 11.5).copyWith(color: BonkTokens.ink3),
+        ),
+      );
     }
     return PopupMenuButton<String>(
       tooltip: 'Add refill product',
