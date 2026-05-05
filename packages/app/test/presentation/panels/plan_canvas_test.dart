@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/plan_canvas.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
 
@@ -59,6 +60,31 @@ void main() {
     fake.loadGate!.complete();
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('empty race name renders "Untitled race"', (tester) async {
+    await sizeCanvas(tester);
+    final emptyNameSeed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = emptyNameSeed.copyWith(
+        raceConfig: emptyNameSeed.raceConfig.copyWith(name: ''),
+      );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    expect(find.text('Untitled race'), findsOneWidget);
+  });
+
+  testWidgets('race name has Semantics header flag', (tester) async {
+    await sizeCanvas(tester);
+    final fake = FakePlanStorage();
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    final handle = tester.ensureSemantics();
+    final data = tester
+        .getSemantics(find.text('Andalucía Bike Race — Stage 3'))
+        .getSemanticsData();
+    expect(data.flagsCollection.isHeader, isTrue);
+    handle.dispose();
   });
 
   testWidgets('renders an error state when storage load fails', (tester) async {

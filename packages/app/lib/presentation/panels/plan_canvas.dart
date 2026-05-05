@@ -22,10 +22,22 @@ class PlanCanvas extends ConsumerWidget {
     final asyncPlan = ref.watch(planProvider);
 
     return asyncState.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Center(
+        child: Semantics(
+          liveRegion: true,
+          label: 'Loading plan',
+          child: const CircularProgressIndicator(),
+        ),
+      ),
       error: (e, st) => _ErrorFallback(error: e),
       data: (state) => asyncPlan.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(
+          child: Semantics(
+            liveRegion: true,
+            label: 'Loading plan',
+            child: const CircularProgressIndicator(),
+          ),
+        ),
         error: (e, st) => _ErrorFallback(error: e),
         data: (plan) => _Body(state: state, plan: plan),
       ),
@@ -50,14 +62,19 @@ class _Body extends ConsumerWidget {
         children: [
           Text('02 / PLAN', style: BonkType.railEyebrow),
           const SizedBox(height: 4),
-          Text(
-            state.raceConfig.name.isEmpty
-                ? 'Untitled race'
-                : state.raceConfig.name,
-            style: BonkType.sans(
-              size: 32,
-              w: FontWeight.w600,
-            ).copyWith(letterSpacing: -0.5),
+          Semantics(
+            header: true,
+            child: Text(
+              state.raceConfig.name.isEmpty
+                  ? 'Untitled race'
+                  : state.raceConfig.name,
+              style: BonkType.sans(
+                size: 32,
+                w: FontWeight.w600,
+              ).copyWith(letterSpacing: -0.5),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(height: 22),
           _StatsGrid(plan: plan, target: state.raceConfig.targetCarbsGPerHr),
