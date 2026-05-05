@@ -40,6 +40,12 @@ void main() {
       expect(m.letterSpacing, -0.1);
       expect(m.fontFeatures, contains(const FontFeature.tabularFigures()));
     });
+
+    testWidgets('mono overrides apply', (tester) async {
+      final m = BonkType.mono(size: 18, w: FontWeight.w700);
+      expect(m.fontSize, 18);
+      expect(m.fontWeight, FontWeight.w700);
+    });
   });
 
   group('named roles', () {
@@ -89,6 +95,32 @@ void main() {
       final s = BonkType.railSub;
       expect(s.color, BonkTokens.ink3);
       expect(s.fontSize, 12.5);
+    });
+
+    testWidgets(
+      'railEyebrow derives from mono (tabular figures present, size 11)',
+      (tester) async {
+        expect(BonkType.railEyebrow.fontSize, 11);
+        expect(
+          BonkType.railEyebrow.fontFeatures,
+          contains(const FontFeature.tabularFigures()),
+        );
+      },
+    );
+
+    testWidgets(
+      'sectionLabel derives from mono (tabular figures present, size 10.5)',
+      (tester) async {
+        expect(BonkType.sectionLabel.fontSize, 10.5);
+        expect(
+          BonkType.sectionLabel.fontFeatures,
+          contains(const FontFeature.tabularFigures()),
+        );
+      },
+    );
+
+    testWidgets('statHero inherits mono height 1.4', (tester) async {
+      expect(BonkType.statHero.height, 1.4);
     });
   });
 }
