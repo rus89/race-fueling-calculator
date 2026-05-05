@@ -254,6 +254,8 @@ class _ItemLine extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    // TODO(F1-DOTS-SHAPE): item dots are color-only; per PC-DOT-COLORS,
+    // migrate to shape-encoded glyphs in F1 polish.
     Color dotColor;
     switch (type) {
       case ProductType.gel:

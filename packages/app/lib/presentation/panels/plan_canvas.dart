@@ -183,6 +183,7 @@ class _StatsGrid extends StatelessWidget {
     // size 36; non-hero cards use statValue at size 20). A fixed-aspect
     // GridView clips the hero. Row + Expanded + IntrinsicHeight lets the
     // tallest card set the row height and stretches the others to match.
+    // TODO(F1-RESPONSIVE): collapse to Wrap/multi-row layout at <880px.
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -204,6 +205,8 @@ class _Timeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // TODO(F1-EMPTY-PLAN): add empty-state CTA when entries.isEmpty.
+    // TODO(E1-METRICS): promote peak/perStepTarget to a Provider when E1 lands.
     final stepHrs = (state.raceConfig.intervalMinutes ?? 15) / 60.0;
     final perStepTarget = state.raceConfig.targetCarbsGPerHr * stepHrs;
     final peak = plan.entries.isEmpty
