@@ -215,6 +215,29 @@ void main() {
       Strategy.frontLoad,
     );
   });
+
+  testWidgets('inventory section lists products from library', (tester) async {
+    await _pumpTall(tester);
+    expect(find.textContaining('Maurten'), findsWidgets);
+  });
+
+  testWidgets('tapping + on a product increments inventory count', (
+    tester,
+  ) async {
+    final c = await _pumpTall(tester);
+    final plus = find.byKey(const Key('inv.maurten-160.plus'));
+    expect(plus, findsOneWidget);
+    await tester.tap(plus);
+    await tester.pump();
+    final updatedCount = c
+        .read(plannerNotifierProvider)
+        .requireValue
+        .raceConfig
+        .selectedProducts
+        .firstWhere((s) => s.productId == 'maurten-160')
+        .quantity;
+    expect(updatedCount, 5);
+  });
 }
 
 /// Pumps the rail under a 360x2400 surface so all sections (carb strategy,

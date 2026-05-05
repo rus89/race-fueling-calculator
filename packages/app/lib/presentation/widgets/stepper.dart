@@ -19,6 +19,10 @@ class BonkStepper extends StatelessWidget {
   /// adjustable value carries the field name.
   final String? semanticLabel;
 
+  /// Optional addressing prefix for tests. When set, the minus and plus tap
+  /// targets carry `Key('$keyPrefix.minus')` and `Key('$keyPrefix.plus')`.
+  final String? keyPrefix;
+
   const BonkStepper({
     super.key,
     required this.value,
@@ -26,6 +30,7 @@ class BonkStepper extends StatelessWidget {
     this.min = 0,
     this.max = 30,
     this.semanticLabel,
+    this.keyPrefix,
   });
 
   @override
@@ -33,9 +38,10 @@ class BonkStepper extends StatelessWidget {
     final canDecrement = value > min;
     final canIncrement = value < max;
 
-    Widget btn(String label, VoidCallback? onTap) {
+    Widget btn(String label, VoidCallback? onTap, {Key? key}) {
       final enabled = onTap != null;
       return Padding(
+        key: key,
         // 8px padding on each side expands a 28×28 visual to a 44×44
         // hit area without changing the design rail.
         padding: const EdgeInsets.all(8),
@@ -77,13 +83,21 @@ class BonkStepper extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            btn('−', canDecrement ? () => onChanged(value - 1) : null),
+            btn(
+              '−',
+              canDecrement ? () => onChanged(value - 1) : null,
+              key: keyPrefix != null ? Key('$keyPrefix.minus') : null,
+            ),
             Container(
               width: 36,
               alignment: Alignment.center,
               child: Text('$value', style: BonkType.mono(size: 13)),
             ),
-            btn('+', canIncrement ? () => onChanged(value + 1) : null),
+            btn(
+              '+',
+              canIncrement ? () => onChanged(value + 1) : null,
+              key: keyPrefix != null ? Key('$keyPrefix.plus') : null,
+            ),
           ],
         ),
       ),

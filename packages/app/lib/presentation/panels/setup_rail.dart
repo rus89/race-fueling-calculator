@@ -7,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/domain.dart';
 import '../../domain/planner_state.dart';
 import '../providers/planner_notifier.dart';
+import '../providers/product_library_provider.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
 import '../widgets/field_shell.dart';
+import '../widgets/inventory_row.dart';
 import '../widgets/seg_control.dart';
 import '../widgets/text_input.dart';
 
@@ -159,6 +161,47 @@ class _RailBody extends ConsumerWidget {
                 onChanged: (s) =>
                     notifier.updateRaceConfig((c) => c.copyWith(strategy: s)),
               ),
+            ),
+            const Divider(height: 1, color: BonkTokens.rule),
+            Consumer(
+              builder: (context, ref, _) {
+                final library = ref.watch(productLibraryProvider);
+                final selections = state.raceConfig.selectedProducts;
+                final totalCount = selections.fold<int>(
+                  0,
+                  (a, s) => a + s.quantity,
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionLabel(label: 'INVENTORY ($totalCount items)'),
+                    for (final p in library)
+                      InventoryRow(
+                        product: p,
+                        count: selections
+                            .firstWhere(
+                              (s) => s.productId == p.id,
+                              orElse: () => ProductSelection(
+                                productId: p.id,
+                                quantity: 0,
+                              ),
+                            )
+                            .quantity,
+                        onChanged: (n) {
+                          final next = [
+                            for (final s in selections)
+                              if (s.productId != p.id) s,
+                            if (n > 0)
+                              ProductSelection(productId: p.id, quantity: n),
+                          ];
+                          notifier.updateRaceConfig(
+                            (c) => c.copyWith(selectedProducts: next),
+                          );
+                        },
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         ),
