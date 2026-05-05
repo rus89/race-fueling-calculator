@@ -145,7 +145,7 @@ class _StatsGrid extends StatelessWidget {
         value: ratio == 0 || !ratio.isFinite
             ? '—'
             : '${ratio.toStringAsFixed(2)}:1',
-        flag: !ratioOk && ratio > 0 ? StatFlag.warn : null,
+        severity: !ratioOk && ratio > 0 ? StatSeverity.warn : null,
       ),
       StatCard(
         label: 'Caffeine',
