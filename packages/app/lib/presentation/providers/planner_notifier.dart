@@ -21,7 +21,11 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     return loaded ?? PlannerState.seed();
   }
 
-  PlannerState _current() => state.requireValue;
+  // Returns the current state, or null if `build()` has not yet resolved
+  // (or has resolved to AsyncError). Mutators no-op in that case so a race
+  // condition (deeplink fired before load completes, hot-reload, etc.) does
+  // not crash with AsyncValueIsLoadingException from `requireValue`.
+  PlannerState? _currentOrNull() => state.value;
 
   void _emit(PlannerState next) {
     state = AsyncData(next);
@@ -35,11 +39,15 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   }
 
   void updateRaceConfig(RaceConfig Function(RaceConfig) edit) {
-    _emit(_current().copyWith(raceConfig: edit(_current().raceConfig)));
+    final cur = _currentOrNull();
+    if (cur == null) return;
+    _emit(cur.copyWith(raceConfig: edit(cur.raceConfig)));
   }
 
   void updateAthleteProfile(AthleteProfile Function(AthleteProfile) edit) {
-    _emit(_current().copyWith(athleteProfile: edit(_current().athleteProfile)));
+    final cur = _currentOrNull();
+    if (cur == null) return;
+    _emit(cur.copyWith(athleteProfile: edit(cur.athleteProfile)));
   }
 }
 
