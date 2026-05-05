@@ -933,5 +933,62 @@ All 8 Phase B tasks shipped:
 
 35 commits ahead of `main`. 73 app tests, 257 core tests, 279 cli tests — all green. `dart analyze` and `flutter analyze` clean. Ready for branch finishing.
 
+## 2026-05-05 — Phase B merged + manual smoke; Phase C kickoff
+
+Phase B closed. `feat/v1.1-phase-b-scaffolding` fast-forwarded to `main` after manual browser smoke (cream `BonkTokens.bg` background, centered "Bonk planner — coming online…" stub in Inter Tight ink, MaterialApp title rendered correctly, Flutter dev server confirmed at port 8765 with hot reload). Branch deleted. README + CLAUDE.md synced with the three-package workspace and Phase B conventions. Plan file left untouched (it's a starting point — JOURNAL is the source of truth).
+
+Phase C started on `feat/v1.1-phase-c-setup-rail`. Batch 1 is C1 (three reusable widgets used by every Setup-rail section to come).
+
+## 2026-05-05 — v1.1 Phase C Batch 1 (C1: reusable widgets)
+
+`BonkSegControl<T extends Object>`, `BonkStepper`, `BonkFieldShell` shipped. 5 commits net after Round 1 fix-ups.
+
+### What shipped
+
+- **BonkSegControl** — pill-row segmented picker with active state filled in `ink`. Generic `T extends Object`. Optional `groupLabel` parameter wraps the control in Semantics container. Uses `InkWell` (focusable, Tab traversal) with `WidgetStateProperty` overlay for ink-tinted focus/hover. Each option wrapped in `Semantics(button: true, selected: v == value, inMutuallyExclusiveGroup: true, label: label, excludeSemantics: true)`. Re-tap of currently-selected option is a no-op (avoids unnecessary parent rebuilds and storage writes — Q1=B). Inner `Text` carries `maxLines: 1` + `overflow: TextOverflow.ellipsis` defensive against long localized labels.
+- **BonkStepper** — minus / count / plus row with **44×44 hit area** (28×28 visual padded by 8 on each side). `Semantics(value, increasedValue, decreasedValue, onIncrease, onDecrease)` wrapper makes it announceable as adjustable to VoiceOver / TalkBack. Optional `semanticLabel` carries field context ("Maurten Gel 100 quantity, 5"). `ExcludeSemantics` on the inner row strips standalone glyph announcements. Disabled state at min/max boundary visually distinct: `bg2` background, `rule2` border, `ink3` glyph. Default `max=30` documented as inventory-specific.
+- **BonkFieldShell** — `Semantics(container: true, label: label)` wrapper associates the visible label with the child input as one accessible field. Inner `Text(label)` excluded from semantics (no double-announce). `SizedBox` height switched from hardcoded `6` to `BonkTokens.space6` token.
+- File rename: `product_stepper.dart` → `stepper.dart` (widget is generic, not product-specific; zero consumers at rename time).
+
+### Round 1 review (3 parallel reviewers)
+
+Heaviest a11y round so far. Three CRITICAL WCAG Level A failures all caught before any consumer code wired up the widgets. Fixing now prevented cascading the debt across C2–C5.
+
+| Severity | Total | Fixed in Round 1.5 | Deferred |
+|---|---:|---:|---:|
+| CRITICAL | 3 | 3 (all WCAG Level A — keyboard inaccessibility + missing SR roles × 2) | 0 |
+| HIGH | 5 | 5 (disabled visual, 44pt hit area, FieldShell label association, missing tests × 2) | 0 |
+| MEDIUM | 11 | 8 | 3 (helper/error slots in FieldShell, fixed-size targets vs textScaler, hover/focus states beyond focus ring — all carry-overs) |
+| LOW | 5 | 2 (space6 alias, generic constraint) | 3 |
+
+**Test counts:** 94 app tests (was 75 at baseline; +19 from a11y test suite — selection state, semantic flags, keyboard focus, generic enum, no-op re-tap, Stepper boundaries × 4, disabled visual × 2, semantic value/increasedValue, semanticLabel prefix, FieldShell label association × 5, etc.). Core 257 / CLI 279 unchanged.
+
+### Decisions locked in (Milan, post-Round 1)
+
+**Q1 → B (no-op re-tap).** `BonkSegControl.onTap` for the currently-selected option is `null` — no `onChanged` fires. Avoids unnecessary parent rebuilds and `SharedPreferences.setString` writes on every visit. Pinned by test `'does NOT fire onChanged when current value is re-tapped'`.
+
+**Q2 → Yes (rename now).** `product_stepper.dart` → `stepper.dart` shipped at zero consumer count. Plan template at line 3743 still references the old name; we adapt plan code to reality anyway (Phase B precedent).
+
+### New conventions established for Phase C
+
+- **Semantics wrapping is mandatory** for every reusable widget that paints anything tappable. `Semantics(button, selected, inMutuallyExclusiveGroup)` for radio-like controls; `Semantics(value, increasedValue, decreasedValue, onIncrease, onDecrease)` for adjustables; `Semantics(container, label)` for labeled fields. Use `ExcludeSemantics` to strip noise from the inner visual tree.
+- **44×44 hit areas via Padding(8) outside the visual.** Visual stays compact; hit area expands via outer padding. WCAG 2.5.5 spirit (race-day cycling phone use) even though the strict letter is AAA.
+- **Disabled-state visuals must be distinct from enabled.** Drop bg to `bg2`, border to `rule2`, glyph color to `ink3`. WCAG 1.4.11 + 1.3.3.
+- **Test files under `test/presentation/widgets/` reuse `setUpGoogleFontsForTests`** — already a Phase B convention but reaffirmed for every new widget test.
+- **Semantics tests** use `tester.ensureSemantics()` + `tester.getSemantics(...).getSemanticsData()` to assert role/value/label/state. `find.bySemanticsLabel(...)` works for finding by accessible name.
+- **`Color.withValues(alpha:)` not `withOpacity`** — `withOpacity` is deprecated in Flutter 3.27+. Applied to `BonkTokens.ink.withValues(alpha: 0.12)` etc. in seg control overlay states.
+
+### Deferred (not blocking Phase C; carry-over for later)
+
+- **PB-A11Y-11** — `BonkSegControl` and `BonkStepper` use fixed pixel sizes (28×28, 7px vertical padding). At system text scale 200%, glyphs may clip. Already covered by PB-A11Y-4 carry-over (textScaler 2.0 widget test in Batch 3-D / D2 stat grid).
+- **PB-ARCH-11** — `BonkFieldShell` API has no helper-text or error-text slot. Confirmed deferred per YAGNI. If a Setup-rail field needs validation feedback, lift the API at that point.
+- **PB-ARCH-12** — Per-build `TextStyle` allocation via `BonkType.sans(...).copyWith(...)` in `BonkSegControl`. Marginal cost; revisit if profiling surfaces a concern.
+
+### Plan-vs-reality drift caught (and fixed)
+
+- Plan template at line 3125 used `BonkType.fieldLabel()` (method-call form). Phase B Round 2 refactored to `static final` field. Implementer correctly used `BonkType.fieldLabel`. Test now locks the static-final reference via fontSize + color assertions.
+- Plan template at line 3010 had a tautological selection assertion (`expect(selected, isNotNull)`). Replaced with structural assertion against `BoxDecoration.color == BonkTokens.ink`.
+
+
 
 
