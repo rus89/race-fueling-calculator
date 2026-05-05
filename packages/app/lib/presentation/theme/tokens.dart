@@ -66,4 +66,7 @@ class BonkTokens {
   static const space18 = 18.0;
   static const space22 = 22.0;
   static const space44 = 44.0; // topbar height
+
+  // Semantic aliases
+  static const topbarHeight = space44;
 }
