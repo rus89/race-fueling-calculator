@@ -165,8 +165,28 @@ RaceConfig + AthleteProfile + Products
        FuelingPlan with entries, summary, warnings
 ```
 
-No mutation, no state — easy to test, easy to embed in a future Flutter
-app via the `cli_api.dart` or `core.dart` barrel.
+No mutation, no state — easy to test, shared end-to-end with the
+Flutter app via the `core.dart` barrel.
+
+## Flutter app (in progress)
+
+`packages/app` hosts the Bonk Race Fueling Planner — a Material 3 web
+app that consumes the same engine. As of v1.1 Phase B the scaffolding
+is shipped: design tokens, typography (Inter Tight + JetBrains Mono),
+responsive breakpoints, `shared_preferences`-backed plan storage,
+Riverpod 3.x provider chain, `BonkApp` bootstrap with full theme. The
+actual UI (setup rail, plan canvas, diagnostics rail) lands in Phases
+C–F. Run the current state in a browser:
+
+```bash
+cd packages/app
+flutter pub get
+flutter run -d chrome
+```
+
+You should see a cream background with `Bonk planner — coming online…`
+centered in Inter Tight ink. That's the stub `PlannerPage` waiting for
+Phase C.
 
 ## Project structure
 
@@ -180,21 +200,35 @@ race-fueling-calculator/
 │   │   │   ├── data/      # built-in products
 │   │   │   └── storage/   # adapter interface + schema migration
 │   │   └── test/
-│   └── cli/               # CLI on top of core
-│       ├── bin/fuel.dart
+│   ├── cli/               # CLI on top of core
+│   │   ├── bin/fuel.dart
+│   │   ├── lib/
+│   │   │   ├── cli_api.dart      # Embedder-safe public surface
+│   │   │   ├── cli_runner.dart   # Adds Command<void> classes
+│   │   │   └── src/
+│   │   │       ├── commands/
+│   │   │       ├── formatting/   # color, plan_table, summary_block
+│   │   │       ├── prompts/
+│   │   │       ├── products/     # product_resolver
+│   │   │       └── storage/      # FileStorageAdapter
+│   │   └── test/
+│   └── app/               # Flutter app (Bonk planner UI)
 │       ├── lib/
-│       │   ├── cli_api.dart      # Embedder-safe public surface
-│       │   ├── cli_runner.dart   # Adds Command<void> classes
-│       │   └── src/
-│       │       ├── commands/
-│       │       ├── formatting/   # color, plan_table, summary_block
-│       │       ├── prompts/
-│       │       ├── products/     # product_resolver
-│       │       └── storage/      # FileStorageAdapter
-│       └── test/
+│       │   ├── main.dart           # ProviderScope + BonkApp
+│       │   ├── app.dart            # MaterialApp with full M3 theme
+│       │   ├── domain/             # Re-exports + PlannerState
+│       │   ├── data/               # PlanStorage + PlanStorageLocal
+│       │   └── presentation/
+│       │       ├── theme/          # tokens, typography, breakpoints
+│       │       ├── pages/          # PlannerPage (stub)
+│       │       └── providers/      # Riverpod 3.x chain
+│       ├── test/
+│       │   └── test_helpers/       # google_fonts_setup
+│       └── web/                    # index.html, manifest, icons
 ├── docs/superpowers/
-│   ├── plans/v1.md            # The implementation plan
-│   └── specs/                 # Design specs
+│   ├── plans/v1.md                                  # v1.0 plan
+│   ├── plans/2026-04-30-v1.1-flutter-app.md         # current plan
+│   └── specs/                                       # design specs
 ├── JOURNAL.md                 # Phase log + Known Issues backlog
 └── CLAUDE.md                  # Project rules for AI assistants
 ```
@@ -202,21 +236,26 @@ race-fueling-calculator/
 ## Development
 
 ```bash
-# Install dependencies (workspace-aware)
-dart pub get
+# Install dependencies (workspace-aware; use flutter pub get when packages/app exists)
+flutter pub get
 
 # Static analysis (must be clean)
-dart analyze
+dart analyze                                # workspace-wide
+cd packages/app && flutter analyze          # Flutter-specific (separate analyzer)
 
 # Run all tests
-cd packages/core && dart test    # 257 tests
-cd packages/cli  && dart test    # 279 tests
+cd packages/core && dart test               # 257 tests
+cd packages/cli  && dart test               # 279 tests
+cd packages/app  && flutter test            # 73 tests
 
 # Single test file
 dart test test/engine/timeline_builder_test.dart
 
 # Regenerate JSON serialization
 cd packages/core && dart run build_runner build --delete-conflicting-outputs
+
+# Smoke-build the web app
+cd packages/app && flutter build web
 ```
 
 Generated `*.g.dart` files are committed to source. After changing any
@@ -239,8 +278,11 @@ migration regression is recoverable.
 
 Semantic versioning. The current release is **v1.1.0-rc.1** (engine RC,
 tagged on the version-bump commit). The full v1.1.0 ships when the
-Flutter app (Phases B–F) lands; until then the CLI on this branch is
-the only consumer of the new engine.
+Flutter app (Phases B–F) lands. **Phase B (scaffolding) is complete**
+on `feat/v1.1-phase-b-scaffolding` (`packages/app` 0.1.0 — tokens,
+typography, breakpoints, storage, Riverpod chain, BonkApp bootstrap).
+Phases C–F (Setup rail, plan canvas, diagnostics rail, assembly) are
+pending.
 
 Known limitations (tracked in `JOURNAL.md`):
 
