@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'tokens.dart';
 
+// Sizes are unscaled inputs. Rely on Flutter's automatic propagation of
+// MediaQuery.textScaler. Do NOT pass `textScaler: TextScaler.noScaling`
+// to Text widgets — that breaks system-level large-text accessibility.
 class BonkType {
   BonkType._();
 

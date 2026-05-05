@@ -1,5 +1,22 @@
 // ABOUTME: Design tokens (color, spacing, radius, shadow) for the Bonk theme.
 // ABOUTME: Mirrored from the prototype's CSS custom properties.
+//
+// Color-usage doctrine
+// --------------------
+// Severity TEXT (warning headlines, "CRITICAL" / "ADVISORY" labels) is always
+// rendered in `ink` or `ink2`. Color carries severity through the LEFT BAR,
+// dot, or icon only — never through text foreground. This keeps every
+// severity label at WCAG AA contrast on cream surfaces.
+//
+// Decorative-only hues (`accent`, `glu`, `fru`) are surface/fill colors and
+// FAIL contrast as text (≤2.2:1 on bg). For accent text use `accentInk`.
+//
+// TODO(dark-mode): v1.1 ships light-only per design spec §13. When dark mode
+// lands, `BonkTokens` becomes a `ThemeExtension` with light/dark variants and
+// consumers read via `Theme.of(context).extension<BonkTokens>()`. Adding the
+// indirection later means touching every consumer once they exist; if more
+// than ~5 widget files reference these tokens before dark mode lands, do the
+// extraction proactively.
 import 'package:flutter/material.dart';
 
 class BonkTokens {
@@ -21,6 +38,7 @@ class BonkTokens {
 
   // Accent + semantic
   // OKLCH(0.88 0.18 120) — committed as sRGB hex.
+  // Decorative fill / chip / dot only — fails contrast as text. Use accentInk for text.
   static const accent = Color(0xFFC8E85B);
   static const accentInk = Color(0xFF3F4D14);
   static const warn = Color(0xFFC28A4A);
@@ -28,6 +46,7 @@ class BonkTokens {
   static const ok = Color(0xFF6FA169);
   static const hydro = Color(0xFF7FA3C4);
   static const caf = Color(0xFF9D614A);
+  // Chart/legend hues — fills only, never text foreground (fail AA).
   static const glu = Color(0xFFA8D24F);
   static const fru = Color(0xFFD4A04A);
 
