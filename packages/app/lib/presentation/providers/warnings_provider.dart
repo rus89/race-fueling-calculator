@@ -7,8 +7,5 @@ import 'plan_provider.dart';
 
 final warningsProvider = Provider<List<Warning>>((ref) {
   final plan = ref.watch(planProvider);
-  return plan.maybeWhen(
-    data: (value) => value.warnings,
-    orElse: () => const [],
-  );
+  return plan.whenData((p) => p.warnings).value ?? const [];
 });

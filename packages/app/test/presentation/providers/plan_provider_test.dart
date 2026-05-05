@@ -47,6 +47,9 @@ void main() {
     final async = c.read(planProvider);
     expect(async.hasError, isTrue);
     expect(async.error, isA<StateError>());
+    // Stack traces are required for L1 telemetry and any debug surface F1
+    // wires; preserving them through the unwrapPrevious() pipe is the point.
+    expect(async.stackTrace, isNotNull);
   });
 
   test('warningsProvider returns const [] for AsyncLoading', () {
