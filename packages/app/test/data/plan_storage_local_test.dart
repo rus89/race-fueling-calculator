@@ -169,6 +169,46 @@ void main() {
     },
   );
 
+  group('save() corrupted-bytes backup', () {
+    const backupKey = 'bonk_v1.working_plan.bak';
+
+    test('backs up unparseable bytes on the first overwrite', () async {
+      SharedPreferences.setMockInitialValues({
+        'bonk_v1.working_plan': 'not-json',
+      });
+      await PlanStorageLocal().save(PlannerState.seed());
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(backupKey), 'not-json');
+    });
+
+    test('does not overwrite an existing backup', () async {
+      SharedPreferences.setMockInitialValues({
+        'bonk_v1.working_plan': 'still-not-json',
+        backupKey: 'original-corrupt-bytes',
+      });
+      await PlanStorageLocal().save(PlannerState.seed());
+      final prefs = await SharedPreferences.getInstance();
+      // Backup was preserved — never overwritten.
+      expect(prefs.getString(backupKey), 'original-corrupt-bytes');
+    });
+
+    test('does not back up when there is no prior key', () async {
+      SharedPreferences.setMockInitialValues({});
+      await PlanStorageLocal().save(PlannerState.seed());
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(backupKey), isNull);
+    });
+
+    test('does not back up when prior bytes parse cleanly', () async {
+      // A normal in-place save (the prior blob was a valid plan).
+      final prior = jsonEncode(PlannerState.seed().toJson());
+      SharedPreferences.setMockInitialValues({'bonk_v1.working_plan': prior});
+      await PlanStorageLocal().save(PlannerState.seed());
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(backupKey), isNull);
+    });
+  });
+
   test('migrates a v1-shaped raceConfig blob through load', () async {
     // Hand-rolled v1 blob — no `discipline`, `selectedProducts` carrying the
     // dropped `isAidStationOnly` flag, `aidStations` without `refill`.
