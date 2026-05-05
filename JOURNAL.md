@@ -1055,6 +1055,91 @@ Heaviest round so far. **Two CRITICAL runtime bugs** were originally flagged as 
 - **Notifier prop drilling** — plan had `_DurationRow` and `_BodyMassAndDistanceRow` taking `notifier: PlannerNotifier`. Refactored to `ConsumerWidget` reading via `ref.read(plannerNotifierProvider.notifier)` at the leaf.
 - **`BonkType.sectionLabel()` (and railEyebrow/railTitle/railSub)** — plan template at line 3395 used method form; converted to field form.
 
+## 2026-05-05 — v1.1 Phase C Batch 3 (C3+C4+C5: carb strategy, inventory, aid stations)
+
+The remaining three Setup-rail sections shipped. 8 net commits (3 implementer + 5 Round 3.5 fix-ups).
+
+### What shipped
+
+- **C3 — Carb strategy** — two `Slider`s (target intake 30–120 g/hr, gut-trained ceiling 30–120 g/hr) + `BonkSegControl<Strategy>` (Front-load / Steady / Back-load). Both sliders inherit theme primary (ink) — Q3=A dropped the gut-trained `activeColor: ink3` differentiation; live labels disambiguate. Live label rebuilds on every drag tick; Material's built-in Semantics(value, increasedValue, decreasedValue) handles SR announcements.
+- **C4 — Inventory list** — `InventoryRow` per built-in product. Kind dot (decorative anchor) + brand+name + mono subline `'80g · 2:1 · Gel'` (type label appended per Q1=C) + `BonkStepper` with `keyPrefix: 'inv.${id}'`. Active state when count > 0 paints `BonkTokens.paper` background. Increment preserves `selectedProducts` order via replace-in-place (Q4 fix-now).
+- **C5 — Aid station list** — `AidStationRow` per station: `BonkSegControl<bool>` time/distance toggle (toggle-clear behavior per Q2=C — the new mode's value renders empty so user types fresh) + numeric `BonkTextInput` + `IconButton` row remove + Wrap of refill chips (each chip has `IconButton(visualDensity: compact, minWidth: 24)` close per WCAG 2.5.8) + `+ refill` PopupMenuButton (renders disabled "All products added" chip when nothing's pickable). "+ Add aid station" outlined button below.
+- **`AidStation.copyWith`** — added to `packages/core/lib/src/models/race_config.dart` with null-as-no-change semantics matching `RaceConfig.copyWith`. Refill mutations in `aid_station_row.dart` switched to `station.copyWith(refill: ...)`. Toggle path still constructs fresh `AidStation(...)` because copyWith can't clear unit fields.
+- **Section extraction** — `_RailBody.build` no longer holds inline `Consumer` blocks. `_InventorySection` and `_AidStationsSection` are private `ConsumerWidget`s in the same file (Q6 in-file extraction; directory split deferred to F1).
+- **`BonkStepper.keyPrefix`** — added (test-addressing). `Key('$keyPrefix.minus')` and `'.plus'` resolve to per-product tap targets.
+- **`_SectionLabel`** wraps in `Semantics(header: true)` — SR users can jump-by-heading.
+- Each `AidStationRow` wrapped in `Semantics(container: true, label: 'Aid station ${i+1}')`.
+
+### Round 3 review (3 parallel reviewers)
+
+Heaviest a11y round so far. Two CRITICAL findings (refill chip close + InventoryRow type-by-color) caught before Phase C closes.
+
+| Severity | Total | Fixed in Round 3.5 | Deferred |
+|---|---:|---:|---:|
+| CRITICAL | 2 | 2 (chip → IconButton; type via text + Semantics) | 0 |
+| HIGH | 11 | 11 | 0 |
+| MEDIUM | 13 | 9 | 4 (nested-Scrollable PB-SCROLL; OutlinedButton stylistic; refill chip 11pt textScaler — covered by PB-A11Y-4; AidStationRow toggle magic conversion → resolved by Q2=C clear) |
+| LOW | 5 | 1 | 4 |
+
+**Test counts:** 135 app tests (was 119 baseline + 9 from Batch 3 implementer + 6 inventory_row + 7 aid_station_row + ~3 setup_rail expansion + 16 net inflation from re-shaping existing tests). Core 257 / CLI 279 unchanged.
+
+### Decisions locked in (Milan, post-Round 3)
+
+**Q1 → C (type via text + Semantics).** `InventoryRow` mono subline appends product type: `'60g · 1:1 · Gel'` instead of carrying type signal in the `_KindDot` color. The dot stays as a visual anchor with `Semantics(label: type.shortLabel)` for SR users. Resolves WCAG 1.4.1 (color-only info), 1.4.11 (decorative dot exempt), 4.1.2 (named).
+
+**Q2 → C (clear value on toggle).** `AidStationRow` toggle between Time and Distance now drops the active-unit value to `0` / `0.0` (sentinel for "user re-types fresh"). Render path translates 0 → empty string so the input shows blank. Honest UX — no magic 3.0 km/min conversion. Discipline-aware conversion is a future polish if usage justifies.
+
+**Q3 → A (drop gut-trained activeColor).** Both sliders inherit theme primary (ink). No visual differentiation; live labels disambiguate. Pin against future "do I differentiate sliders by color again?" questions.
+
+**Q4 → Fix now (preserve order).** Inventory `+` tap replaces in place rather than removing-then-appending. `selectedProducts` ordering is now stable across user mutations.
+
+**Q5 → Add now (`AidStation.copyWith`).** 5-line core-package addition. `aid_station_row.dart` chip-mutation paths use it; toggle path still constructs fresh because copyWith can't clear unit fields.
+
+**Q6 → Do now (in-file section extraction).** `_RailBody.build` halves; readable. Directory split deferred to F1 alongside `BonkBreakpoint` responsive wiring (PC-RESPONSIVE).
+
+### Toggle-clear sentinel choice (notable decision)
+
+The toggle-clear path uses `0` / `0.0` sentinels (NOT `null`) for the active field because `validateAidStationDefinitions` (`packages/core/lib/src/engine/plan_validator.dart`) flags the "no time AND no distance" branch as **critical** — the model requires one to be set. Render path translates the sentinel back to empty string so the user types fresh:
+
+```dart
+if (_isDistance) {
+  final km = station.distanceKm!;
+  markValue = km == 0.0 ? '' : km.toStringAsFixed(km % 1 == 0 ? 0 : 1);
+} else {
+  final m = station.timeMinutes ?? 0;
+  markValue = m == 0 ? '' : '$m';
+}
+```
+
+A future v1.x could revisit by relaxing the validator to accept "user-pending" states.
+
+### Closed carry-overs
+
+- **Q4 from Round 2 (file split)** — partially closed via in-file section extraction (`_InventorySection` / `_AidStationsSection`). Directory-level split still deferred to F1.
+
+### Active carry-overs (still live)
+
+- **PC-RESPONSIVE / PC-PRESERVE-DIST / PC-UNIT-CONVERSION / PC-ERROR-UI** — unchanged; F1 work.
+- **PB-DATA-1 (L3)** — unchanged; F1 prerequisite for real UI mutators.
+- **PB-A11Y-4** — fixed-pixel sizes + 11pt fonts. Refill chip `maxWidth: 140` joins this carry-over.
+- **PB-A11Y-1, PB-A11Y-2, PB-UX-5** — earlier Phase B carry-overs unchanged.
+
+### New Round 3 carry-overs
+
+- **PB-SCROLL** — `_pumpTall` workaround in setup_rail tests masks a real production scroll-handling ambiguity (parent `SingleChildScrollView` + each `BonkTextInput`'s `EditableText` viewport fight for gestures at small viewports). Fix in F1: either set `BonkTextInput.scrollPhysics: NeverScrollableScrollPhysics()` for single-line inputs, or wrap the rail with `PrimaryScrollController`.
+- **PC-OUTLINED-BUTTON** — "+ Add aid station" uses Material 3 OutlinedButton default styling. Theme overrides give it ink foreground/border which works, but it's stylistically inconsistent with brutalist BonkSegControl/BonkStepper aesthetic. F1 polish: introduce a `BonkButton` widget if a second secondary action lands.
+- **PC-DOT-COLORS** — `_KindDot` colors are now decorative (per Q1=C, type is conveyed by text). The actual mapping (`gel→accent`, `liquid→ink2`, `chew→ink`, `solid→ink3`, `realFood→rule`) gives three dark-on-cream dots that look pairwise similar at 10×10 px. Aesthetic polish, not a11y blocker. Pick five distinct hues if a future design pass cares.
+- **PC-AID-VALIDATOR** — sentinel `0`/`0.0` for toggle-clear is a workaround for the validator requiring one unit field non-null. v1.x could relax the validator to accept "pending input" states.
+
+### Plan-vs-reality drift caught (and fixed)
+
+- Plan template at lines 3735+ used `import 'product_stepper.dart'` — the file was renamed to `stepper.dart` in Round 1.
+- `_KindDot` colors in plan template (`accent / hydro / warn / fru`) are different from the actual implementer's choice (`accent / ink2 / ink / ink3 / rule`). Per Q1=C the dot is decorative now, so neither mapping is "wrong" — but worth noting the divergence.
+- Plan said `Slider.activeColor` is deprecated. **Verified false** — Flutter 3.41.3 stable still ships `activeColor` without a `@Deprecated` annotation. Implementer's note retracted.
+- `AidStation` has no `copyWith` in core (per plan); added in this round.
+- Plan-template tests for `InventoryRow` referenced a "caffeine row" that never existed in the actual layout (the row is a single mono subline + stepper). Test for non-existent feature dropped; replaced with brand+name test.
+
+
 
 
 
