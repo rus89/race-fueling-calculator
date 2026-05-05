@@ -36,15 +36,17 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     }
   }
 
-  // Returns the current state, or null if `build()` has not yet resolved
-  // (or has resolved to AsyncError). Mutators no-op in that case so a race
-  // condition (deeplink fired before load completes, hot-reload, etc.) does
-  // not crash with AsyncValueIsLoadingException from `requireValue`.
+  // Returns the current state for mutators, or null when no usable state
+  // exists yet (initial AsyncLoading, or first-load AsyncError without a
+  // prior value). Mutators short-circuit on null so a race condition
+  // (deeplink fired before load completes, hot-reload, etc.) does not crash
+  // with AsyncValueIsLoadingException from `requireValue`.
   //
-  // In Riverpod 3.x `state.value` returns the current AsyncData payload, or
-  // null for AsyncLoading and AsyncError-without-prior-data. AsyncError that
-  // carries a previous AsyncData (e.g. via unwrapPrevious upstream) still
-  // returns null here because the *direct* state value is the error frame.
+  // In Riverpod 3.x `state.value` returns the most recent AsyncData payload,
+  // including through an AsyncError that retains a previous value (Riverpod
+  // 3.x preserves prior data by default). The AsyncError-vs-AsyncData
+  // distinction is enforced separately by the `state is AsyncError` guard
+  // in `_emit` — that's the line that refuses to save during error.
   PlannerState? _currentOrNull() => state.value;
 
   // Refuses to emit while the prior state is AsyncError so a stealth save
