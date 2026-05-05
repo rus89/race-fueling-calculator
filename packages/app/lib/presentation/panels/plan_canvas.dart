@@ -13,6 +13,11 @@ import '../theme/typography.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/timeline_row.dart';
 
+// Sports-nutrition consensus: dual-source carbs absorb best at glucose:fructose
+// in the 1:0.7 to 1:1.2 band — equivalently, glucose/fructose 0.9 to 1.5.
+const double _ratioOkLow = 0.9;
+const double _ratioOkHigh = 1.5;
+
 class PlanCanvas extends ConsumerWidget {
   const PlanCanvas({super.key});
 
@@ -132,18 +137,11 @@ class _StatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final summary = plan.summary;
     // PlanSummary.glucoseFructoseRatio is fructose/glucose. The Glu:Fru card
-    // and the diagnostics RatioBar (E1) display glucose/fructose. Compute
-    // glucose/fructose locally to stay consistent with §7.3 of the spec.
-    final totalGlucose = plan.entries.fold<double>(
-      0,
-      (a, e) => a + e.carbsGlucose,
-    );
-    final totalFructose = plan.entries.fold<double>(
-      0,
-      (a, e) => a + e.carbsFructose,
-    );
-    final ratio = totalFructose > 0 ? totalGlucose / totalFructose : 0.0;
-    final ratioOk = ratio >= 0.9 && ratio <= 1.5;
+    // and the diagnostics RatioBar (E1) display glucose/fructose, so consume
+    // PlanSummary.glucoseToFructoseRatio (the inverse) to stay consistent
+    // with §7.3 of the spec.
+    final ratio = summary.glucoseToFructoseRatio;
+    final ratioOk = ratio >= _ratioOkLow && ratio <= _ratioOkHigh;
     final cards = [
       StatCard(
         label: 'Avg carbs / hr',
