@@ -10,6 +10,40 @@ import '../../test_helpers/google_fonts_setup.dart';
 void main() {
   setUpAll(setUpGoogleFontsForTests);
 
+  testWidgets('row-level Semantics composes time, target, and cumulative', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TimelineRow(
+            entry: PlanEntry(
+              timeMark: Duration(minutes: 30),
+              products: [],
+              carbsGlucose: 7,
+              carbsFructose: 6,
+              carbsTotal: 13,
+              cumulativeCarbs: 26,
+              cumulativeCaffeine: 0,
+              waterMl: 125,
+              effectiveDrinkCarbs: 13,
+            ),
+            targetG: 20,
+            peakG: 25,
+            productsById: {},
+          ),
+        ),
+      ),
+    );
+    final handle = tester.ensureSemantics();
+    final data = tester
+        .getSemantics(find.byType(TimelineRow))
+        .getSemanticsData();
+    expect(data.label, contains('Time'));
+    expect(data.label, contains('cumulative'));
+    handle.dispose();
+  });
+
   testWidgets('renders cumulative carbs readout', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
