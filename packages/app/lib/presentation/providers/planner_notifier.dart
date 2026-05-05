@@ -18,7 +18,15 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   Future<PlannerState> build() async {
     final storage = ref.watch(planStorageProvider);
     final loaded = await storage.load();
-    return loaded ?? PlannerState.seed();
+    if (loaded != null) {
+      // Defensive: a loaded blob is by definition a real plan, never a
+      // first-run fallback — strip the flag in case a future codepath
+      // ever sets it on persisted state.
+      return loaded.copyWith(isSeedFallback: false);
+    }
+    // Empty drive: synthesise the seed and flag it so the UI can offer
+    // a quickstart treatment (PB-UX-5 in F1).
+    return PlannerState.seed();
   }
 
   // Returns the current state, or null if `build()` has not yet resolved
@@ -27,7 +35,17 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   // not crash with AsyncValueIsLoadingException from `requireValue`.
   PlannerState? _currentOrNull() => state.value;
 
+  // Refuses to emit while the prior state is AsyncError so a stealth save
+  // cannot overwrite a recoverable corrupted blob with an in-memory seed.
+  // The user must explicitly opt in via `acceptSeedAfterError`.
   void _emit(PlannerState next) {
+    if (state is AsyncError) return;
+    _emitForce(next);
+  }
+
+  // Emits unconditionally and schedules a save. Used internally by `_emit`
+  // after the AsyncError guard, and by `acceptSeedAfterError` to escape it.
+  void _emitForce(PlannerState next) {
     state = AsyncData(next);
     final storage = ref.read(planStorageProvider);
     _lastSave = _lastSave.then((_) => storage.save(next)).onError((e, st) {
@@ -36,6 +54,14 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
       debugPrint('PlanStorage.save failed: $e');
     });
     unawaited(_lastSave);
+  }
+
+  /// User-driven recovery: clear the prior AsyncError and accept the seed
+  /// as the working state. Saves the seed (which overwrites the unreadable
+  /// blob — only call this when the user explicitly opts into "Start fresh").
+  void acceptSeedAfterError() {
+    if (state is! AsyncError) return; // nothing to recover
+    _emitForce(PlannerState.seed());
   }
 
   void updateRaceConfig(RaceConfig Function(RaceConfig) edit) {

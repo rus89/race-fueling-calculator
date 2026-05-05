@@ -24,6 +24,9 @@ void main() {
     addTearDown(c.dispose);
     final state = await c.read(plannerNotifierProvider.future);
     expect(state.raceConfig.name, contains('Andalucía'));
+    // Empty drive ⇒ first-run seed; the flag flips so the UI can offer a
+    // quickstart banner without misreading "Andalucía" as a saved blob.
+    expect(state.isSeedFallback, isTrue);
   });
 
   test('updateRaceConfig persists new state', () async {
@@ -55,6 +58,9 @@ void main() {
     addTearDown(c.dispose);
     final state = await c.read(plannerNotifierProvider.future);
     expect(state.raceConfig.name, 'My Custom Race');
+    // build() defensively clears the flag on loaded blobs — only the
+    // empty-drive branch counts as a fallback.
+    expect(state.isSeedFallback, isFalse);
   });
 
   test('updateRaceConfig before build completes is a no-op', () async {
@@ -142,5 +148,59 @@ void main() {
     expect(caught, isA<StateError>());
     // The provider's current state should be AsyncError.
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
+  });
+
+  test('mutator does not save while state is AsyncError', () async {
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+    // A mutation issued while in error state must NOT overwrite the
+    // recoverable corrupted blob via a stealth save.
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 999));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.saveCount, 0);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+  });
+
+  test('acceptSeedAfterError clears error and saves seed', () async {
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+    c.read(plannerNotifierProvider.notifier).acceptSeedAfterError();
+    await Future<void>.delayed(Duration.zero);
+
+    final after = c.read(plannerNotifierProvider);
+    expect(after.hasValue, isTrue);
+    expect(after.requireValue.isSeedFallback, isTrue);
+    expect(fake.saveCount, 1);
+    expect(fake.lastSaved!.isSeedFallback, isTrue);
+  });
+
+  test('acceptSeedAfterError is a no-op when state is AsyncData', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+
+    c.read(plannerNotifierProvider.notifier).acceptSeedAfterError();
+    await Future<void>.delayed(Duration.zero);
+
+    // No extraneous save; the user wasn't in an error state.
+    expect(fake.saveCount, 0);
   });
 }
