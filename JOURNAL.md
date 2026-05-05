@@ -794,3 +794,62 @@ Started Phase B (Flutter app) on branch `feat/v1.1-phase-b-scaffolding`. Batch 1
 - **PB-FUTURE-1** — No i18n scaffolding (`flutter_localizations` not added). Seed race name `Andalucía Bike Race — Stage 3` is hardcoded English. Fine for v1.1; route through `AppLocalizations` when l10n lands.
 - **PB-FUTURE-2** — Race name special characters render fine in Flutter; CLI Windows console (`cmd.exe`, code page 437/1252) may mojibake on em dash and `í`. Keep CLI output ASCII-safe-by-default for v1.x or document `chcp 65001` in CLI Windows guidance.
 
+## 2026-05-04 — v1.1 Phase B Batch 2 (theme tokens + typography)
+
+Tasks B3 (`BonkTokens` design tokens — 24 colors + 3 radii + 10 spacing) and B4 (`BonkType` — Inter Tight + JetBrains Mono via google_fonts, 8 named roles) shipped. Two implementer commits + JOURNAL pause + 6 Round-2 fix-up commits.
+
+### What shipped (8 net commits, after Round 2.5)
+
+- **B3** — `lib/presentation/theme/tokens.dart` with surfaces / inks / rules / accent + 7 semantic colors, 3 radii, 10 spacing values, plus `topbarHeight = space44` semantic alias. Doc block at top of file declares the **color-usage doctrine** (see below) and the **dark-mode deferral TODO**.
+- **B4** — `lib/presentation/theme/typography.dart` exposes two parameterised builders (`sans({size, w})`, `mono({size, w})`) and 7 memoised role tokens (`railEyebrow`, `railTitle`, `railSub`, `sectionLabel`, `fieldLabel`, `statHero`, `statValue`) as `static final TextStyle` — refactored from methods so per-frame `build()` calls don't reallocate.
+- **Test infra** — `test/test_helpers/google_fonts_setup.dart` extracts the `TestWidgetsFlutterBinding.ensureInitialized` + `GoogleFonts.config.allowRuntimeFetching = false` + `flutter/assets` mock-manifest stub into a one-line `setUpAll` call. Required by every future widget test that touches `BonkType` (Phases C–F all qualify).
+
+### Round 2 review (3 parallel reviewers: architecture / test coverage / accessibility-UX)
+
+Heavier round than Round 1 — a11y reviewer in particular surfaced two CRITICALs and a HIGH that drove the doctrine decision.
+
+| Severity | Total | Fixed in Round 2.5 | Deferred (acceptance constraints below) | Defer to backlog |
+|---|---:|---:|---:|---:|
+| CRITICAL | 3 | 1 (docstrings) + 2 (resolved by doctrine) | 0 | 0 |
+| HIGH | 4 | 2 (paper test, TextScaler comment) + 1 (dark-mode TODO) | 1 (small fonts → Batch 3-D `textScaler 2.0` widget test) | 0 |
+| MEDIUM | 8 | 4 (semantic palette tests, secondary tests, methods→fields, helper) | 4 (focus ring, dividers, letterSpacing, outline color) | 0 |
+| LOW | 8 | 1 (mono-origin tests, mono override symmetry, topbarHeight alias) | 0 | 7 |
+
+**Test counts:** 57 app tests (was 42; +11 token tests covering `paper`, `bg2`, `rule2`, `accentInk`, all 7 semantics; +4 typography contract tests pinning mono origin for `railEyebrow`/`sectionLabel`, mono override symmetry, `statHero` height inheritance). Core 257 / CLI 279 unchanged.
+
+### Decisions locked in (Milan, post-Round 2)
+
+**Q1 → B (Doctrine, NOT new tokens).** Severity *text* (warning headlines, "CRITICAL" / "ADVISORY" labels) always uses `BonkTokens.ink` or `ink2`. Color carries severity through the **left bar, dot, or icon only** — never through text foreground. This keeps every severity label at WCAG AA contrast on cream surfaces without expanding the token surface. Documented at the top of `tokens.dart`. Binding constraint on Diagnostics rail (Batch 4–5): severity card text never takes a semantic-color foreground.
+
+**Q2 → B (TODO, not indirection).** Spec §13 lists dark mode as future work. `tokens.dart` carries a `// TODO(dark-mode):` comment explaining the future `ThemeExtension<BonkTokens>` retrofit and the trigger condition: **if more than ~5 widget files reference these tokens before dark mode lands, do the extraction proactively** to avoid touching every consumer.
+
+**Q3 → Yes.** `BonkType` role helpers refactored from `static TextStyle railTitle()` methods to `static final TextStyle railTitle = ...` fields. Per-frame `TextStyle` allocation eliminated. Builders (`sans`, `mono`) stay as methods because they take parameters. All call sites updated.
+
+**Q4 → Yes.** `test/test_helpers/google_fonts_setup.dart` extracted. Future widget tests use `setUpAll(setUpGoogleFontsForTests);` in one line.
+
+### Color-usage doctrine (now codified in `tokens.dart`)
+
+- **Text foreground:** `ink` / `ink2` / `ink3` always. `accentInk` for accent text on accent fills.
+- **Decorative-only fills (FAIL contrast as text):** `accent`, `glu`, `fru` — chips, dots, ratio bars only. Docstrings on each token warn against text use.
+- **Semantic severity:** color goes on the bar/dot/icon. Text stays in `ink`/`ink2`. Contrast ratios: `accent`=1.25:1 / `glu`=1.58:1 / `fru`=2.12:1 / `hydro`=2.39:1 / `warn`=2.69:1 / `ok`=2.71:1 / `bad`=3.86:1 / `caf`=4.46:1 — all fail or are borderline at AA-Normal as text. Doctrine sidesteps the problem entirely.
+
+### Acceptance constraints for downstream batches
+
+These were NOT fixed in Round 2.5 because they need the consumer code to exist. Batches 3–5 must honour them.
+
+- **PB-A11Y-1 (Batch 4-5 Diagnostics rail).** Severity text never uses semantic-color foreground (Q1 doctrine). Severity must also be encoded as **text label + icon** so colorblind users can distinguish CRITICAL from ADVISORY without color (`bad`/`ok` collapse to 1.42:1 native, 1.22:1 protanope, 1.57:1 deuteranope — ~1 in 12 male users in the XCM target audience).
+- **PB-A11Y-2 (Batch 3 Setup rail forms).** Dividers `rule` (1.32:1) / `rule2` (1.16:1) FAIL WCAG 1.4.11 if they outline interactive controls. Add a `ruleStrong` (or `outline`) token at ≥3:1 — recommended `#A19E94` — before any input batch lands. Pure decorative dividers between sections are exempt.
+- **PB-A11Y-3 (B5 theme construction).** Default Material focus ring uses `colorScheme.primary`. If `accent` becomes primary, focus rings render at 1.25:1 on bg — invisible. Focus indicator must use `ink` or `ink2`, not `accent`. Wire this when `MaterialApp.theme` is constructed.
+- **PB-A11Y-4 (Batch 3-D stat grid).** Smallest fonts (10.5pt `sectionLabel`, 11pt `railEyebrow`) are borderline for race-morning glance in sunlight. Add a `tester.platformDispatcher.textScaleFactorTestValue = 2.0` widget test in Batch 3-D and verify stat grid + rail widths still survive 200% scaling. Per WCAG 1.4.4.
+
+### Deferred to backlog
+
+- **PB-ARCH-5** — `BonkTokens` and `BonkType` use `Klass._()` private constructor for namespace classes. Flutter SDK (`Colors`) uses `abstract final class` since Dart 3. Cosmetic; consistent style decision for the project to make later.
+- **PB-ARCH-6** — Single-letter constants `r` / `rSm` / `rLg` are namespace-qualified but terse. If a future refactor exposes them un-namespaced, readability collapses. Consider `radiusSm` / `radius` / `radiusLg` rename if it stays in scope.
+- **PB-ARCH-7** — 8 typography roles cover the surfaces of Phase B. Phase C–E will discover gaps (button text, error text, link text, body-large/small). Add roles as needed; don't pre-add speculatively.
+- **PB-A11Y-5 (v2 i18n).** `Inter Tight` has no CJK/RTL/Indic coverage. Non-Latin race names fall back to platform default. v2 should add a `fontFamilyFallback: ['Noto Sans CJK', ...]` chain. RTL also requires the entire three-rail layout to invert.
+- **PB-A11Y-6** — Negative `letterSpacing: -0.1` on mono. Visual review on a low-DPR Windows display before Batch 4 closes; drop to `0` if alignment looks poor.
+- **PB-A11Y-7** — Print stylesheet (Cmd+P from Flutter Web) burns toner on cream `bg`. Spec §13 lists print/PDF as future. Swap surfaces to white via `@media print` when feature lands.
+- **PB-TEST-4** — Radii (3) and spacing (10) constants untested. Trivial doubles; drift would surface visually on first use. Skip unless a single "spacing scale stable" snapshot test feels worth one line.
+
+
