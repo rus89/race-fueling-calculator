@@ -10,6 +10,7 @@ import '../theme/tokens.dart';
 import '../theme/typography.dart';
 import '../widgets/field_shell.dart';
 import '../widgets/seg_control.dart';
+import '../widgets/text_input.dart';
 
 class SetupRail extends ConsumerWidget {
   const SetupRail({super.key});
@@ -66,9 +67,10 @@ class _RailBody extends ConsumerWidget {
             const _SectionLabel(label: 'RACE'),
             BonkFieldShell(
               label: 'Name',
-              child: _BonkTextInput(
+              child: BonkTextInput(
                 key: const Key('setup.race_name'),
                 value: state.raceConfig.name,
+                labelText: 'Race name',
                 onChanged: (v) =>
                     notifier.updateRaceConfig((c) => c.copyWith(name: v)),
               ),
@@ -112,71 +114,6 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-class _BonkTextInput extends StatefulWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-  final TextInputType? keyboardType;
-  final bool monoFont;
-  const _BonkTextInput({
-    super.key,
-    required this.value,
-    required this.onChanged,
-    this.keyboardType,
-    this.monoFont = false,
-  });
-
-  @override
-  State<_BonkTextInput> createState() => _BonkTextInputState();
-}
-
-class _BonkTextInputState extends State<_BonkTextInput> {
-  late final TextEditingController _ctrl = TextEditingController(
-    text: widget.value,
-  );
-
-  @override
-  void didUpdateWidget(_BonkTextInput oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value && _ctrl.text != widget.value) {
-      _ctrl.text = widget.value;
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: _ctrl,
-      onChanged: widget.onChanged,
-      keyboardType: widget.keyboardType,
-      style: widget.monoFont ? BonkType.mono(size: 14) : BonkType.sans(),
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        filled: true,
-        fillColor: BonkTokens.paper,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BonkTokens.r),
-          borderSide: const BorderSide(color: BonkTokens.rule),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BonkTokens.r),
-          borderSide: const BorderSide(color: BonkTokens.rule),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(BonkTokens.r),
-          borderSide: const BorderSide(color: BonkTokens.ink),
-        ),
-      ),
-    );
-  }
-}
-
 class _DurationRow extends StatelessWidget {
   final PlannerState state;
   final PlannerNotifier notifier;
@@ -192,7 +129,7 @@ class _DurationRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 56,
-            child: _BonkTextInput(
+            child: BonkTextInput(
               value: '$h',
               monoFont: true,
               keyboardType: TextInputType.number,
@@ -214,7 +151,7 @@ class _DurationRow extends StatelessWidget {
           const SizedBox(width: 8),
           SizedBox(
             width: 56,
-            child: _BonkTextInput(
+            child: BonkTextInput(
               value: '$m',
               monoFont: true,
               keyboardType: TextInputType.number,
@@ -265,7 +202,7 @@ class _BodyMassAndDistanceRow extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 64,
-                  child: _BonkTextInput(
+                  child: BonkTextInput(
                     value: '${state.athleteProfile.bodyWeightKg ?? 70}',
                     monoFont: true,
                     keyboardType: TextInputType.number,
@@ -305,7 +242,7 @@ class _BodyMassAndDistanceRow extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 64,
-                  child: _BonkTextInput(
+                  child: BonkTextInput(
                     value: state.raceConfig.distanceKm == null
                         ? ''
                         : '${state.raceConfig.distanceKm!.round()}',
