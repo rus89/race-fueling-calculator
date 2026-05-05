@@ -10,6 +10,7 @@ import '../providers/planner_notifier.dart';
 import '../providers/product_library_provider.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
+import '../widgets/aid_station_row.dart';
 import '../widgets/field_shell.dart';
 import '../widgets/inventory_row.dart';
 import '../widgets/seg_control.dart';
@@ -199,6 +200,61 @@ class _RailBody extends ConsumerWidget {
                           );
                         },
                       ),
+                  ],
+                );
+              },
+            ),
+            const Divider(height: 1, color: BonkTokens.rule),
+            Consumer(
+              builder: (context, ref, _) {
+                final library = ref.watch(productLibraryProvider);
+                final stations = state.raceConfig.aidStations;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SectionLabel(label: 'AID STATIONS'),
+                    if (stations.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          "No aid stations. You're carrying everything.",
+                          style: BonkType.sans(
+                            size: 12,
+                          ).copyWith(color: BonkTokens.ink3),
+                        ),
+                      ),
+                    for (var i = 0; i < stations.length; i++)
+                      AidStationRow(
+                        key: ValueKey('aid-$i'),
+                        station: stations[i],
+                        library: library,
+                        onChanged: (next) {
+                          final updated = [...stations]..[i] = next;
+                          notifier.updateRaceConfig(
+                            (c) => c.copyWith(aidStations: updated),
+                          );
+                        },
+                        onRemove: () {
+                          final updated = [...stations]..removeAt(i);
+                          notifier.updateRaceConfig(
+                            (c) => c.copyWith(aidStations: updated),
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        final mid = state.raceConfig.duration.inMinutes ~/ 2;
+                        final updated = [
+                          ...stations,
+                          AidStation(timeMinutes: mid),
+                        ];
+                        notifier.updateRaceConfig(
+                          (c) => c.copyWith(aidStations: updated),
+                        );
+                      },
+                      child: const Text('+ Add aid station'),
+                    ),
                   ],
                 );
               },
