@@ -67,6 +67,25 @@ class AidStation extends Equatable {
 
   Map<String, dynamic> toJson() => _$AidStationToJson(this);
 
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// Null-as-no-change semantics (mirrors [RaceConfig.copyWith]). Callers
+  /// that need to clear `timeMinutes` or `distanceKm` (for example to drop
+  /// the inactive unit when toggling between time and distance) must
+  /// construct a fresh [AidStation] directly — this method cannot express
+  /// "set to null".
+  AidStation copyWith({
+    int? timeMinutes,
+    double? distanceKm,
+    List<String>? refill,
+  }) {
+    return AidStation(
+      timeMinutes: timeMinutes ?? this.timeMinutes,
+      distanceKm: distanceKm ?? this.distanceKm,
+      refill: refill ?? this.refill,
+    );
+  }
+
   @override
   List<Object?> get props => [distanceKm, timeMinutes, refill];
 }
