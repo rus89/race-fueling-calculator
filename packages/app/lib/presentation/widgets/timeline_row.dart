@@ -157,13 +157,20 @@ class TimelineRow extends StatelessWidget {
                 if (entry.aidStation != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      'AID STATION — refill ${entry.aidStation!.refill.length} '
-                      'item${entry.aidStation!.refill.length == 1 ? "" : "s"}',
-                      style: BonkType.mono(
-                        size: 11,
-                        w: FontWeight.w600,
-                      ).copyWith(color: BonkTokens.warn),
+                    child: Row(
+                      children: [
+                        Container(width: 4, height: 14, color: BonkTokens.warn),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Aid station — refill '
+                          '${entry.aidStation!.refill.length} '
+                          'item${entry.aidStation!.refill.length == 1 ? "" : "s"}',
+                          style: BonkType.mono(
+                            size: 11,
+                            w: FontWeight.w600,
+                          ).copyWith(color: BonkTokens.ink),
+                        ),
+                      ],
                     ),
                   ),
               ],

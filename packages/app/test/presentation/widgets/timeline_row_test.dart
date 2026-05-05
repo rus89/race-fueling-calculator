@@ -36,7 +36,7 @@ void main() {
     expect(find.textContaining('26', findRichText: true), findsWidgets);
   });
 
-  testWidgets('shows aid station marker when entry has aidStation', (
+  testWidgets('shows aid station marker (singular) with item suffix', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -61,7 +61,33 @@ void main() {
         ),
       ),
     );
-    expect(find.textContaining('AID STATION'), findsOneWidget);
+    expect(find.text('Aid station — refill 1 item'), findsOneWidget);
+  });
+
+  testWidgets('aid station marker pluralizes refill items', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TimelineRow(
+            entry: PlanEntry(
+              timeMark: Duration(minutes: 90),
+              products: [],
+              carbsGlucose: 0,
+              carbsFructose: 0,
+              carbsTotal: 0,
+              cumulativeCarbs: 50,
+              cumulativeCaffeine: 0,
+              waterMl: 0,
+              aidStation: AidStation(timeMinutes: 90, refill: ['x', 'y']),
+            ),
+            targetG: 20,
+            peakG: 25,
+            productsById: {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Aid station — refill 2 items'), findsOneWidget);
   });
 
   testWidgets('shows sip-bottle line when only effectiveDrinkCarbs > 0', (
