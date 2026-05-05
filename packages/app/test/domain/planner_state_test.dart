@@ -81,20 +81,36 @@ void main() {
       expect(round.toJson(), equals(original.toJson()));
     });
 
-    test('toJson produces a stable two-key structure', () {
+    test('toJson includes isSeedFallback so the bit survives a save', () {
       final json = PlannerState.seed().toJson();
-      expect(json.keys.toSet(), {'raceConfig', 'athleteProfile'});
+      expect(json['isSeedFallback'], isTrue);
+      expect(json.keys.toSet(), {
+        'raceConfig',
+        'athleteProfile',
+        'isSeedFallback',
+      });
     });
 
-    test('toJson does not include isSeedFallback (runtime-only flag)', () {
+    test('fromJson honours an explicit isSeedFallback: true', () {
+      // A user who clicks "Start fresh" lands on a saved seed; reloading the
+      // app must keep that fact visible until they actually edit something.
       final json = PlannerState.seed().toJson();
-      expect(json.containsKey('isSeedFallback'), isFalse);
+      final round = PlannerState.fromJson(json);
+      expect(round.isSeedFallback, isTrue);
     });
 
-    test('fromJson defaults isSeedFallback to false', () {
-      // Round-tripping a saved blob never yields a fallback, regardless of
-      // the in-memory source's flag.
-      final round = PlannerState.fromJson(PlannerState.seed().toJson());
+    test('fromJson honours an explicit isSeedFallback: false', () {
+      final json = PlannerState.seed().toJson();
+      json['isSeedFallback'] = false;
+      final round = PlannerState.fromJson(json);
+      expect(round.isSeedFallback, isFalse);
+    });
+
+    test('fromJson defaults isSeedFallback to false when key is absent', () {
+      // Legacy blobs (pre-PB-DATA-1) lack the key. Treat them as customised.
+      final json = PlannerState.seed().toJson();
+      json.remove('isSeedFallback');
+      final round = PlannerState.fromJson(json);
       expect(round.isSeedFallback, isFalse);
     });
   });

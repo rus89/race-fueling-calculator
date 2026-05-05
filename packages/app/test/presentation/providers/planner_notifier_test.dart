@@ -48,19 +48,73 @@ void main() {
   });
 
   test('loaded state takes precedence over seed', () async {
+    // Custom blob — explicitly NOT a seed (user has saved a customised plan).
     final custom = PlannerState.seed().copyWith(
       raceConfig: PlannerState.seed().raceConfig.copyWith(
         name: 'My Custom Race',
       ),
+      isSeedFallback: false,
     );
     final fake = FakePlanStorage()..loaded = custom;
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
     final state = await c.read(plannerNotifierProvider.future);
     expect(state.raceConfig.name, 'My Custom Race');
-    // build() defensively clears the flag on loaded blobs — only the
-    // empty-drive branch counts as a fallback.
+    // The persisted flag is authoritative — load doesn't clobber it.
     expect(state.isSeedFallback, isFalse);
+  });
+
+  test(
+    'loaded blob with isSeedFallback: true survives until first edit',
+    () async {
+      // Reload after a "Start fresh" recovery: the seed was saved with the
+      // flag set, and the UI must keep showing the quickstart banner until
+      // the user actually edits something.
+      final fake = FakePlanStorage()..loaded = PlannerState.seed();
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      final state = await c.read(plannerNotifierProvider.future);
+      expect(state.isSeedFallback, isTrue);
+    },
+  );
+
+  test('first user edit flips isSeedFallback to false', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    final initial = await c.read(plannerNotifierProvider.future);
+    expect(initial.isSeedFallback, isTrue);
+
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      c.read(plannerNotifierProvider).requireValue.isSeedFallback,
+      isFalse,
+    );
+    // The save must reflect the flipped flag — the persisted blob is no
+    // longer marked as a fallback once the user has edited it.
+    expect(fake.lastSaved!.isSeedFallback, isFalse);
+  });
+
+  test('subsequent edits leave isSeedFallback false', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+
+    final notifier = c.read(plannerNotifierProvider.notifier);
+    notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
+    await Future<void>.delayed(Duration.zero);
+    notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      c.read(plannerNotifierProvider).requireValue.isSeedFallback,
+      isFalse,
+    );
   });
 
   test('updateRaceConfig before build completes is a no-op', () async {

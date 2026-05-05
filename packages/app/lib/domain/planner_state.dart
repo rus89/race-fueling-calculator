@@ -6,9 +6,18 @@ class PlannerState {
   final RaceConfig raceConfig;
   final AthleteProfile athleteProfile;
 
-  /// True when this state was synthesised from `seed()` because storage was
-  /// empty (first run) — never persisted, set by the notifier on a fresh
-  /// drive. Loaded blobs always materialise with this flag false.
+  /// True when this state is a seed (either synthesised on first run or
+  /// written by `acceptSeedAfterError` during destructive recovery) and the
+  /// user has not yet edited it. Persisted across reloads so the UI can keep
+  /// surfacing a quickstart treatment until the first real edit. Auto-flipped
+  /// to false by [PlannerNotifier] on any user-driven mutation.
+  ///
+  /// Legacy blobs (pre-PB-DATA-1) lack this key; [fromJson] defaults to
+  /// `false` because by definition those blobs represent a saved customised
+  /// plan, not a fallback.
+  // TODO(PB-DATA-2): consider field-bound validation in fromJson — today
+  // only structural casts are checked; semantic invariants (e.g. positive
+  // body mass, monotonically increasing aid station times) flow through.
   final bool isSeedFallback;
 
   const PlannerState({
@@ -27,11 +36,10 @@ class PlannerState {
     isSeedFallback: isSeedFallback ?? this.isSeedFallback,
   );
 
-  // WHY: isSeedFallback is a runtime-only flag. A saved blob is by definition
-  // a real plan, so reloading one always yields isSeedFallback == false.
   Map<String, dynamic> toJson() => {
     'raceConfig': raceConfig.toJson(),
     'athleteProfile': athleteProfile.toJson(),
+    'isSeedFallback': isSeedFallback,
   };
 
   factory PlannerState.fromJson(Map<String, dynamic> json) => PlannerState(
@@ -39,6 +47,7 @@ class PlannerState {
     athleteProfile: AthleteProfile.fromJson(
       json['athleteProfile'] as Map<String, dynamic>,
     ),
+    isSeedFallback: (json['isSeedFallback'] as bool?) ?? false,
   );
 
   /// The Andalucía Bike Race Stage 3 seed (matches the prototype).

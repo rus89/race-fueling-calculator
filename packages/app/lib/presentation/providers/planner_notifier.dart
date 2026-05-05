@@ -21,10 +21,10 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     try {
       final loaded = await storage.load();
       if (loaded != null) {
-        // Defensive: a loaded blob is by definition a real plan, never a
-        // first-run fallback — strip the flag in case a future codepath
-        // ever sets it on persisted state.
-        return loaded.copyWith(isSeedFallback: false);
+        // The persisted isSeedFallback bit (default false on legacy keys)
+        // is authoritative — a saved post-recovery seed survives until the
+        // first user edit flips the flag in `_emit`.
+        return loaded;
       }
       // Empty drive: synthesise the seed and flag it so the UI can offer
       // a quickstart treatment (PB-UX-5 in F1).
@@ -50,9 +50,15 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   // Refuses to emit while the prior state is AsyncError so a stealth save
   // cannot overwrite a recoverable corrupted blob with an in-memory seed.
   // The user must explicitly opt in via `acceptSeedAfterError`.
+  //
+  // Any user-driven mutation flips `isSeedFallback` off — by definition
+  // the working state is no longer a fallback once the user has touched it.
   void _emit(PlannerState next) {
     if (state is AsyncError) return;
-    _emitForce(next);
+    final flipped = next.isSeedFallback
+        ? next.copyWith(isSeedFallback: false)
+        : next;
+    _emitForce(flipped);
   }
 
   // Emits unconditionally and schedules a save. Used internally by `_emit`
