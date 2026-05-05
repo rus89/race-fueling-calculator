@@ -143,7 +143,6 @@ class _RailBody extends ConsumerWidget {
                   30.0,
                   120.0,
                 ),
-                activeColor: BonkTokens.ink3,
                 onChanged: (v) => notifier.updateAthleteProfile(
                   (p) => p.copyWith(gutToleranceGPerHr: v),
                 ),
@@ -164,122 +163,123 @@ class _RailBody extends ConsumerWidget {
               ),
             ),
             const Divider(height: 1, color: BonkTokens.rule),
-            Consumer(
-              builder: (context, ref, _) {
-                final library = ref.watch(productLibraryProvider);
-                final selections = state.raceConfig.selectedProducts;
-                final totalCount = selections.fold<int>(
-                  0,
-                  (a, s) => a + s.quantity,
-                );
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionLabel(label: 'INVENTORY ($totalCount items)'),
-                    for (final p in library)
-                      InventoryRow(
-                        product: p,
-                        count: selections
-                            .firstWhere(
-                              (s) => s.productId == p.id,
-                              orElse: () => ProductSelection(
-                                productId: p.id,
-                                quantity: 0,
-                              ),
-                            )
-                            .quantity,
-                        onChanged: (n) {
-                          // Preserve existing order on increment / decrement.
-                          // Removing a count zeroes the entry out; adding a
-                          // brand-new one appends.
-                          final List<ProductSelection> next;
-                          if (n == 0) {
-                            next = selections
-                                .where((s) => s.productId != p.id)
-                                .toList();
-                          } else if (selections.any(
-                            (s) => s.productId == p.id,
-                          )) {
-                            next = [
-                              for (final s in selections)
-                                if (s.productId == p.id)
-                                  ProductSelection(productId: p.id, quantity: n)
-                                else
-                                  s,
-                            ];
-                          } else {
-                            next = [
-                              ...selections,
-                              ProductSelection(productId: p.id, quantity: n),
-                            ];
-                          }
-                          notifier.updateRaceConfig(
-                            (c) => c.copyWith(selectedProducts: next),
-                          );
-                        },
-                      ),
-                  ],
-                );
-              },
-            ),
+            const _InventorySection(),
             const Divider(height: 1, color: BonkTokens.rule),
-            Consumer(
-              builder: (context, ref, _) {
-                final library = ref.watch(productLibraryProvider);
-                final stations = state.raceConfig.aidStations;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionLabel(label: 'AID STATIONS'),
-                    if (stations.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          "No aid stations. You're carrying everything.",
-                          style: BonkType.sans(
-                            size: 12,
-                          ).copyWith(color: BonkTokens.ink3),
-                        ),
-                      ),
-                    for (var i = 0; i < stations.length; i++)
-                      AidStationRow(
-                        key: ValueKey('aid-$i'),
-                        station: stations[i],
-                        library: library,
-                        onChanged: (next) {
-                          final updated = [...stations]..[i] = next;
-                          notifier.updateRaceConfig(
-                            (c) => c.copyWith(aidStations: updated),
-                          );
-                        },
-                        onRemove: () {
-                          final updated = [...stations]..removeAt(i);
-                          notifier.updateRaceConfig(
-                            (c) => c.copyWith(aidStations: updated),
-                          );
-                        },
-                      ),
-                    const SizedBox(height: 8),
-                    OutlinedButton(
-                      onPressed: () {
-                        final mid = state.raceConfig.duration.inMinutes ~/ 2;
-                        final updated = [
-                          ...stations,
-                          AidStation(timeMinutes: mid),
-                        ];
-                        notifier.updateRaceConfig(
-                          (c) => c.copyWith(aidStations: updated),
-                        );
-                      },
-                      child: const Text('+ Add aid station'),
-                    ),
-                  ],
-                );
-              },
-            ),
+            const _AidStationsSection(),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _InventorySection extends ConsumerWidget {
+  const _InventorySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(plannerNotifierProvider).requireValue;
+    final notifier = ref.read(plannerNotifierProvider.notifier);
+    final library = ref.watch(productLibraryProvider);
+    final selections = state.raceConfig.selectedProducts;
+    final totalCount = selections.fold<int>(0, (a, s) => a + s.quantity);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionLabel(label: 'INVENTORY ($totalCount items)'),
+        for (final p in library)
+          InventoryRow(
+            product: p,
+            count: selections
+                .firstWhere(
+                  (s) => s.productId == p.id,
+                  orElse: () => ProductSelection(productId: p.id, quantity: 0),
+                )
+                .quantity,
+            onChanged: (n) {
+              // Preserve existing order on increment / decrement.
+              // Removing a count zeroes the entry out; adding a
+              // brand-new one appends.
+              final List<ProductSelection> next;
+              if (n == 0) {
+                next = selections.where((s) => s.productId != p.id).toList();
+              } else if (selections.any((s) => s.productId == p.id)) {
+                next = [
+                  for (final s in selections)
+                    if (s.productId == p.id)
+                      ProductSelection(productId: p.id, quantity: n)
+                    else
+                      s,
+                ];
+              } else {
+                next = [
+                  ...selections,
+                  ProductSelection(productId: p.id, quantity: n),
+                ];
+              }
+              notifier.updateRaceConfig(
+                (c) => c.copyWith(selectedProducts: next),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _AidStationsSection extends ConsumerWidget {
+  const _AidStationsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(plannerNotifierProvider).requireValue;
+    final notifier = ref.read(plannerNotifierProvider.notifier);
+    final library = ref.watch(productLibraryProvider);
+    final stations = state.raceConfig.aidStations;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel(label: 'AID STATIONS'),
+        if (stations.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              "No aid stations. You're carrying everything.",
+              style: BonkType.sans(size: 12).copyWith(color: BonkTokens.ink3),
+            ),
+          ),
+        for (var i = 0; i < stations.length; i++)
+          Semantics(
+            container: true,
+            label: 'Aid station ${i + 1}',
+            child: AidStationRow(
+              key: ValueKey('aid-$i'),
+              station: stations[i],
+              library: library,
+              onChanged: (next) {
+                final updated = [...stations]..[i] = next;
+                notifier.updateRaceConfig(
+                  (c) => c.copyWith(aidStations: updated),
+                );
+              },
+              onRemove: () {
+                final updated = [...stations]..removeAt(i);
+                notifier.updateRaceConfig(
+                  (c) => c.copyWith(aidStations: updated),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: () {
+            final mid = state.raceConfig.duration.inMinutes ~/ 2;
+            final updated = [...stations, AidStation(timeMinutes: mid)];
+            notifier.updateRaceConfig((c) => c.copyWith(aidStations: updated));
+          },
+          child: const Text('+ Add aid station'),
+        ),
+      ],
     );
   }
 }
@@ -290,7 +290,10 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 18, bottom: 10),
-    child: Text(label, style: BonkType.sectionLabel),
+    child: Semantics(
+      header: true,
+      child: Text(label, style: BonkType.sectionLabel),
+    ),
   );
 }
 
