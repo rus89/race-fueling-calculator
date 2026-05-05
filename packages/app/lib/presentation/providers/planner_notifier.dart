@@ -1,5 +1,8 @@
 // ABOUTME: AsyncNotifier holding the working PlannerState; loads from storage.
 // ABOUTME: Mutators emit a new state and trigger save (debouncing comes in F2).
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/domain.dart';
@@ -18,7 +21,13 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
 
   void _emit(PlannerState next) {
     state = AsyncData(next);
-    ref.read(planStorageProvider).save(next);
+    unawaited(
+      ref.read(planStorageProvider).save(next).onError((e, st) {
+        // L1 observability: log the failure. L3 (UI surfacing via SaveStatus)
+        // is a Phase F prerequisite — see PB-DATA-1 in JOURNAL.
+        debugPrint('PlanStorage.save failed: $e');
+      }),
+    );
   }
 
   void updateRaceConfig(RaceConfig Function(RaceConfig) edit) {
