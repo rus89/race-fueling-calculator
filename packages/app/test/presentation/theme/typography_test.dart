@@ -58,7 +58,7 @@ void main() {
 
   group('named roles', () {
     testWidgets('railEyebrow uses ink3 and letterSpacing 0.4', (tester) async {
-      final s = BonkType.railEyebrow();
+      final s = BonkType.railEyebrow;
       expect(s.color, BonkTokens.ink3);
       expect(s.letterSpacing, 0.4);
     });
@@ -66,7 +66,7 @@ void main() {
     testWidgets('railTitle is sans 22 w600 with letterSpacing -0.4', (
       tester,
     ) async {
-      final s = BonkType.railTitle();
+      final s = BonkType.railTitle;
       expect(s.fontSize, 22);
       expect(s.fontWeight, FontWeight.w600);
       expect(s.letterSpacing, -0.4);
@@ -75,32 +75,32 @@ void main() {
     testWidgets('statHero is mono 36 w600 with accentInk color', (
       tester,
     ) async {
-      final s = BonkType.statHero();
+      final s = BonkType.statHero;
       expect(s.fontSize, 36);
       expect(s.fontWeight, FontWeight.w600);
       expect(s.color, BonkTokens.accentInk);
     });
 
     testWidgets('statValue is mono 20 w500', (tester) async {
-      final s = BonkType.statValue();
+      final s = BonkType.statValue;
       expect(s.fontSize, 20);
       expect(s.fontWeight, FontWeight.w500);
     });
 
     testWidgets('sectionLabel uses ink3 and letterSpacing 0.6', (tester) async {
-      final s = BonkType.sectionLabel();
+      final s = BonkType.sectionLabel;
       expect(s.color, BonkTokens.ink3);
       expect(s.letterSpacing, 0.6);
     });
 
     testWidgets('fieldLabel uses ink2 and size 11.5', (tester) async {
-      final s = BonkType.fieldLabel();
+      final s = BonkType.fieldLabel;
       expect(s.color, BonkTokens.ink2);
       expect(s.fontSize, 11.5);
     });
 
     testWidgets('railSub uses ink3 and size 12.5', (tester) async {
-      final s = BonkType.railSub();
+      final s = BonkType.railSub;
       expect(s.color, BonkTokens.ink3);
       expect(s.fontSize, 12.5);
     });
