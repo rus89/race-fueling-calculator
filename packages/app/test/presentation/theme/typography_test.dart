@@ -1,28 +1,14 @@
 // ABOUTME: Smoke tests pinning typography role contracts.
 // ABOUTME: Ensures size/weight/color invariants survive refactors.
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:race_fueling_app/presentation/theme/tokens.dart';
 import 'package:race_fueling_app/presentation/theme/typography.dart';
 
+import '../../test_helpers/google_fonts_setup.dart';
+
 void main() {
-  setUpAll(() {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    // Disable runtime HTTP fetching so tests don't try the network.
-    GoogleFonts.config.allowRuntimeFetching = false;
-    // Stub the asset manifest with an empty Map so GoogleFonts asset
-    // lookups resolve without a FormatException. The TextStyle props we
-    // assert on are populated synchronously regardless of font load.
-    final emptyManifest = const StandardMessageCodec().encodeMessage(
-      <String, Object>{},
-    );
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMessageHandler('flutter/assets', (message) async {
-          return emptyManifest;
-        });
-  });
+  setUpAll(setUpGoogleFontsForTests);
 
   // testWidgets is used (instead of plain test) so that GoogleFonts'
   // background asset-load failure is captured by the tester binding and
