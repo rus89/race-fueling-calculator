@@ -13,6 +13,9 @@ import '../widgets/flag_card.dart';
 import '../widgets/ratio_bar.dart';
 
 class DiagnosticsRail extends ConsumerWidget {
+  // F1-RAIL-MIN-WIDTH: this panel needs ≥360px outer (320px inner after the
+  // 20px horizontal padding) so RatioBar's 200% textScaler bound is honored.
+  // F1's responsive layout must allocate ≥360px for this rail.
   const DiagnosticsRail({super.key});
 
   @override
@@ -51,16 +54,22 @@ class DiagnosticsRail extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text('Checks', style: BonkType.railTitle),
                 const SizedBox(height: 18),
-                Text('CARB SOURCES', style: BonkType.sectionLabel),
+                Semantics(
+                  header: true,
+                  child: Text('CARB SOURCES', style: BonkType.sectionLabel),
+                ),
                 const SizedBox(height: 10),
                 RatioBar(
                   glucose: plan.summary.totalGlucose,
                   fructose: plan.summary.totalFructose,
                 ),
                 const SizedBox(height: 22),
-                Text(
-                  'CAFFEINE — ${plan.summary.totalCaffeineMg.round()} MG',
-                  style: BonkType.sectionLabel,
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'CAFFEINE — ${plan.summary.totalCaffeineMg.isFinite ? plan.summary.totalCaffeineMg.round() : 0} MG',
+                    style: BonkType.sectionLabel,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 CaffeineMeter(
@@ -68,9 +77,12 @@ class DiagnosticsRail extends ConsumerWidget {
                   bodyKg: bodyKg,
                 ),
                 const SizedBox(height: 22),
-                Text(
-                  'FLAGS (${warnings.length})',
-                  style: BonkType.sectionLabel,
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'FLAGS (${warnings.length})',
+                    style: BonkType.sectionLabel,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 if (warnings.isEmpty)
@@ -92,7 +104,7 @@ class _AllClearCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: 'All checks pass. Plan looks executable.',
+      label: 'All clear. All checks pass. Plan looks executable.',
       child: ExcludeSemantics(
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -101,6 +113,7 @@ class _AllClearCard extends StatelessWidget {
             border: Border.fromBorderSide(BorderSide(color: BonkTokens.rule)),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 8,
@@ -111,6 +124,14 @@ class _AllClearCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
+              Text(
+                '✓',
+                style: BonkType.mono(
+                  size: 12,
+                  w: FontWeight.w600,
+                ).copyWith(color: BonkTokens.ink),
+              ),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   'All checks pass. Plan looks executable.',
@@ -129,23 +150,30 @@ class _ErrorFallback extends StatelessWidget {
   const _ErrorFallback();
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          decoration: const BoxDecoration(
-            color: BonkTokens.paper,
-            border: Border(
-              left: BorderSide(width: 3, color: BonkTokens.bad),
-              top: BorderSide(color: BonkTokens.rule),
-              right: BorderSide(color: BonkTokens.rule),
-              bottom: BorderSide(color: BonkTokens.rule),
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      label: 'Diagnostics unavailable. Please reload.',
+      child: ExcludeSemantics(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: const BoxDecoration(
+                color: BonkTokens.paper,
+                border: Border(
+                  left: BorderSide(width: 3, color: BonkTokens.bad),
+                  top: BorderSide(color: BonkTokens.rule),
+                  right: BorderSide(color: BonkTokens.rule),
+                  bottom: BorderSide(color: BonkTokens.rule),
+                ),
+              ),
+              child: Text(
+                'Diagnostics unavailable. Please reload.',
+                style: BonkType.sans(size: 13).copyWith(color: BonkTokens.ink),
+              ),
             ),
-          ),
-          child: Text(
-            'Diagnostics unavailable. Please reload.',
-            style: BonkType.sans(size: 13).copyWith(color: BonkTokens.ink),
           ),
         ),
       ),
