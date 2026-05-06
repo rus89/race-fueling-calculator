@@ -21,13 +21,20 @@ class CaffeineMeter extends StatelessWidget {
     );
     assert(totalMg >= 0, 'CaffeineMeter requires non-negative totalMg');
 
-    final kg = bodyKg <= 0 ? 70.0 : bodyKg;
+    // Coerce non-finite or negative totalMg to 0 in release (where asserts strip)
+    // so corrupt upstream data renders as zero-fill instead of NaN/Infinity.
+    final mgEffective = (totalMg.isFinite && totalMg >= 0) ? totalMg : 0.0;
+    // Catch NaN, -Infinity, Infinity, and <= 0 in one expression. Falls back
+    // to the 70 kg default the spec defines for missing-bodyKg cases.
+    final kg = (bodyKg.isFinite && bodyKg > 0) ? bodyKg : 70.0;
     final ceiling = kg * _ceilingMgPerKg;
-    final filled = (totalMg / ceiling * _segs)
-        .clamp(0.0, _segs.toDouble())
-        .round();
-    final hot = filled >= _segs;
-    final mgPerKg = totalMg / kg;
+    final mgPerKg = mgEffective / kg;
+    // hot is gated by the actual mg/kg vs ceiling, not by the rounded segment
+    // count. round() on 4.5 segments would otherwise false-fire OVER at 90%.
+    final hot = mgPerKg >= _ceilingMgPerKg;
+    final filled = hot
+        ? _segs
+        : (mgEffective / ceiling * _segs).clamp(0.0, _segs.toDouble()).round();
     final mgPerKgText = mgPerKg.toStringAsFixed(1);
 
     final semanticsLabel = hot
@@ -62,24 +69,27 @@ class CaffeineMeter extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  '$mgPerKgText mg/kg · ceiling 6.0',
-                  style: BonkType.mono(
-                    size: 11,
-                  ).copyWith(color: BonkTokens.ink3),
-                ),
-                if (hot)
-                  Text(
-                    ' · OVER',
+            RichText(
+              text: TextSpan(
+                text: mgPerKgText,
+                style: BonkType.mono(size: 13),
+                children: [
+                  TextSpan(
+                    text: ' mg/kg · ceiling 6.0',
                     style: BonkType.mono(
                       size: 11,
-                      w: FontWeight.w600,
-                    ).copyWith(color: BonkTokens.ink),
+                    ).copyWith(color: BonkTokens.ink3),
                   ),
-              ],
+                  if (hot)
+                    TextSpan(
+                      text: ' · OVER',
+                      style: BonkType.mono(
+                        size: 11,
+                        w: FontWeight.w600,
+                      ).copyWith(color: BonkTokens.ink),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
