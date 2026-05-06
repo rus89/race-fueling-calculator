@@ -176,11 +176,17 @@ scaffolding (design tokens, typography, breakpoints, storage, Riverpod
 provider chain, MaterialApp bootstrap). v1.1 Phase C shipped the
 **Setup rail** — race / carb-strategy / inventory / aid-stations input
 sections — plus four reusable widgets (`BonkTextInput`,
-`BonkSegControl`, `BonkStepper`, `BonkFieldShell`). Phase D (plan
-canvas), Phase E (diagnostics rail), and Phase F (three-pane assembly)
-are pending — until F1 lands, the SetupRail is fully built and tested
-but not yet wired into `PlannerPage`. Run the current state in a
-browser:
+`BonkSegControl`, `BonkStepper`, `BonkFieldShell`). v1.1 Phase D
+shipped the **plan canvas** — `StatCard`, `TimelineRow`, and
+`PlanCanvas` that render the active fueling plan as a 6-card stat
+header plus a vertical timeline. PB-DATA-1 (data-layer hardening) also
+shipped alongside Phase D: typed `PlanStorageException`, `SaveStatus`
+provider, `discardCorruptedAndUseSeed` / `retryLoad` recovery hooks,
+backup-corrupted-bytes-before-overwrite, persisted `isSeedFallback`
+flag. Phase E (diagnostics rail) and Phase F (three-pane assembly)
+are pending — until F1 lands, the SetupRail and PlanCanvas are fully
+built and tested but not yet wired into `PlannerPage`. Run the current
+state in a browser:
 
 ```bash
 cd packages/app
@@ -226,10 +232,12 @@ race-fueling-calculator/
 │       │       ├── theme/          # tokens, typography, breakpoints
 │       │       ├── widgets/        # BonkSegControl, BonkStepper,
 │       │       │                   # BonkFieldShell, BonkTextInput,
-│       │       │                   # InventoryRow, AidStationRow
-│       │       ├── panels/         # SetupRail (composes the above)
+│       │       │                   # InventoryRow, AidStationRow,
+│       │       │                   # StatCard, TimelineRow
+│       │       ├── panels/         # SetupRail, PlanCanvas
 │       │       ├── pages/          # PlannerPage (stub until F1)
 │       │       └── providers/      # Riverpod 3.x chain
+│       │                           # (incl. SaveStatus + plan/warnings)
 │       ├── test/
 │       │   └── test_helpers/       # google_fonts_setup, fake_plan_storage
 │       └── web/                    # index.html, manifest, icons
@@ -252,9 +260,9 @@ dart analyze                                # workspace-wide
 cd packages/app && flutter analyze          # Flutter-specific (separate analyzer)
 
 # Run all tests
-cd packages/core && dart test               # 257 tests
+cd packages/core && dart test               # 266 tests
 cd packages/cli  && dart test               # 279 tests
-cd packages/app  && flutter test            # 135 tests
+cd packages/app  && flutter test            # 210 tests
 
 # Single test file
 dart test test/engine/timeline_builder_test.dart
@@ -292,8 +300,14 @@ Flutter app (Phases B–F) lands.
   typography, breakpoints, storage, Riverpod chain, BonkApp bootstrap).
 - **Phase C (Setup rail)** — complete (4 reusable widgets +
   `SetupRail` panel with race / carb-strategy / inventory /
-  aid-stations sections; 135 widget/unit tests).
-- **Phases D–F (Plan canvas + Diagnostics rail + Assembly)** — pending.
+  aid-stations sections).
+- **PB-DATA-1 (data-layer hardening)** — complete (`AsyncValue<FuelingPlan>`,
+  typed `PlanStorageException`, `SaveStatus` provider, recovery hooks,
+  backup-bytes, persisted `isSeedFallback`).
+- **Phase D (Plan canvas)** — complete (`StatCard` + `TimelineRow` +
+  `PlanCanvas`; 210 widget/unit tests). PlanCanvas is built and tested
+  but not yet wired into `PlannerPage` — F1 does that.
+- **Phases E + F (Diagnostics rail + Assembly)** — pending.
 
 Known limitations (tracked in `JOURNAL.md`):
 

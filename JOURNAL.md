@@ -1139,8 +1139,120 @@ A future v1.x could revisit by relaxing the validator to accept "user-pending" s
 - `AidStation` has no `copyWith` in core (per plan); added in this round.
 - Plan-template tests for `InventoryRow` referenced a "caffeine row" that never existed in the actual layout (the row is a single mono subline + stepper). Test for non-existent feature dropped; replaced with brand+name test.
 
+## 2026-05-06 — v1.1 PB-DATA-1 + Phase D (plan canvas) complete
 
+29 net commits on `feat/v1.1-phase-d-plan-canvas`. PB-DATA-1 (data-layer hardening, the Phase F prerequisite) and Phase D (plan canvas) shipped together. Each major task got two review rounds with a 4-reviewer panel (architecture / test coverage / a11y-UX / security with ethical-hacker mindset).
 
+### Major task 1 — PB-DATA-1 (12 commits)
 
+**What shipped:**
+
+- **`AsyncValue<FuelingPlan>` contract.** `planProvider` now returns `Provider<AsyncValue<FuelingPlan>>` via `asyncState.unwrapPrevious().whenData((s) => generatePlan(...))`. `unwrapPrevious()` keeps the previous AsyncData visible during transient errors per PB-ARCH-10 — the F1 banner is the recovery primitive, not silent stale data.
+- **Typed `PlanStorageException`.** `PlanStorageLocal.load()` distinguishes empty drive (returns null) from corrupt blob (throws `PlanStorageException(message, cause, causeStack, rawBytes)`). Catch ladder covers `FormatException`, `SchemaVersionException`, `TypeError`, `ArgumentError`, `MissingPluginException`. `validateSchemaVersion(rawCfg, currentVersion: 2)` runs **before** migration so v3 blobs fail cleanly.
+- **`isSeedFallback` field on `PlannerState`.** Persisted (`@JsonKey(defaultValue: false)` for legacy blobs), `seed()` sets it `true`, `_emit` auto-flips it to `false` on the first user mutation. Means "this state is the seed and the user has not customized it yet" — survives a reload after `discardCorruptedAndUseSeed`.
+- **`PlannerNotifier._emit` AsyncError guard + `discardCorruptedAndUseSeed`** (renamed from `acceptSeedAfterError` for honest destructive-recovery semantics). `_emitForce` is the bypass used by build-from-seed and recovery; `_emit` short-circuits while `state is AsyncError`. `@visibleForTesting void debugEmit(state)` exposes the guard for test reach.
+- **`Future<void> retryLoad()`** — calls `ref.invalidateSelf()` then awaits the new future. F1 wires to "Try recovery" button. No-op while `AsyncData`/`AsyncLoading`. Throws on still-broken storage so the caller can surface a banner.
+- **Backup-bytes-before-overwrite.** `PlanStorageLocal._backupCorruptedBytesIfPresent()` reads `_key`, attempts a structural `jsonDecode`, and if parsing fails writes the bytes once to `${_key}.bak`. Mirrors the CLI `FileStorageAdapter`'s `<name>.json.v1.bak` pattern. Never overwrites an existing backup.
+- **`SaveStatus` provider** (`Idle / InFlight / Failed`). In-flight counter under the hood — `markSuccess` only flips back to `Idle` when no more queued saves remain. Sticky-Failed-until-next-success policy. F1 renders a banner off `saveStatusProvider`. Internal API: only `PlannerNotifier._emitForce` should call `beginSave/endSaveSuccess/endSaveFailure`.
+- **L1 telemetry.** `debugPrint('PlanStorage.load failed: $e\n$st')` in `build()` before rethrow. `debugPrint('PlanStorage.save failed: $e\n$st')` inside the chain's `.onError`.
+- **`_currentOrNull` doc tightened** to reflect Riverpod 3.x's `state.value` semantics (returns prior AsyncData payload during AsyncError-with-prior-value; the `_emit` guard is what actually enforces no-save-during-error).
+
+**Round 1 review** (1 CRITICAL + 9 HIGH all converged across reviewers):
+
+| Severity | Total | Fixed in Round 1.5 |
+|---|---:|---:|
+| CRITICAL | 1 | 1 — `PlanStorageLocal.load()` was swallowing `FormatException`/`TypeError`/`ArgumentError` and returning null, so corrupt blobs collapsed to seed and the AsyncError plumbing was unreachable from the most realistic corruption vector |
+| HIGH | 9 | 9 — `unwrapPrevious()` for PB-ARCH-10, `_emit` guard with `debugEmit` test seam, `isSeedFallback` persistence + auto-flip, `retryLoad`, backup-bytes, `SaveStatus`, schema validation in load, stack trace assertion, AsyncLoading + recovery no-op test |
+| MEDIUM | 9 | 9 |
+| LOW | 8 | 8 |
+
+**Round 2 re-review:** all 4 reviewers APPROVED-WITH-NITS. The MEDIUM convergent nits (`debugEmit` not actually called by a test, save-status-flips-to-idle-while-second-save-still-queued, `retryLoad`-still-fails branch untested, `inFlight` transition not directly observed) were closed by Round 2 polish (in-flight counter, dedicated tests, `saveGate` Completer in `FakePlanStorage`).
+
+### Major task 2 — Phase D — plan canvas (17 commits across D1+D2+D3 + 2 fix-up rounds)
+
+**What shipped:**
+
+- **D1 — `StatCard` widget.** Label + big mono value + optional unit suffix + optional sub. `isHero` bumps to `BonkType.statHero`. `StatSeverity` enum (renamed from `StatFlag`) with `ok / warn / bad`. Severity affordance is a leading mono glyph (`✓ / ! / ×`) at `BonkTokens.ink` PLUS a 3-px severity-colored left side rule — both signals so colorblind users have the glyph, screen readers have the composed Semantics label `'$label: $value $unit, $sub, $severity'`.
+- **D2 — `TimelineRow` widget.** Clock + dual-bar (target band + actual fill) + items column (sip-bottle line, gels/chews, aid station marker) + cumulative readout. Bar geometry gates on `peakG > 0`. AID STATION row is `BonkTokens.ink` text with a 4×14 `BonkTokens.warn` left bar (severity color carried by the bar, NOT the text — color doctrine). Lowercased "Aid station — refill N item(s)" copy. Item dots are decorative (color reinforces; type signal is in the item label text). Row-level `Semantics(container, label: _composedLabel())` describes the whole row to AT.
+- **D3 — `PlanCanvas` panel.** Race title (`Semantics(header: true)`, `maxLines: 2, overflow: ellipsis`) + 6-card stat grid (Avg carbs/hr hero, Total carbs, Glu:Fru, Caffeine, Fluid w/ fuel, Items) + vertical timeline. Dual-AsyncValue `when` over both `plannerNotifierProvider` and `planProvider` — error fallback uses static "Plan unavailable. Please reload." copy with `debugPrint` for telemetry, NOT `$error` interpolation. Loading indicator wrapped in `Semantics(liveRegion: true, label: 'Loading plan')`.
+- **Engine-side closures (core):** `PlanSummary.glucoseToFructoseRatio` getter (inverse of `glucoseFructoseRatio`; returns 0 when fructose ≤ 0), with `totalGlucose`/`totalFructose` fields populated by the engine. Eliminates UI duplication of the ratio fold. `ProductServing.isDrinkStart` structural marker (`@JsonKey(defaultValue: false)`); engine emits `true` for the synthetic drink-start serving in `product_allocator.dart`. Replaces the brittle `productName.contains('sip start')` UI heuristic.
+- **`_ratioOkLow = 0.9` / `_ratioOkHigh = 1.5`** named file constants in `plan_canvas.dart` with the sports-nutrition citation comment ("dual-source carbs absorb best at glucose:fructose 1:0.7 to 1:1.2").
+
+**Round 1 review** (1 CRITICAL + 9 HIGH convergent across 4 reviewers):
+
+| Severity | Total | Fixed in Round 1.5 |
+|---|---:|---:|
+| CRITICAL | 1 | 1 — `BonkTokens.warn` rendered as text foreground on AID STATION label fails WCAG AA (≈3.0:1) AND violates the project's color-usage doctrine (severity TEXT is always `ink`/`ink2`; color carries severity through bars/dots/icons only, never text foreground). Same pattern flagged for `_ErrorFallback` using `BonkTokens.bad` |
+| HIGH | 9 | 9 — `(sip start)` string-match coupling (→ `isDrinkStart` structural marker), `_ErrorFallback` raw `$error.toString()` interpolation (→ static copy + `debugPrint`), StatCard color-only severity (→ glyph + Semantics), TimelineRow no row-level Semantics, race name not `Semantics(header: true)`, missing textScaler 2.0 widget tests (PB-A11Y-4 + PB-A11Y-8), narrow-surface overflow (→ deferred via F1-RESPONSIVE breadcrumb), bar geometry / 5 ProductType dot mappings / productsById fallback / Glu:Fru direction / `intervalMinutes ?? 15` default test gaps |
+| MEDIUM | 9 | 9 (incl. `glucoseToFructoseRatio` getter to kill duplication, `StatFlag → StatSeverity` rename, named ratio thresholds, race-name `maxLines: 2` cap) |
+| LOW | 8 | 6 (2 explicitly deferred to F1) |
+
+**Round 2 re-review:** all 4 reviewers APPROVED-WITH-NITS. PB-A11Y-1, PB-A11Y-4, PB-A11Y-8 carry-overs CLOSED. Round 2 polish closed the convergent test nits (bar geometry width-math via `tester.getSize`, parametric 5 ProductType dot mappings test, `ProductServing.isDrinkStart` model contract tests, engine smoke for `totalGlucose`/`totalFructose` populating, race-name `maxLines` test, loading-indicator Semantics test, negative `$error` assertion in error fallback, composed Semantics label spacing fix, textScaler tests now `expect(takeException(), isNull)`).
+
+### Test counts
+
+- **`packages/app`**: 135 → **210** (+75).
+- **`packages/core`**: 257 → **266** (+9).
+- **`packages/cli`**: 279 (unchanged).
+
+`dart analyze` clean. `flutter analyze` clean. `dart format` clean.
+
+### Decisions locked in
+
+- **PB-ARCH-10 resolved.** `unwrapPrevious().whenData(...)` keeps prior AsyncData visible under transient AsyncError. Auto-saving planner stays interactive; banner sits alongside. JOURNAL note retracted (the previous "deliberate" decision was about `value` getter; this is a different primitive that achieves the same goal more cleanly).
+- **`isSeedFallback` is persisted, not runtime-only.** Round 1 review found the original runtime-only design lost the "this is recovered/sample data" hint after one save round-trip. Now persisted with auto-flip-on-first-edit. Loaded blob with `isSeedFallback: true` (post-recovery, pre-edit user closed the app) survives the reload — the F1 banner has continuity.
+- **`SaveStatus` policy: sticky-Failed-until-next-success.** Matches user mental model "are saves working *right now*?". A subsequent successful save flips to `Idle`; a subsequent failure after success flips back to `Failed`.
+- **`acceptSeedAfterError` → `discardCorruptedAndUseSeed`.** Verb "discard" carries destructive semantics. Doc explicitly says "writes the seed over an unreadable blob" and "Only call this from a confirmed user action." F1 must gate the call site behind a confirmation dialog.
+- **Color-doctrine compliance is end-to-end in Phase D.** Every severity-color usage (`accent`, `warn`, `bad`, `hydro`, `fru`) is now strictly decorative (left bars, dots, fill); every severity TEXT is `ink`/`ink2`. PB-A11Y-1 closed. Severity affordance also has a redundant text/glyph signal (StatCard glyph, TimelineRow item-label text, AID STATION + `_ErrorFallback` Aid/Plan-unavailable copy in `ink`).
+- **`isDrinkStart` is the canonical synthetic-marker primitive.** UI string-match removed. The `(sip start)` suffix on `productName` is preserved for backward compat (CLI prints `productName` directly; no semantic dependency).
+- **`PlanSummary.glucoseToFructoseRatio` is the canonical glucose/fructose direction.** UI consumes it directly. `totalGlucose`/`totalFructose` fields exist on `PlanSummary` (`@JsonKey(defaultValue: 0.0)` for legacy roundtrip safety; engine populates them).
+- **textScaler tests assert `isNull` on desktop-sized surfaces.** Documents "no overflow at desktop scale". F1 owns the narrow-surface responsive collapse via the `F1-RESPONSIVE` breadcrumb.
+
+### New conventions established (Phase D)
+
+- **`Key('bar.actual')` / `Key('bar.target')`** on `TimelineRow`'s dual-bar containers so width-math regression tests can use `tester.getSize`. Production-side keys are intentional — they document the test contract.
+- **Severity affordance is glyph + side rule + Semantics composed label.** Three-redundant signal pattern. Future widgets that surface severity should follow.
+- **`Semantics(container: true, label: _composedLabel()) + ExcludeSemantics(child: ...)`** for row-level AT announcement. Used by `TimelineRow`. Stops AT from double-announcing inner content.
+- **`saveGate: Completer<void>?`** on `FakePlanStorage` for testing `inFlight` state observably. Mirrors the existing `loadGate` Completer pattern.
+- **`@visibleForTesting void debugEmit(...)`** on notifiers — when a private guard is otherwise dead in production but defense-in-depth, expose a test seam to lock the contract directly.
+- **Breadcrumb prefixes:** `F1-*` for assembly-phase responsive/UI hand-offs; `E1-*` for diagnostics-rail concerns; `PB-DATA-2` for data-layer backlog. Each breadcrumb is grep-able and tied to a specific deferral rationale.
+- **Error fallback copy is static.** `$error.toString()` is for `debugPrint` only — never interpolated into user-visible UI text. F1 will replace static copy with typed-error bucketing per `F1-ERROR-COPY` breadcrumb.
+- **`textScaler` tests use `MediaQueryData(textScaler: TextScaler.linear(2.0))`** wrapper, not `platformDispatcher.textScaleFactorTestValue` (less stable across versions).
+- **Phase D test addressing:** `Key('stat-severity-${severity.name}')` (was `stat-flag-...` before rename); bar keys; row-level Semantics labels include `'Time HH:MM (+...)'` `'{X}g of {Y}g target'` `'aid station refill N item(s)'` `'{Z}g cumulative'`.
+
+### Closed carry-overs
+
+- **PB-DATA-1** — closed (Major task 1).
+- **PB-A11Y-1** (severity = text+icon, not color) — closed by D1 StatCard glyph, D2 AID STATION ink-text + side-bar, D3 `_ErrorFallback` ink text + side-rule.
+- **PB-A11Y-4** + **PB-A11Y-8** (textScaler 2.0 widget test in stat-grid batch + app-level 200% scale) — closed; tests pin no-overflow at desktop scale.
+- **PB-ARCH-10** — superseded by `unwrapPrevious()`.
+- **PC-ERROR-UI** — Phase D ships an interim `_ErrorFallback`; F1-ERROR-COPY breadcrumb covers the typed-error banner replacement.
+
+### Active carry-overs (still live)
+
+- **F1-RESPONSIVE** (`plan_canvas.dart:186`) — collapse stat grid to `Wrap` at <880px. Test surface (`1200×1600` for layout, `2400×3200` for textScaler) currently sidesteps overflow.
+- **F1-EMPTY-PLAN** (`plan_canvas.dart`) — empty-state CTA when `entries.isEmpty`.
+- **F1-ERROR-COPY** (`plan_canvas.dart:100`) — F1 replaces static "Plan unavailable" with typed-error bucketing per PB-DATA-1.
+- **F1-DOTS-SHAPE** (`timeline_row.dart`) — migrate item dots to shape-encoded glyphs (PC-DOT-COLORS rationale; not blocking since text labels carry type signal redundantly).
+- **E1-METRICS** (`plan_canvas.dart`) — promote `peak`/`perStepTarget` to a `Provider` when E1's diagnostics rail lands so both consumers don't recompute independently.
+- **PC-RESPONSIVE / PC-PRESERVE-DIST / PC-UNIT-CONVERSION / PB-SCROLL** — unchanged from Phase C.
+- **PC-OUTLINED-BUTTON / PC-AID-VALIDATOR** — unchanged from Phase C.
+
+### New PB-DATA-2 backlog (breadcrumbed in code)
+
+- **`PlannerState.fromJson` field-bound validation** — currently structural casts only; semantic invariants (positive body mass, monotonically increasing aid station times, etc.) flow through.
+- **localStorage quota DoS** — `PlanStorageLocal.save()` doesn't bucket `QuotaExceededError` (DOMException on web). Today flows into the `_emitForce` catch → `markFailed`; banner fires but the user can't action it.
+- **Integrity tag/checksum** — saved blob has no envelope. Partial corruption that JSON-parses (e.g. tampered carb target) loads silently. Out of scope for v1.1 since the threat is local-storage tamper which is bounded by same-origin.
+
+### Plan-vs-reality drift caught (and fixed)
+
+- Plan code samples for `_StatsGrid` used `GridView.count(childAspectRatio: 2.6)` which clipped the hero card at typical surface widths. Replaced with `IntrinsicHeight + Row + Expanded` so the hero sets row height and siblings stretch.
+- Plan passed `WidgetRef ref` into `_Body` (a `StatelessWidget`). Promoted `_Body` to `ConsumerWidget` to match `setup_rail.dart`'s `_RailBody extends ConsumerWidget` pattern.
+- Plan tests asserted `find.text('80')` and `find.text('g')` separately; both fail because value+unit live in one `RichText` whose plain text is `'80 g'`. Adopted `textContaining` per the plan's own adjustment note.
+- Plan implementation samples used `BonkType.statHero()` method-call form; project convention is `BonkType.statHero` static-final field. Implemented with the field form per the project CLAUDE.md.
+
+### Branch close
+
+29 commits net on `feat/v1.1-phase-d-plan-canvas`. All four reviewers (architecture / test coverage / a11y-UX / security) signed off APPROVED-WITH-NITS in Round 2 with a unanimous "ship it" — remaining items are explicitly F1/E1 hand-offs with grep-able breadcrumbs, plus PB-DATA-2 backlog deferrals. PlanCanvas + StatCard + TimelineRow are fully implemented and tested but **not yet wired into `PlannerPage`** — F1 (Phase F1 assembly) does the three-pane layout. Browser smoke against the stub `PlannerPage` is unchanged.
 
 

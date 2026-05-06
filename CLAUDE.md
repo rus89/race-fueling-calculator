@@ -37,7 +37,9 @@ The constants (`_drinkCapFraction`, `_gelDebtFireThreshold`, `_gelOversizeFactor
 
 **v1.1 Phase C (Setup rail): complete** on branch `feat/v1.1-phase-c-setup-rail`. The left-pane `SetupRail` panel and its 4 reusable widgets shipped: `BonkSegControl<T extends Object>` (keyboard-focusable pill picker with `Semantics(button, selected, inMutuallyExclusiveGroup)` per option), `BonkStepper` (28×28 visual + 44×44 hit area + adjustable Semantics + disabled visual + optional `keyPrefix` for tests), `BonkFieldShell` (label+child column wrapped in `Semantics(container, label)`), and `BonkTextInput` (cursor-preserving controller, `inputFormatters`, `labelText` for accessible name, ink-color borders). The rail composes them into 5 sections: race (name/duration/body-mass/distance/discipline), carb-strategy (target slider + gut-trained slider + distribution seg control), inventory (one `InventoryRow` per built-in product with `BonkStepper`), aid stations (one `AidStationRow` per station with time/distance toggle + refill chips + remove). All inputs route through `PlannerNotifier`. The rail is **not yet wired into `PlannerPage`** — F1 (Phase F assembly) does the three-pane layout. 135 widget/unit tests in `packages/app`.
 
-**v1.1 Phases D–F (Plan canvas + Diagnostics rail + Assembly): pending.**
+**v1.1 PB-DATA-1 (data-layer hardening) + Phase D (plan canvas): complete** on branch `feat/v1.1-phase-d-plan-canvas`. PB-DATA-1: `planProvider` returns `AsyncValue<FuelingPlan>` via `unwrapPrevious().whenData(...)` (PB-ARCH-10 superseded), typed `PlanStorageException` with `cause`/`causeStack`/`rawBytes` distinguishes empty drive from corrupt blob, `PlannerNotifier` refuses save while `AsyncError` (with `discardCorruptedAndUseSeed` and `retryLoad` recovery hooks), `PlanStorageLocal` auto-backs up corrupted bytes to `${_key}.bak` once before destructive overwrite, `SaveStatus` provider (Idle/InFlight/Failed with sticky-Failed-until-next-success policy + in-flight counter for queued-saves correctness), `isSeedFallback` field on `PlannerState` is persisted and auto-flips to false on first user mutation. Phase D: `StatCard` (label + value + unit + sub + hero variant + `StatSeverity` glyph affordance + Semantics composed label), `TimelineRow` (clock + dual-bar + items + cumulative + row-level Semantics; AID STATION row uses ink text + warn left-bar per color doctrine; consumes structural `ProductServing.isDrinkStart` marker, no string match), `PlanCanvas` (race-name `Semantics(header)` + `maxLines: 2` cap + 6-card stat grid + vertical timeline; static error fallback via `_ErrorFallback`; loading indicator with `Semantics(liveRegion)`). Engine added `PlanSummary.glucoseToFructoseRatio` (canonical UI direction; inverse of `glucoseFructoseRatio`) plus `totalGlucose`/`totalFructose` fields. PlanCanvas is **not yet wired into `PlannerPage`** — F1 does the three-pane layout. 210 app + 266 core + 279 cli tests.
+
+**v1.1 Phases E + F1 (Diagnostics rail + Assembly): pending.**
 
 ## Commands
 
@@ -74,7 +76,7 @@ The first save of a previously-v1 race config triggers a `<name>.json.v1.bak` ba
 
 The product library is two-tier: built-in defaults (Dart constants in `packages/core/lib/src/data/built_in_products.dart`) merged with user overrides at load time. Each liquid built-in carries `sipMinutes: 60` (500 ml drink mixes sipped over an hour); non-liquid products keep `sipMinutes: null`.
 
-## Flutter app conventions (Phases B + C)
+## Flutter app conventions (Phases B + C + D)
 
 ### Phase B foundations
 
@@ -117,21 +119,48 @@ Phase C shipped multiple known-deferred runtime concerns marked with inline `PC-
 - **PC-UNIT-CONVERSION** — body mass / distance unit labels hardcoded to "kg" / "km" regardless of `unitSystem`. Imperial users see metric labels (accurate to stored value). F1 wires real unit conversion.
 - **PC-ERROR-UI** — `SetupRail`'s error stub has no recovery action. F1 replaces with actionable banner per PB-DATA-1.
 
-### Phase F prerequisite — PB-DATA-1 (must land before F1 wires real UI mutators)
+### Phase D widgets (in `lib/presentation/widgets/`) and panel (`lib/presentation/panels/plan_canvas.dart`)
 
-Currently the data layer is silently fault-tolerant: storage errors collapse to seed via `value` getter, and the first mutation post-error overwrites the recoverable corrupted blob. Race-day silent data loss risk. Before F1, land:
+- **`StatCard`** — label + RichText value + optional unit suffix + optional sub. `isHero` swaps `BonkType.statValue` for `BonkType.statHero`. `StatSeverity` enum (`ok` / `warn` / `bad`); when set, the card prepends a leading mono glyph (`✓` / `!` / `×`) at `BonkTokens.ink` AND draws a 3px severity-colored side rule. Both signals carry severity (PB-A11Y-1 doctrine). `Semantics(container, label: '$label: $value $unit, $sub, $severity', child: ExcludeSemantics(...))`. Test addressing key: `Key('stat-severity-${severity.name}')`.
+- **`TimelineRow`** — clock + dual-bar (target band + actual fill) + items column + cumulative readout. Bar containers carry `Key('bar.target')` / `Key('bar.actual')` so width-math regression tests use `tester.getSize`. Bar geometry guards on `peakG > 0`. AID STATION marker: ink text + 4×14 `BonkTokens.warn` left bar (color carries severity via the bar, NOT the text — color doctrine). Consumes structural `ProductServing.isDrinkStart` marker (no string match). Row wrapped in `Semantics(container, label: _composedLabel())` with `ExcludeSemantics` on inner content.
+- **`PlanCanvas`** — center pane. Reads `plannerNotifierProvider` AND `planProvider` (the latter is engine output; F1 will read the notifier separately for `isSeedFallback`). Race-name `Semantics(header: true)` + `maxLines: 2, overflow: ellipsis`. 6-card stat grid (Avg carbs/hr hero, Total carbs, Glu:Fru, Caffeine, Fluid w/ fuel, Items) — `IntrinsicHeight + Row + Expanded` so the hero sets row height. Glu:Fru flag fires when `summary.glucoseToFructoseRatio` falls outside `[_ratioOkLow, _ratioOkHigh]` (`0.9..1.5`, sports-nutrition consensus citation in code). `_ErrorFallback` shows static "Plan unavailable. Please reload." in `ink` with a `bad` left bar; `debugPrint` carries `$error` for L1 telemetry — never interpolated into UI text. Loading indicator wrapped in `Semantics(liveRegion: true, label: 'Loading plan')`.
 
-1. `planProvider` returns `AsyncValue<FuelingPlan>` (preserve error state).
-2. `isSeedFallback` flag on `PlannerState` (or sibling provider) — set when `build()` returns seed because storage was empty OR errored.
-3. `PlannerNotifier._emit` refuses to save while in error state until user explicitly opts in.
-4. F1 surfaces an error banner (WCAG 3.3.1).
+### Phase D core additions
 
-### Other Phase F carry-overs (deferred from Phase C reviews)
+- **`PlanSummary.glucoseToFructoseRatio`** — canonical UI direction (glucose / fructose). Returns 0 when fructose ≤ 0 (UI renders "—" via the `ratio == 0` guard).
+- **`PlanSummary.totalGlucose` / `totalFructose`** — engine populates from per-entry sums. `@JsonKey(defaultValue: 0.0)` for round-trip safety with legacy blobs.
+- **`ProductServing.isDrinkStart`** — structural marker emitted by `product_allocator.dart` for the synthetic drink-start serving. UI consumes via `s.isDrinkStart` instead of substring-matching the `(sip start)` suffix on `productName`. The suffix is preserved on `productName` for backward compat (CLI prints it directly; no semantic dependency).
 
-- **PB-SCROLL** — `setup_rail_test.dart`'s `_pumpTall` (360×2400 surface) workaround masks a production scroll-handling ambiguity (parent `SingleChildScrollView` + each `BonkTextInput`'s `EditableText` viewport fight for gestures at small viewports). F1 fix: set `BonkTextInput.scrollPhysics: NeverScrollableScrollPhysics()` for single-line inputs, or wrap rail with `PrimaryScrollController`.
-- **PC-AID-VALIDATOR** — toggle-clear in `AidStationRow` uses `0` / `0.0` sentinels because `validateAidStationDefinitions` requires one of timeMinutes/distanceKm to be non-null. v1.x could relax the validator to accept "user-pending" states.
-- **PC-OUTLINED-BUTTON** — `+ Add aid station` uses Material 3 OutlinedButton default; stylistically inconsistent with brutalist Bonk widgets. F1 polish: introduce `BonkButton` if a second secondary action lands.
-- **PC-DOT-COLORS** — `_KindDot`'s 5-color mapping (gel→accent, liquid→ink2, chew→ink, solid→ink3, realFood→rule) gives three dark-on-cream dots that look pairwise similar at 10×10 px. Aesthetic polish since the dot is now decorative (Q1=C: type signal carried by mono subline + Semantics label). F1 polish.
+### Phase D color-doctrine compliance
+
+Every severity-color usage (`accent`, `warn`, `bad`, `hydro`, `fru`) in Phase D is strictly decorative — left bars, dots, fill regions. Every severity TEXT goes through `ink`, `ink2`, or `ink3`. Severity affordance also has a redundant text/glyph signal (StatCard glyph; TimelineRow item-label text; AID STATION + `_ErrorFallback` copy in ink). PB-A11Y-1, PB-A11Y-4, and PB-A11Y-8 closed by Phase D.
+
+### Phase D data-layer contract (PB-DATA-1)
+
+- **`planProvider`** is `Provider<AsyncValue<FuelingPlan>>` — reads `plannerNotifierProvider` and pipes through `asyncState.unwrapPrevious().whenData((s) => generatePlan(s.raceConfig, s.athleteProfile, library))`. `unwrapPrevious()` keeps the previous AsyncData visible during transient errors per PB-ARCH-10.
+- **`PlanStorageException`** (in `packages/app/lib/data/plan_storage.dart`) carries `message`, `cause`, `causeStack`, `rawBytes`. Thrown by `PlanStorageLocal.load()` when the key is present but the payload is malformed (FormatException / SchemaVersionException / TypeError / ArgumentError caught) or when the storage plugin fails to initialize (MissingPluginException). Empty key still returns `null`.
+- **`PlannerNotifier._emit` AsyncError guard.** While `state is AsyncError`, mutators no-op (no save). `_emitForce` is the bypass used by `build()` (seed path) and by `discardCorruptedAndUseSeed`. `@visibleForTesting void debugEmit(state)` exposes the guard for unit-test reach.
+- **Recovery hooks:** `Future<void> retryLoad()` invalidates the notifier and awaits the new build (rethrows on still-broken storage); `void discardCorruptedAndUseSeed()` writes the seed over the unreadable blob (the `${_key}.bak` backup is auto-created once by `PlanStorageLocal.save()` before the first overwrite). Both are wired by F1's recovery banner.
+- **`SaveStatus` provider** (`saveStatusProvider` in `lib/presentation/providers/save_status_provider.dart`) — `Idle / InFlight / Failed`. In-flight counter ensures `markSuccess` only flips to `Idle` when the chain has fully drained. Sticky-Failed-until-next-success policy. Internal API: only `PlannerNotifier._emitForce` should call `beginSave / endSaveSuccess / endSaveFailure`.
+- **`PlannerState.isSeedFallback`** — persisted (`@JsonKey(defaultValue: false)` for legacy blobs). `seed()` sets `true`. `_emit` auto-flips to `false` on the first user edit. Loaded blob with `true` (post-recovery, pre-edit user closed the app) survives the reload — F1's banner has continuity.
+
+### Phase D test conventions
+
+- **`Semantics(container, label) + ExcludeSemantics(inner)`** is the row/card-level AT pattern. Composed labels include time, totals, items, severity. Used by `StatCard` and `TimelineRow`.
+- **`tester.getSize(find.byKey(Key('bar.actual')))`** for bar-geometry width-math assertions. Production keys are intentional documentation of the test contract.
+- **`MediaQueryData(textScaler: TextScaler.linear(2.0))`** wrapper for textScaler tests (NOT `platformDispatcher.textScaleFactorTestValue` — less stable across versions). Tests assert `expect(tester.takeException(), isNull)` on desktop-sized surfaces (1200×1600 panel, 2400×3200 textScaler-200%). F1 owns narrow-surface responsive collapse.
+- **`saveGate: Completer<void>?`** on `FakePlanStorage` for testing `inFlight` state observably (mirrors existing `loadGate`).
+- **Static glyph + Semantics name** — StatCard severity tests assert both `find.text('!')` (visual) and the composed Semantics label including `'warn'` (AT).
+
+### Active F1 / E1 / PB-DATA-2 carry-overs (breadcrumbed in code, grep-able)
+
+- **F1-RESPONSIVE** (`plan_canvas.dart`) — collapse stat grid to `Wrap` at <880px. F1 owns the `BonkBreakpoint`-aware layout.
+- **F1-EMPTY-PLAN** (`plan_canvas.dart`) — empty-state CTA when `entries.isEmpty`.
+- **F1-ERROR-COPY** (`plan_canvas.dart`) — replace static "Plan unavailable" with typed-error bucketing per PB-DATA-1.
+- **F1-DOTS-SHAPE** (`timeline_row.dart`) — migrate item dots from color-only to shape-encoded glyphs (PC-DOT-COLORS rationale; not blocking — text labels carry type signal redundantly).
+- **E1-METRICS** (`plan_canvas.dart`) — promote `peak`/`perStepTarget` to a `Provider` when E1's diagnostics rail lands so both consumers share one computation.
+- **PC-RESPONSIVE / PC-PRESERVE-DIST / PC-UNIT-CONVERSION / PB-SCROLL / PC-OUTLINED-BUTTON / PC-AID-VALIDATOR** — unchanged from Phase C.
+- **PB-DATA-2 backlog** (TODO breadcrumbs in `planner_state.dart`, `plan_storage_local.dart`): field-bound validation in `fromJson`, localStorage quota DoS bucketing, integrity tag/checksum on saved blob.
 
 ## Custom Claude Tooling
 
