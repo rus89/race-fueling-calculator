@@ -71,6 +71,8 @@ class FlagCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: BonkType.sans(size: 13, w: FontWeight.w500),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                 ],
@@ -82,6 +84,8 @@ class FlagCard extends StatelessWidget {
                   style: BonkType.sans(
                     size: 12,
                   ).copyWith(color: BonkTokens.ink2),
+                  maxLines: 6,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ],

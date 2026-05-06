@@ -192,6 +192,53 @@ void main() {
           (advisoryContainer.decoration as BoxDecoration).border as Border;
       expect(criticalBorder.left.color, BonkTokens.bad);
       expect(advisoryBorder.left.color, BonkTokens.warn);
+      expect(criticalBorder.left.width, 3);
+      expect(advisoryBorder.left.width, 3);
     },
   );
+
+  testWidgets(
+    'body text uses ink2 color (severity carried via side rule, not text)',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: FlagCard(
+              warning: Warning(
+                severity: Severity.critical,
+                message:
+                    'Aid station 2 — refill list references unknown product id',
+              ),
+            ),
+          ),
+        ),
+      );
+      final body = tester.widget<Text>(
+        find.text('refill list references unknown product id'),
+      );
+      expect(body.style?.color, BonkTokens.ink2);
+    },
+  );
+
+  testWidgets('Semantics label uses Advisory word for advisory severity', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: FlagCard(
+            warning: Warning(
+              severity: Severity.advisory,
+              message: 'Caffeine total trends toward ceiling',
+            ),
+          ),
+        ),
+      ),
+    );
+    final data = tester.getSemantics(find.byType(FlagCard)).getSemanticsData();
+    expect(data.label, contains('Advisory'));
+    expect(data.label, contains('Caffeine total'));
+    handle.dispose();
+  });
 }
