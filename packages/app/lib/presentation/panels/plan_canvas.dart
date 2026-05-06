@@ -206,7 +206,6 @@ class _Timeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // TODO(F1-EMPTY-PLAN): add empty-state CTA when entries.isEmpty.
-    // TODO(E1-METRICS): promote peak/perStepTarget to a Provider when E1 lands.
     final stepHrs = (state.raceConfig.intervalMinutes ?? 15) / 60.0;
     final perStepTarget = state.raceConfig.targetCarbsGPerHr * stepHrs;
     final peak = plan.entries.isEmpty
