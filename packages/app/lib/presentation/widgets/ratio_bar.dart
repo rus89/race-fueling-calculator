@@ -18,9 +18,21 @@ class RatioBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    assert(
+      glucose.isFinite && fructose.isFinite,
+      'RatioBar requires finite glucose and fructose values',
+    );
+    assert(
+      glucose >= 0 && fructose >= 0,
+      'RatioBar requires non-negative glucose and fructose values',
+    );
+
     final hasFructose = fructose > 0;
+    final hasAnyCarb = glucose > 0 || fructose > 0;
     final ratio = hasFructose ? glucose / fructose : 0.0;
-    final glucoseShare = hasFructose ? glucose / (glucose + fructose) : 1.0;
+    final glucoseShare = hasFructose
+        ? (glucose / (glucose + fructose)).clamp(0.0, 1.0)
+        : 1.0;
 
     final idealShare = _shareForRatio(_ratioIdeal);
     final okLowShare = _shareForRatio(_ratioOkLow);
@@ -32,8 +44,10 @@ class RatioBar extends StatelessWidget {
               'Glucose ${glucose.round()} grams, '
               'Fructose ${fructose.round()} grams, '
               'ideal 1.25, OK band 0.9 to 1.5'
-        : 'Carb sources ratio not available, '
-              'Glucose ${glucose.round()} grams, no fructose';
+        : hasAnyCarb
+        ? 'Carb sources ratio not available, '
+              'Glucose ${glucose.round()} grams, no fructose'
+        : 'Carb sources not available, no glucose, no fructose';
 
     return Semantics(
       container: true,
@@ -45,6 +59,17 @@ class RatioBar extends StatelessWidget {
             LayoutBuilder(
               builder: (context, c) {
                 final w = c.maxWidth;
+                if (!hasAnyCarb) {
+                  return SizedBox(
+                    height: 18,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: BonkTokens.bg2,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  );
+                }
                 return SizedBox(
                   height: 18,
                   child: Stack(
@@ -84,10 +109,11 @@ class RatioBar extends StatelessWidget {
                           child: Container(
                             key: const Key('ratio.okBand'),
                             decoration: BoxDecoration(
+                              color: BonkTokens.ink.withValues(alpha: 0.12),
                               border: Border.symmetric(
                                 vertical: BorderSide(
-                                  color: BonkTokens.ink.withValues(alpha: 0.18),
-                                  width: 1,
+                                  color: BonkTokens.ink.withValues(alpha: 0.45),
+                                  width: 1.5,
                                 ),
                               ),
                             ),
@@ -148,7 +174,7 @@ class RatioBar extends StatelessWidget {
                   child: Text(
                     'ideal 1.25 · OK 0.9–1.5',
                     style: BonkType.mono(
-                      size: 10,
+                      size: 11,
                     ).copyWith(color: BonkTokens.ink3),
                   ),
                 ),
