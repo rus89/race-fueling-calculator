@@ -13,6 +13,7 @@ class BonkTopbar extends ConsumerWidget {
   const BonkTopbar({super.key});
 
   String _fmtTime(Duration d) {
+    if (d.inMilliseconds <= 0) return '—';
     final h = d.inHours;
     final m = d.inMinutes % 60;
     return h > 0 ? '${h}h${m.toString().padLeft(2, '0')}' : '${m}min';
@@ -38,7 +39,7 @@ class BonkTopbar extends ConsumerWidget {
     final indicator = _saveIndicator(saveStatus);
 
     return Container(
-      height: 44,
+      constraints: const BoxConstraints(minHeight: 44),
       padding: const EdgeInsets.symmetric(horizontal: 18),
       decoration: const BoxDecoration(
         color: BonkTokens.bg,
@@ -46,34 +47,36 @@ class BonkTopbar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Brand mark — lime dot with ink ring + ink center
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: BonkTokens.accent,
-                    shape: BoxShape.circle,
+          // PB-A11Y: brand mark is decorative; Text('Bonk') is the AT name.
+          ExcludeSemantics(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: BonkTokens.accent,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                Container(
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: BonkTokens.ink, width: 1.5),
+                  Container(
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: BonkTokens.ink, width: 1.5),
+                    ),
                   ),
-                ),
-                Container(
-                  margin: const EdgeInsets.all(5),
-                  decoration: const BoxDecoration(
-                    color: BonkTokens.ink,
-                    shape: BoxShape.circle,
+                  Container(
+                    margin: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: BonkTokens.ink,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -98,34 +101,57 @@ class BonkTopbar extends ConsumerWidget {
               style: BonkType.sans(size: 12).copyWith(color: BonkTokens.ink3),
             ),
             const SizedBox(width: 8),
-            Text(
-              '${asyncPlan.requireValue.summary.totalCarbs.round()}g · ${_fmtTime(asyncState.requireValue.raceConfig.duration)}',
-              style: BonkType.mono(size: 12).copyWith(color: BonkTokens.ink2),
+            Builder(
+              builder: (_) {
+                final totalCarbs = asyncPlan.requireValue.summary.totalCarbs;
+                final carbsStr = totalCarbs.isFinite
+                    ? totalCarbs.round().toString()
+                    : '—';
+                final timeStr = _fmtTime(
+                  asyncState.requireValue.raceConfig.duration,
+                );
+                return Text(
+                  '${carbsStr}g · $timeStr',
+                  style: BonkType.mono(
+                    size: 12,
+                  ).copyWith(color: BonkTokens.ink2),
+                );
+              },
             ),
             const SizedBox(width: 12),
           ],
-          // Save indicator: dot + status text. Visible whenever the notifier
-          // has state (even if planProvider is AsyncError — saving may have
-          // happened before the engine failed on a different code path).
-          if (asyncState.hasValue) ...[
-            Container(
-              key: const Key('topbar.saveDot'),
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: indicator.dot,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Semantics(
-              liveRegion: saveStatus == SaveStatus.failed,
-              child: Text(
-                indicator.label,
-                style: BonkType.sans(size: 12).copyWith(color: BonkTokens.ink3),
-              ),
-            ),
-          ],
+          // Save indicator: dot + status text. The Semantics node is always
+          // mounted so AT keeps tracking the live region across notifier
+          // state transitions; the visible dot/text only render once the
+          // notifier has hydrated state.
+          Semantics(
+            liveRegion: saveStatus != SaveStatus.idle,
+            child: asyncState.hasValue
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ExcludeSemantics(
+                        child: Container(
+                          key: const Key('topbar.saveDot'),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: indicator.dot,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        indicator.label,
+                        style: BonkType.sans(
+                          size: 12,
+                        ).copyWith(color: BonkTokens.ink3),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
