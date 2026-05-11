@@ -553,9 +553,13 @@ void main() {
       final beforeCount = fake.saveCount;
 
       c.read(plannerNotifierProvider.notifier).resetToSeed();
-      // resetToSeed does NOT pass flushNow — it has no user-facing
-      // immediacy requirement, so the debounce window applies.
-      await Future<void>.delayed(_pastDebounceWindow);
+      // resetToSeed passes flushNow: true for symmetry with the other
+      // explicit user-intent paths (discardCorruptedAndUseSeed): a
+      // "Reset" click is a user-facing immediacy signal — the seed
+      // should land on disk on the next microtask, not 500 ms later.
+      // Microtask cycle only — no Future.delayed past the debounce window.
+      await Future<void>.value();
+      await Future<void>.value();
 
       final after = c.read(plannerNotifierProvider).requireValue;
       expect(after.raceConfig.name, contains('Andalucía'));
@@ -567,6 +571,29 @@ void main() {
       expect(fake.saveCount, beforeCount + 1);
     },
   );
+
+  test('resetToSeed flushes the save immediately (no 500ms wait)', () async {
+    // MEDIUM #6: resetToSeed is a user-explicit reset action. It should
+    // land on disk on the next microtask cycle, matching the symmetry
+    // with discardCorruptedAndUseSeed.
+    final fake = FakePlanStorage();
+    final custom = PlannerState.seed().copyWith(
+      raceConfig: PlannerState.seed().raceConfig.copyWith(name: 'My Race'),
+      isSeedFallback: false,
+    );
+    fake.loaded = custom;
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+    final beforeCount = fake.saveCount;
+
+    c.read(plannerNotifierProvider.notifier).resetToSeed();
+    // Microtask cycle only — no Future.delayed.
+    await Future<void>.value();
+    await Future<void>.value();
+
+    expect(fake.saveCount, beforeCount + 1);
+  });
 
   test('resetToSeed is a no-op while state is AsyncError', () async {
     final fake = FakePlanStorage()..loadError = StateError('boom');
@@ -585,6 +612,99 @@ void main() {
 
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
     expect(fake.saveCount, 0);
+  });
+
+  test(
+    'retrySave shows saving… feedback (inFlight) even when a debounce window is pending',
+    () async {
+      // HIGH #4: pre-fix, `_emitForce` skipped `beginSave()` if the debouncer
+      // already had a pending tick — meaning a retry chained behind a fresh
+      // edit produced no "saving…" feedback. The retry must always increment
+      // pendingCount and (HIGH #5 wiring) clobber the sticky-failed signal
+      // back to inFlight so the user sees their click was received.
+      final fake = FakePlanStorage()..saveError = StateError('disk full');
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      await c.read(plannerNotifierProvider.future);
+
+      final notifier = c.read(plannerNotifierProvider.notifier);
+      final statusCtrl = c.read(saveStatusProvider.notifier);
+
+      // Drive to failed state.
+      notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
+      await Future<void>.delayed(_pastDebounceWindow);
+      expect(c.read(saveStatusProvider), SaveStatus.failed);
+
+      // Storage recovers. Start a fresh edit mid-window, then immediately
+      // press Retry. The retry must still register saving… feedback.
+      fake.saveError = null;
+      notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 95));
+      // The fresh edit alone is sticky-failed-preserving — status still failed.
+      expect(c.read(saveStatusProvider), SaveStatus.failed);
+      expect(statusCtrl.pendingCount, 1);
+
+      // Now the retry — synchronous observation, no awaits.
+      notifier.retrySave();
+      // Retry clobbers sticky-failed AND increments pendingCount so the
+      // user-visible signal flips to "saving…" right away.
+      expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+      expect(statusCtrl.pendingCount, greaterThanOrEqualTo(1));
+    },
+  );
+
+  test(
+    'rapid edits increment pendingCount only once (hasPending gates beginSave)',
+    () async {
+      // MEDIUM #8: while a debounce window is open, hasPending == true so
+      // subsequent edits inside the window must NOT increment pendingCount
+      // a second time — otherwise endSaveSuccess on the single coalesced
+      // save would still leave _pending > 0 and the status stuck at
+      // inFlight forever.
+      final fake = FakePlanStorage();
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      await c.read(plannerNotifierProvider.future);
+
+      final notifier = c.read(plannerNotifierProvider.notifier);
+      final statusCtrl = c.read(saveStatusProvider.notifier);
+      for (var i = 0; i < 10; i++) {
+        notifier.updateRaceConfig(
+          (cfg) => cfg.copyWith(targetCarbsGPerHr: 80 + i.toDouble()),
+        );
+      }
+      // Exactly one open lifecycle, regardless of how many edits fired.
+      expect(statusCtrl.pendingCount, 1);
+      expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+
+      await Future<void>.delayed(_pastDebounceWindow);
+      expect(statusCtrl.pendingCount, 0);
+      expect(c.read(saveStatusProvider), SaveStatus.idle);
+    },
+  );
+
+  test('mutation during failed status preserves the failure signal', () async {
+    // HIGH #5: edits during a failed-save window must not silently flip
+    // status back to inFlight (which would mask the failure). The user
+    // needs to keep seeing "save failed" until a save actually succeeds.
+    final fake = FakePlanStorage()..saveError = StateError('disk full');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+
+    final notifier = c.read(plannerNotifierProvider.notifier);
+    notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
+    await Future<void>.delayed(_pastDebounceWindow);
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+
+    // Mutate again while still in failed state. Status MUST stay failed
+    // until a save actually succeeds.
+    notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 95));
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+
+    // Even after the second save window settles (still failing), the
+    // sticky-failed signal persists.
+    await Future<void>.delayed(_pastDebounceWindow);
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
   });
 
   test('debugEmit goes through _emit and respects the AsyncError guard', () async {

@@ -104,9 +104,11 @@ void main() {
     expect(c.read(saveStatusProvider), SaveStatus.failed);
   });
 
-  test('two debounce-window-separated saves: tail outcome wins', () async {
+  test("latest save's outcome is the user-visible status", () async {
     // Two writes separated by the debounce window — second one fails.
-    // Status ends at failed because the chained save's tail outcome wins.
+    // The user-visible status reflects the latest save's outcome (the
+    // sticky-failed signal applies once the second save reports failure;
+    // a hypothetical third successful save would clear it again).
     final fake = FakePlanStorage();
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
@@ -188,6 +190,56 @@ void main() {
     ctrl.endSaveSuccess();
     expect(c.read(saveStatusProvider), SaveStatus.idle);
     expect(ctrl.pendingCount, 0);
+  });
+
+  test('beginSave preserves failed status (sticky)', () {
+    // Sticky-failed contract: once status flips to failed, a fresh user
+    // edit (which begins a new save) must NOT clobber the failure signal
+    // with inFlight. The user's mental model is "saves aren't working" —
+    // that signal must persist until a save actually succeeds.
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final ctrl = c.read(saveStatusProvider.notifier);
+
+    ctrl.beginSave();
+    ctrl.endSaveFailure();
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+
+    // Fresh mutation starts a new save: status must stay failed.
+    ctrl.beginSave();
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+  });
+
+  test('beginSave(retrying: true) clobbers failed to inFlight', () {
+    // User-explicit retry: the retry button click confirms the action by
+    // showing "saving…" briefly. The retry path is the ONLY caller that
+    // clobbers the sticky-failed signal back to inFlight.
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final ctrl = c.read(saveStatusProvider.notifier);
+
+    ctrl.beginSave();
+    ctrl.endSaveFailure();
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+
+    ctrl.beginSave(retrying: true);
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+  });
+
+  test('endSaveSuccess clears failed', () {
+    // Sticky-failed clears the moment a save actually succeeds — that's
+    // the user-visible "saves are working again" signal.
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final ctrl = c.read(saveStatusProvider.notifier);
+
+    ctrl.beginSave();
+    ctrl.endSaveFailure();
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+
+    ctrl.beginSave(retrying: true);
+    ctrl.endSaveSuccess();
+    expect(c.read(saveStatusProvider), SaveStatus.idle);
   });
 
   test('in-flight counter is decremented on completion', () {

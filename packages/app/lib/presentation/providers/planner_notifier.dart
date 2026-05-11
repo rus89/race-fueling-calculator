@@ -98,8 +98,16 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     // First dirty tick of a debounce window: mark inFlight immediately so the
     // Topbar flips to "· saving…" while the user is still typing. Subsequent
     // ticks within the same window keep the existing inFlight lifecycle.
-    if (!_saveDebouncer.hasPending) {
-      statusCtrl.beginSave();
+    //
+    // `flushNow` paths (retrySave, discardCorruptedAndUseSeed) always begin a
+    // fresh save lifecycle even when a debounce tick is already pending —
+    // the user clicked a button and expects "saving…" feedback regardless of
+    // what's queued. The pendingCount counter on SaveStatusController keeps
+    // chained saves accounted for. `retrying: flushNow` also clobbers the
+    // sticky-failed status (HIGH #5 contract) so the retry click visibly
+    // confirms before resolving back to idle or failed.
+    if (flushNow || !_saveDebouncer.hasPending) {
+      statusCtrl.beginSave(retrying: flushNow);
     }
     _saveDebouncer.run(next, _flushSave);
     if (flushNow) {
@@ -110,6 +118,13 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   /// Enqueues the actual storage write on the serialized [_lastSave] chain.
   /// Called by the debouncer once the quiescent window settles (or
   /// synchronously via `flush()` from a user-explicit recovery path).
+  ///
+  /// SAFETY: ref.read happens synchronously before the .then closure. The
+  /// closure captures the resolved provider instances as locals, so the
+  /// chain can outlive the notifier's disposal without touching ref —
+  /// teardown is already protected by `Debouncer.dispose()` cancelling the
+  /// pending timer plus the post-disposal `run`/`flush` no-op guards in
+  /// `debounced_save.dart`.
   void _flushSave(PlannerState payload) {
     final storage = ref.read(planStorageProvider);
     final statusCtrl = ref.read(saveStatusProvider.notifier);
@@ -159,9 +174,15 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   /// seed's `isSeedFallback: true` flag survives the emission — the explicit
   /// "Reset" intent restores the quickstart treatment rather than silently
   /// advancing past it.
+  ///
+  /// flushNow: explicit Reset is a user-facing immediacy signal (same
+  /// shape as `discardCorruptedAndUseSeed`). The seed lands on the next
+  /// microtask so the user doesn't wonder whether their click registered.
   void resetToSeed() {
+    final cur = _currentOrNull();
+    if (cur == null) return;
     if (state is AsyncError) return;
-    _emitForce(PlannerState.seed());
+    _emitForce(PlannerState.seed(), flushNow: true);
   }
 
   /// Test-only re-emit hook so the AsyncError guard in `_emit` is reachable

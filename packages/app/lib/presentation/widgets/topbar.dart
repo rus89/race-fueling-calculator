@@ -147,12 +147,16 @@ class BonkTopbar extends ConsumerWidget {
                   const SizedBox(width: 12),
                 ],
                 // Save indicator: dot + status text. The Semantics node is
-                // always mounted so AT keeps tracking the live region across
-                // notifier state transitions; the visible dot/text only
-                // render once the notifier has hydrated state.
+                // always mounted with `liveRegion: true` so AT announces on
+                // label change of a stable live-region root (mirrors the
+                // pattern in recovery_banner.dart). Toggling liveRegion off
+                // during the idle state silenced the inFlight→idle "·
+                // auto-saved" transition — exactly the announcement screen-
+                // reader users need to confirm a save landed. The visible
+                // dot/text only render once the notifier has hydrated state.
                 Flexible(
                   child: Semantics(
-                    liveRegion: saveStatus != SaveStatus.idle,
+                    liveRegion: true,
                     child: asyncState.hasValue
                         ? Row(
                             mainAxisSize: MainAxisSize.min,

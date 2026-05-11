@@ -38,4 +38,44 @@ void main() {
     d.flush();
     expect(fires, isEmpty);
   });
+
+  test('dispose() cancels pending and prevents future fire', () async {
+    // Locks the invariant that disposal kills the in-flight timer and
+    // never fires the pending callback. Without this, a notifier teardown
+    // mid-debounce-window leaks a save against disposed providers.
+    final fires = <int>[];
+    final d = Debouncer<int>(const Duration(milliseconds: 50));
+    d.run(42, (v) => fires.add(v));
+    d.dispose();
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(fires, isEmpty);
+    expect(d.isDisposed, isTrue);
+  });
+
+  test('run() after dispose() is a no-op', () async {
+    // A debouncer that's been disposed must not silently re-arm — the
+    // notifier's onDispose hook would otherwise be defeated by a late
+    // mutation routed through it.
+    final fires = <int>[];
+    final d = Debouncer<int>(const Duration(milliseconds: 50));
+    d.dispose();
+    d.run(7, (v) => fires.add(v));
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(fires, isEmpty);
+    expect(d.hasPending, isFalse);
+    expect(d.isDisposed, isTrue);
+  });
+
+  test('flush() after dispose() is a no-op', () {
+    // flush() is the synchronous fire path; it must also short-circuit
+    // post-disposal so user-explicit recovery paths can't fire against
+    // disposed providers.
+    final fires = <int>[];
+    final d = Debouncer<int>(const Duration(milliseconds: 50));
+    d.run(9, (v) => fires.add(v));
+    d.dispose();
+    d.flush();
+    expect(fires, isEmpty);
+    expect(d.isDisposed, isTrue);
+  });
 }

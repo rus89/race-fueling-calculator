@@ -15,6 +15,13 @@ import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
 import '../../test_helpers/fake_plan_storage.dart';
 import '../../test_helpers/google_fonts_setup.dart';
 
+/// Drains the 500 ms debounce window so the test's pending save Timer fires
+/// before tear-down. Tests that mutate state without this drain trip
+/// flutter_test's "Timer still pending" verifier.
+Future<void> _drainSaveDebounce(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 600));
+}
+
 /// Pumps the SetupRail wired to a [FakePlanStorage] and returns the underlying
 /// [ProviderContainer] so tests can read planner state directly. Caller may
 /// supply a configured [storage] (e.g. with `loadGate` / `loadError`) to
@@ -59,7 +66,7 @@ void main() {
     await tester.pump();
     expect(find.text('New Race Name'), findsOneWidget);
     // Drain the F2 save debounce timer before the test body returns.
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('discipline segments include all 5 disciplines', (tester) async {
@@ -150,7 +157,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       closeTo(99.78, 0.05),
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets(
@@ -219,7 +226,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       closeTo(100.59, 0.05),
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('imperial Semantics label for body mass includes "(lb)"', (
@@ -294,7 +301,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.athleteProfile.bodyWeightKg,
       72.5,
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('valid distance km updates state', (tester) async {
@@ -305,7 +312,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       120.0,
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('emptying the distance input clears the stored distance', (
@@ -326,7 +333,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       isNull,
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('valid body mass updates state in kg', (tester) async {
@@ -337,7 +344,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.athleteProfile.bodyWeightKg,
       75.0,
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('zero body mass is rejected', (tester) async {
@@ -364,7 +371,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.discipline,
       Discipline.run,
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('controller stays in sync when widget.value mutates externally', (
@@ -376,7 +383,7 @@ void main() {
         .updateRaceConfig((cfg) => cfg.copyWith(name: 'External Change'));
     await tester.pump();
     expect(find.text('External Change'), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('target slider initial label shows current value', (
@@ -406,7 +413,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
       greaterThan(80.0),
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('gut-tolerance slider drag updates athleteProfile', (
@@ -424,7 +431,7 @@ void main() {
           .gutToleranceGPerHr,
       greaterThan(75.0),
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('tapping Front-load distribution updates strategy', (
@@ -437,7 +444,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.strategy,
       Strategy.frontLoad,
     );
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('inventory section lists products from library', (tester) async {
@@ -461,7 +468,7 @@ void main() {
         .firstWhere((s) => s.productId == 'maurten-160')
         .quantity;
     expect(updatedCount, 5);
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('+ Add aid station appends a station at duration / 2', (
@@ -487,7 +494,7 @@ void main() {
     expect(stations.length, originalCount + 1);
     // Seed duration is 4h30m = 270 min, so half is 135.
     expect(stations.last.timeMinutes, 135);
-    await tester.pump(const Duration(milliseconds: 600));
+    await _drainSaveDebounce(tester);
   });
 
   testWidgets('empty aid stations list renders the carrying-everything copy', (

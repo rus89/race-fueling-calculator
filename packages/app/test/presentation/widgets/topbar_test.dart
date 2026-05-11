@@ -49,6 +49,44 @@ void main() {
     expect(find.text('· auto-saved'), findsOneWidget);
   });
 
+  testWidgets(
+    'save-status liveRegion is always-on so idle transitions announce',
+    (tester) async {
+      // HIGH #3: the previous `liveRegion: saveStatus != idle` flipped the
+      // flag off precisely when the "auto-saved" announcement needed to
+      // fire (the inFlight→idle transition). AT announces on label change
+      // of a stable live-region node, not on insertion/flag toggle — so
+      // the flag must be on across all three states.
+      final handle = tester.ensureSemantics();
+      final container = await _pumpTopbarWithStorage(tester, FakePlanStorage());
+
+      // idle
+      expect(container.read(saveStatusProvider), SaveStatus.idle);
+      var data = tester
+          .getSemantics(find.text('· auto-saved'))
+          .getSemanticsData();
+      expect(
+        data.flagsCollection.isLiveRegion,
+        isTrue,
+        reason: 'idle must remain a live region so success announcements fire',
+      );
+
+      // inFlight
+      container.read(saveStatusProvider.notifier).beginSave();
+      await tester.pumpAndSettle();
+      data = tester.getSemantics(find.text('· saving…')).getSemanticsData();
+      expect(data.flagsCollection.isLiveRegion, isTrue);
+
+      // failed
+      container.read(saveStatusProvider.notifier).endSaveFailure();
+      await tester.pumpAndSettle();
+      data = tester.getSemantics(find.text('· save failed')).getSemanticsData();
+      expect(data.flagsCollection.isLiveRegion, isTrue);
+
+      handle.dispose();
+    },
+  );
+
   testWidgets('inFlight state: dot = ink3 + "saving…" + liveRegion', (
     tester,
   ) async {
