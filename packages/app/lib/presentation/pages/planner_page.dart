@@ -7,6 +7,7 @@ import '../panels/plan_canvas.dart';
 import '../panels/setup_rail.dart';
 import '../theme/breakpoints.dart';
 import '../theme/tokens.dart';
+import '../widgets/recovery_banner.dart';
 import '../widgets/topbar.dart';
 
 class PlannerPage extends StatelessWidget {
@@ -20,7 +21,7 @@ class PlannerPage extends StatelessWidget {
         child: Column(
           children: [
             const BonkTopbar(),
-            // F1b inserts `const BonkRecoveryBanner()` here.
+            const BonkRecoveryBanner(),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, c) {

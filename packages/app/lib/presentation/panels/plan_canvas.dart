@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:race_fueling_core/core.dart';
 
+import '../../data/plan_storage.dart';
 import '../../domain/planner_state.dart';
 import '../providers/plan_provider.dart';
 import '../providers/planner_notifier.dart';
@@ -97,10 +98,16 @@ class _ErrorFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO(F1-ERROR-COPY): F1 will surface typed error bucketing per
-    // PB-DATA-1 hand-off. For now the underlying error reaches devs via
-    // debugPrint while users see a static, screen-reader-friendly copy.
+    // Typed-error bucketing matching BonkRecoveryBanner: PlanStorageException
+    // is a storage-layer failure (saved blob unreadable), anything else is
+    // an engine-layer failure. The banner above the three-pane body is the
+    // canonical recovery affordance — the canvas just signposts it.
+    // PlanStorageException.toString() excludes rawBytes, so debugPrint is
+    // safe for L1 telemetry; users see the static copy.
     debugPrint('PlanCanvas error: $error');
+    final message = error is PlanStorageException
+        ? 'Saved plan unreadable — see banner above.'
+        : "Couldn't compute plan — see banner above.";
     return Center(
       child: Semantics(
         liveRegion: true,
@@ -114,7 +121,7 @@ class _ErrorFallback extends StatelessWidget {
               const SizedBox(width: 12),
               Flexible(
                 child: Text(
-                  'Plan unavailable. Please reload.',
+                  message,
                   style: BonkType.sans(
                     size: 14,
                   ).copyWith(color: BonkTokens.ink),

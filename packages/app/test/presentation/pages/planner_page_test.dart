@@ -7,6 +7,7 @@ import 'package:race_fueling_app/presentation/pages/planner_page.dart';
 import 'package:race_fueling_app/presentation/panels/diagnostics_rail.dart';
 import 'package:race_fueling_app/presentation/panels/setup_rail.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
+import 'package:race_fueling_app/presentation/widgets/recovery_banner.dart';
 
 import '../../test_helpers/fake_plan_storage.dart';
 import '../../test_helpers/google_fonts_setup.dart';
@@ -30,6 +31,8 @@ void main() {
     expect(find.text('01 / SETUP'), findsOneWidget);
     expect(find.text('02 / PLAN'), findsOneWidget);
     expect(find.text('03 / DIAGNOSTICS'), findsOneWidget);
+    // F1b: banner is mounted on the happy path (renders SizedBox.shrink()).
+    expect(find.byType(BonkRecoveryBanner), findsOneWidget);
 
     // Rail widths pinned to the BonkBreakpoint.wide tier (320 / 380).
     // Regression guard against breakpoint↔page drift.

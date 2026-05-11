@@ -28,15 +28,17 @@ class SetupRail extends ConsumerWidget {
         label: 'Loading planner',
         child: const Center(child: CircularProgressIndicator()),
       ),
-      // PC-ERROR-UI: stub. F1 replaces with actionable banner per
-      // PB-DATA-1 (JOURNAL Phase B Round 3 closeout). Exception details
-      // are intentionally not interpolated — they could leak stack hints.
-      error: (e, _) => Semantics(
-        liveRegion: true,
-        child: Center(
+      // The actionable recovery affordance lives in the BonkRecoveryBanner
+      // above the three-pane body (F1b). The rail signposts the banner
+      // rather than duplicating its retry/discard controls. Exception
+      // details are intentionally not interpolated — the banner carries
+      // typed-error bucketing; the rail just stays non-empty.
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'Failed to load planner state. Please reload.',
-            style: BonkType.sans(),
+            'Setup unavailable — see banner above.',
+            style: BonkType.sans().copyWith(color: BonkTokens.ink2),
           ),
         ),
       ),

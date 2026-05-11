@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:race_fueling_app/data/plan_storage.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/plan_canvas.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
@@ -192,18 +193,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('renders an error state when storage load fails', (tester) async {
-    await sizeCanvas(tester);
-    final fake = FakePlanStorage()..loadError = StateError('boom');
-    await tester.pumpWidget(wrap(fake));
-    await tester.pumpAndSettle();
-    // PB-DATA-1: the panel surfaces the error rather than silently
-    // showing seed data. F1 will replace this with the recovery banner;
-    // for now, a static fallback proves planProvider's AsyncError reaches
-    // the consumer.
-    expect(find.text('Plan unavailable. Please reload.'), findsOneWidget);
-    // The raw error message must NOT be interpolated into UI text — users
-    // see the static copy, devs see the underlying error in debugPrint.
-    expect(find.textContaining('boom'), findsNothing);
-  });
+  testWidgets(
+    'PlanStorageException → "Saved plan unreadable — see banner above."',
+    (tester) async {
+      await sizeCanvas(tester);
+      final fake = FakePlanStorage()
+        ..loadError = const PlanStorageException('corrupt blob');
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      // F1b: storage-layer failures get the "Saved plan unreadable" copy
+      // and signpost the banner. Raw error text must not leak into UI.
+      expect(
+        find.text('Saved plan unreadable — see banner above.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('corrupt blob'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'non-storage error → "Couldn\'t compute plan — see banner above."',
+    (tester) async {
+      await sizeCanvas(tester);
+      final fake = FakePlanStorage()..loadError = StateError('boom');
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      // F1b: anything other than PlanStorageException reads as an engine
+      // failure — the canvas surfaces the generic compute-failed copy.
+      expect(
+        find.text("Couldn't compute plan — see banner above."),
+        findsOneWidget,
+      );
+      expect(find.textContaining('boom'), findsNothing);
+    },
+  );
 }

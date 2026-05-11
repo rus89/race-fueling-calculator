@@ -78,14 +78,17 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('renders failure message when storage load throws', (
+  testWidgets('renders banner-signposted fallback when storage load throws', (
     tester,
   ) async {
     final fake = FakePlanStorage()..loadError = StateError('disk full');
     await _pump(tester, storage: fake, waitForLoad: false);
     // Allow the AsyncError to propagate.
     await tester.pump();
-    expect(find.textContaining('Failed to load'), findsOneWidget);
+    // F1b: actionable recovery lives in BonkRecoveryBanner above the rail;
+    // the rail signposts the banner so it isn't empty when only one panel
+    // hits AsyncError.
+    expect(find.textContaining('see banner above'), findsOneWidget);
   });
 
   testWidgets('PC-UNIT-CONVERSION: unit labels are hardcoded kg/km regardless '
