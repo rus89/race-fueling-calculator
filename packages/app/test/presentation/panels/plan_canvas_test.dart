@@ -194,7 +194,7 @@ void main() {
   });
 
   testWidgets(
-    'PlanStorageException → "Saved plan unreadable — see banner above."',
+    'PlanStorageException → "Saved plan unreadable — see recovery options."',
     (tester) async {
       await sizeCanvas(tester);
       final fake = FakePlanStorage()
@@ -202,9 +202,11 @@ void main() {
       await tester.pumpWidget(wrap(fake));
       await tester.pumpAndSettle();
       // F1b: storage-layer failures get the "Saved plan unreadable" copy
-      // and signpost the banner. Raw error text must not leak into UI.
+      // and signpost the banner (layout-agnostic copy — banner may be
+      // above or beside the canvas depending on viewport). Raw error text
+      // must not leak into UI.
       expect(
-        find.text('Saved plan unreadable — see banner above.'),
+        find.text('Saved plan unreadable — see recovery options.'),
         findsOneWidget,
       );
       expect(find.textContaining('corrupt blob'), findsNothing);
@@ -212,7 +214,7 @@ void main() {
   );
 
   testWidgets(
-    'non-storage error → "Couldn\'t compute plan — see banner above."',
+    'non-storage error → "Couldn\'t compute plan — see recovery options."',
     (tester) async {
       await sizeCanvas(tester);
       final fake = FakePlanStorage()..loadError = StateError('boom');
@@ -221,7 +223,7 @@ void main() {
       // F1b: anything other than PlanStorageException reads as an engine
       // failure — the canvas surfaces the generic compute-failed copy.
       expect(
-        find.text("Couldn't compute plan — see banner above."),
+        find.text("Couldn't compute plan — see recovery options."),
         findsOneWidget,
       );
       expect(find.textContaining('boom'), findsNothing);

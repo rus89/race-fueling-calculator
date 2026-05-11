@@ -31,7 +31,8 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
       return PlannerState.seed();
     } catch (e, st) {
       // L1 observability for load failures (mirrors the save-path debugPrint).
-      debugPrint('PlanStorage.load failed: $e\n$st');
+      // Debug-only so release builds don't leak rawBytes via PlanStorageException.
+      if (kDebugMode) debugPrint('PlanStorage.load failed: $e\n$st');
       rethrow;
     }
   }
@@ -77,8 +78,9 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
         statusCtrl.endSaveSuccess();
       } catch (e, st) {
         // L1 observability: log the failure. L3 surfacing flows through
-        // saveStatusProvider so F1 can render a banner.
-        debugPrint('PlanStorage.save failed: $e\n$st');
+        // saveStatusProvider so F1 can render a banner. Debug-only so
+        // release builds don't leak storage internals.
+        if (kDebugMode) debugPrint('PlanStorage.save failed: $e\n$st');
         statusCtrl.endSaveFailure();
         // Do NOT rethrow — the chain stays resolvable for subsequent writes.
       }
@@ -111,6 +113,16 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   /// the public mutator API but bypasses the lambda.
   @visibleForTesting
   void debugEmit(PlannerState next) => _emit(next);
+
+  /// Re-emit the current state to retrigger the save chain. Wired by F1b's
+  /// "Retry save" affordance after a transient save failure. No-op when
+  /// no current state is available (initial AsyncLoading, or post-error
+  /// without a prior value).
+  void retrySave() {
+    final cur = _currentOrNull();
+    if (cur == null) return;
+    _emitForce(cur);
+  }
 
   void updateRaceConfig(RaceConfig Function(RaceConfig) edit) {
     final cur = _currentOrNull();

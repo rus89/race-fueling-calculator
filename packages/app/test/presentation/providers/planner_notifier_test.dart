@@ -372,6 +372,40 @@ void main() {
     expect(fake.saveCount, 0);
   });
 
+  test('retrySave re-emits current state and triggers a save', () async {
+    final fake = FakePlanStorage();
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+    final before = fake.saveCount;
+
+    c.read(plannerNotifierProvider.notifier).retrySave();
+    // Drain the chained save microtask.
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.saveCount, before + 1);
+  });
+
+  test('retrySave is a no-op when state has no current value', () async {
+    // AsyncError on first build: no prior AsyncData exists. retrySave
+    // must not crash and must not flush a save.
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+    c.read(plannerNotifierProvider.notifier).retrySave();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.saveCount, 0);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+  });
+
   test('debugEmit goes through _emit and respects the AsyncError guard', () async {
     final fake = FakePlanStorage()..loadError = StateError('boom');
     final c = _makeContainer(fake);

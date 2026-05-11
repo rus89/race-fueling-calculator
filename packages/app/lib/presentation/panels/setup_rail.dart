@@ -29,16 +29,22 @@ class SetupRail extends ConsumerWidget {
         child: const Center(child: CircularProgressIndicator()),
       ),
       // The actionable recovery affordance lives in the BonkRecoveryBanner
-      // above the three-pane body (F1b). The rail signposts the banner
-      // rather than duplicating its retry/discard controls. Exception
-      // details are intentionally not interpolated — the banner carries
-      // typed-error bucketing; the rail just stays non-empty.
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'Setup unavailable — see banner above.',
-            style: BonkType.sans().copyWith(color: BonkTokens.ink2),
+      // (F1b). The rail signposts the banner rather than duplicating its
+      // retry/discard controls. Exception details are intentionally not
+      // interpolated — the banner carries typed-error bucketing; the rail
+      // just stays non-empty. Layout-agnostic copy: the banner may render
+      // above or beside the rail depending on viewport.
+      error: (e, _) => Semantics(
+        liveRegion: true,
+        container: true,
+        label: 'Setup unavailable — see recovery options.',
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Setup unavailable — see recovery options.',
+              style: BonkType.sans().copyWith(color: BonkTokens.ink2),
+            ),
           ),
         ),
       ),

@@ -9,6 +9,11 @@ class FakePlanStorage implements PlanStorage {
   PlannerState? loaded;
   PlannerState? lastSaved;
   int saveCount = 0;
+  int loadCount = 0;
+
+  /// Resets the load-call counter. Useful when a test wants to assert a
+  /// retry triggered a second load without counting the priming call.
+  void resetLoadCounter() => loadCount = 0;
 
   /// When non-null, `load()` throws this raw object instead of returning
   /// [loaded]. Use for arbitrary platform-init failures (StateError,
@@ -34,6 +39,7 @@ class FakePlanStorage implements PlanStorage {
 
   @override
   Future<PlannerState?> load() async {
+    loadCount++;
     if (loadGate != null) await loadGate!.future;
     if (corruptBlob != null) {
       throw PlanStorageException(

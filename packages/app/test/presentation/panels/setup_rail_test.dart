@@ -88,7 +88,7 @@ void main() {
     // F1b: actionable recovery lives in BonkRecoveryBanner above the rail;
     // the rail signposts the banner so it isn't empty when only one panel
     // hits AsyncError.
-    expect(find.textContaining('see banner above'), findsOneWidget);
+    expect(find.textContaining('see recovery options'), findsOneWidget);
   });
 
   testWidgets('PC-UNIT-CONVERSION: unit labels are hardcoded kg/km regardless '

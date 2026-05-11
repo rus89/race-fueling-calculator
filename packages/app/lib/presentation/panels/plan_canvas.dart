@@ -106,8 +106,8 @@ class _ErrorFallback extends StatelessWidget {
     // safe for L1 telemetry; users see the static copy.
     debugPrint('PlanCanvas error: $error');
     final message = error is PlanStorageException
-        ? 'Saved plan unreadable — see banner above.'
-        : "Couldn't compute plan — see banner above.";
+        ? 'Saved plan unreadable — see recovery options.'
+        : "Couldn't compute plan — see recovery options.";
     return Center(
       child: Semantics(
         liveRegion: true,
