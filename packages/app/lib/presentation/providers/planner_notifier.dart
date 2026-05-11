@@ -108,6 +108,17 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     _emitForce(PlannerState.seed());
   }
 
+  /// User-driven "Reset to seed plan" on the healthy path (empty-plan CTA).
+  /// Honors the AsyncError guard so users on a broken-storage state must go
+  /// through `discardCorruptedAndUseSeed` instead. Uses `_emitForce` so the
+  /// seed's `isSeedFallback: true` flag survives the emission — the explicit
+  /// "Reset" intent restores the quickstart treatment rather than silently
+  /// advancing past it.
+  void resetToSeed() {
+    if (state is AsyncError) return;
+    _emitForce(PlannerState.seed());
+  }
+
   /// Test-only re-emit hook so the AsyncError guard in `_emit` is reachable
   /// from unit tests without provoking an artificial AsyncError. Mirrors
   /// the public mutator API but bypasses the lambda.

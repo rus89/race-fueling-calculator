@@ -17,7 +17,12 @@ import '../widgets/seg_control.dart';
 import '../widgets/text_input.dart';
 
 class SetupRail extends ConsumerWidget {
-  const SetupRail({super.key});
+  /// Whether to paint the right-side rule that separates the rail from the
+  /// canvas in the desktop three-pane layout. Mobile TabBarView places the
+  /// rail as a tab child; suppressing the rule prevents a stray vertical
+  /// line at the tab content's edge.
+  final bool showSideRule;
+  const SetupRail({super.key, this.showSideRule = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,21 +53,24 @@ class SetupRail extends ConsumerWidget {
           ),
         ),
       ),
-      data: (state) => _RailBody(state: state),
+      data: (state) => _RailBody(state: state, showSideRule: showSideRule),
     );
   }
 }
 
 class _RailBody extends ConsumerWidget {
   final PlannerState state;
-  const _RailBody({required this.state});
+  final bool showSideRule;
+  const _RailBody({required this.state, required this.showSideRule});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(plannerNotifierProvider.notifier);
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: BonkTokens.rule)),
+      decoration: BoxDecoration(
+        border: showSideRule
+            ? const Border(right: BorderSide(color: BonkTokens.rule))
+            : null,
         color: BonkTokens.bg,
       ),
       child: SingleChildScrollView(

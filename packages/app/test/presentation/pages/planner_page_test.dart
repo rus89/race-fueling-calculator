@@ -82,6 +82,39 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Checks button in Topbar opens the diagnostics endDrawer at 1200w',
+    (tester) async {
+      // F1c: tapping the Checks button (rendered at noDiagnostics width)
+      // must open the Drawer so users without the inline rail can still
+      // reach the checks pane. Setting tester.view.physicalSize is what
+      // propagates the size to MediaQuery (setSurfaceSize only updates
+      // LayoutBuilder constraints).
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [planStorageProvider.overrideWithValue(FakePlanStorage())],
+          child: const MaterialApp(home: PlannerPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(Drawer), findsNothing);
+
+      final btn = find.byKey(const Key('topbar.checksButton'));
+      expect(btn, findsOneWidget);
+      await tester.tap(btn);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Drawer), findsOneWidget);
+      expect(find.text('03 / DIAGNOSTICS'), findsOneWidget);
+    },
+  );
+
   testWidgets('narrow tier (1000w) drops inline diagnostics, keeps setup', (
     tester,
   ) async {

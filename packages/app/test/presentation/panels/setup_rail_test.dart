@@ -323,6 +323,57 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('default placement paints right-side rule', (tester) async {
+    // The desktop three-pane layout uses the rule as the seam between
+    // SetupRail and PlanCanvas. Pin the contract — turning the rule off by
+    // default would re-introduce the F1c mobile-tab regression.
+    await _pump(tester);
+    final container = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(SetupRail),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = container.decoration as BoxDecoration?;
+    expect(decoration?.border, isNotNull);
+  });
+
+  testWidgets(
+    'showSideRule: false suppresses the right-side rule (mobile tabs)',
+    (tester) async {
+      // Mobile TabBarView places the rail as a tab child; the desktop seam
+      // turns into a stray vertical line at the tab content's edge. The
+      // mobile body opts out of the rule.
+      final fake = FakePlanStorage();
+      final container = ProviderContainer(
+        overrides: [planStorageProvider.overrideWithValue(fake)],
+      );
+      addTearDown(container.dispose);
+      await container.read(plannerNotifierProvider.future);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: SetupRail(showSideRule: false)),
+          ),
+        ),
+      );
+      await tester.pump();
+      final box = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(SetupRail),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final decoration = box.decoration as BoxDecoration?;
+      expect(decoration?.border, isNull);
+    },
+  );
 }
 
 /// Pumps the rail under a 360x2400 surface so all sections (carb strategy,

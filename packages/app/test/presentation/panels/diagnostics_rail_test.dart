@@ -130,4 +130,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('default placement paints left-side rule', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          planStorageProvider.overrideWithValue(FakePlanStorage()),
+          warningsProvider.overrideWith((ref) => const []),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: SizedBox(width: 360, child: DiagnosticsRail())),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(DiagnosticsRail),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = container.decoration as BoxDecoration?;
+    expect(decoration?.border, isNotNull);
+  });
+
+  testWidgets(
+    'showSideRule: false suppresses the left-side rule (mobile tabs)',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            planStorageProvider.overrideWithValue(FakePlanStorage()),
+            warningsProvider.overrideWith((ref) => const []),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                child: DiagnosticsRail(showSideRule: false),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(DiagnosticsRail),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final decoration = container.decoration as BoxDecoration?;
+      expect(decoration?.border, isNull);
+    },
+  );
 }

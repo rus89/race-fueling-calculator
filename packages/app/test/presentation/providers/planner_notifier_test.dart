@@ -406,6 +406,55 @@ void main() {
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
   });
 
+  test(
+    'resetToSeed restores the seed plan and persists the seed flag',
+    () async {
+      final fake = FakePlanStorage();
+      // Loaded blob is a customised plan, not a seed fallback.
+      final custom = PlannerState.seed().copyWith(
+        raceConfig: PlannerState.seed().raceConfig.copyWith(name: 'My Race'),
+        isSeedFallback: false,
+      );
+      fake.loaded = custom;
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      await c.read(plannerNotifierProvider.future);
+      expect(
+        c.read(plannerNotifierProvider).requireValue.raceConfig.name,
+        'My Race',
+      );
+
+      c.read(plannerNotifierProvider.notifier).resetToSeed();
+      await Future<void>.delayed(Duration.zero);
+
+      final after = c.read(plannerNotifierProvider).requireValue;
+      expect(after.raceConfig.name, contains('Andalucía'));
+      // The seed flag must survive — the explicit "Reset" intent restores
+      // the quickstart treatment instead of silently advancing past it.
+      expect(after.isSeedFallback, isTrue);
+      expect(fake.lastSaved!.isSeedFallback, isTrue);
+    },
+  );
+
+  test('resetToSeed is a no-op while state is AsyncError', () async {
+    final fake = FakePlanStorage()..loadError = StateError('boom');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c
+        .read(plannerNotifierProvider.future)
+        .then<Object?>((s) => null, onError: (Object e) => e);
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+    // Users on a corrupted-blob state must explicitly opt into the
+    // destructive recovery path (discardCorruptedAndUseSeed). The healthy
+    // resetToSeed must not bypass the AsyncError guard.
+    c.read(plannerNotifierProvider.notifier).resetToSeed();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.read(plannerNotifierProvider).hasError, isTrue);
+    expect(fake.saveCount, 0);
+  });
+
   test('debugEmit goes through _emit and respects the AsyncError guard', () async {
     final fake = FakePlanStorage()..loadError = StateError('boom');
     final c = _makeContainer(fake);

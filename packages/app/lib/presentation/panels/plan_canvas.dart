@@ -60,6 +60,7 @@ class _Body extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(productLibraryProvider);
     final productsById = {for (final p in library) p.id: p};
+    final isEmpty = plan.entries.isEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 80),
@@ -83,9 +84,13 @@ class _Body extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 22),
-          _StatsGrid(plan: plan, target: state.raceConfig.targetCarbsGPerHr),
-          const SizedBox(height: 28),
-          _Timeline(plan: plan, state: state, productsById: productsById),
+          if (isEmpty)
+            const _EmptyState()
+          else ...[
+            _StatsGrid(plan: plan, target: state.raceConfig.targetCarbsGPerHr),
+            const SizedBox(height: 28),
+            _Timeline(plan: plan, state: state, productsById: productsById),
+          ],
         ],
       ),
     );
@@ -190,11 +195,74 @@ class _StatsGrid extends StatelessWidget {
     // size 36; non-hero cards use statValue at size 20). A fixed-aspect
     // GridView clips the hero. Row + Expanded + IntrinsicHeight lets the
     // tallest card set the row height and stretches the others to match.
-    // TODO(F1-RESPONSIVE): collapse to Wrap/multi-row layout at <880px.
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [for (final c in cards) Expanded(child: c)],
+    // F1c-RESPONSIVE: below 880px the six-card Row overflows; switch to
+    // a 2-up Wrap so cards stack into three rows at mobile viewports.
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.maxWidth >= 880) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final card in cards) Expanded(child: card)],
+            ),
+          );
+        }
+        const spacing = BonkTokens.space4;
+        // 2-up grid: subtract the single inter-card gap from total width and
+        // halve. Floor at 0 so a degenerate maxWidth doesn't blow up.
+        final cardWidth = ((c.maxWidth - spacing) / 2).clamp(
+          0.0,
+          double.infinity,
+        );
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final card in cards) SizedBox(width: cardWidth, child: card),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _EmptyState extends ConsumerWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Semantics(
+      container: true,
+      label: 'No plan yet. Add a product or set a duration to compute a plan.',
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: Text(
+                'No plan yet.',
+                style: BonkType.sans(
+                  size: 20,
+                  w: FontWeight.w600,
+                ).copyWith(color: BonkTokens.ink),
+              ),
+            ),
+            const SizedBox(height: 6),
+            ExcludeSemantics(
+              child: Text(
+                'Add a product or set a duration to compute a plan.',
+                style: BonkType.sans(size: 13).copyWith(color: BonkTokens.ink2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () =>
+                  ref.read(plannerNotifierProvider.notifier).resetToSeed(),
+              child: const Text('Reset to seed plan'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -212,7 +280,6 @@ class _Timeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO(F1-EMPTY-PLAN): add empty-state CTA when entries.isEmpty.
     final stepHrs = (state.raceConfig.intervalMinutes ?? 15) / 60.0;
     final perStepTarget = state.raceConfig.targetCarbsGPerHr * stepHrs;
     final peak = plan.entries.isEmpty

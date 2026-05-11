@@ -184,6 +184,63 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // Topbar reads MediaQuery.sizeOf(context) to pick a breakpoint. Wrap each
+  // sized test with an explicit MediaQuery so the size is observable in the
+  // widget tree (setSurfaceSize alone leaves MediaQuery on the default
+  // 800×600 test view).
+  Widget withSize(Size size, FakePlanStorage fake) => ProviderScope(
+    overrides: [planStorageProvider.overrideWithValue(fake)],
+    child: MaterialApp(
+      home: MediaQuery(
+        data: MediaQueryData(size: size),
+        child: const Scaffold(body: BonkTopbar()),
+      ),
+    ),
+  );
+
+  testWidgets('renders Checks button at narrow width (1000px)', (tester) async {
+    // narrow tier: 880 ≤ w < 1080. Inline diagnostics rail hidden; mobile
+    // tabs not engaged. The Topbar must surface a way to open the drawer.
+    await tester.binding.setSurfaceSize(const Size(1000, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(withSize(const Size(1000, 600), FakePlanStorage()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('topbar.checksButton')), findsOneWidget);
+    expect(find.text('Checks'), findsOneWidget);
+  });
+
+  testWidgets('renders Checks button at noDiagnostics width (1200px)', (
+    tester,
+  ) async {
+    // noDiagnostics tier: 1080 ≤ w < 1380. Inline diagnostics rail hidden.
+    await tester.binding.setSurfaceSize(const Size(1200, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(withSize(const Size(1200, 700), FakePlanStorage()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('topbar.checksButton')), findsOneWidget);
+  });
+
+  testWidgets('hides Checks button at wide width (1600px)', (tester) async {
+    // wide tier: inline diagnostics rail is visible — drawer is redundant.
+    await tester.binding.setSurfaceSize(const Size(1600, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(withSize(const Size(1600, 700), FakePlanStorage()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('topbar.checksButton')), findsNothing);
+  });
+
+  testWidgets('hides Checks button at mobile width (700px)', (tester) async {
+    // mobile tier uses TabBar — drawer is irrelevant.
+    await tester.binding.setSurfaceSize(const Size(700, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(withSize(const Size(700, 700), FakePlanStorage()));
+    await tester.pumpAndSettle();
+    // Drain potential horizontal overflow on the very narrow topbar — out
+    // of scope here; we only assert that the Checks button is hidden.
+    tester.takeException();
+    expect(find.byKey(const Key('topbar.checksButton')), findsNothing);
+  });
+
   testWidgets('bar grows past 44px at very large text scales (minHeight)', (
     tester,
   ) async {

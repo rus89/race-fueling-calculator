@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/plan_provider.dart';
 import '../providers/planner_notifier.dart';
 import '../providers/save_status_provider.dart';
+import '../theme/breakpoints.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
 
@@ -152,7 +153,41 @@ class BonkTopbar extends ConsumerWidget {
                   )
                 : const SizedBox.shrink(),
           ),
+          // F1c: at noDiagnostics / narrow widths the inline diagnostics rail
+          // is hidden but the page is not in tab mode — surface a way to open
+          // the endDrawer so checks remain reachable. Mobile uses tabs.
+          const _ChecksButton(),
         ],
+      ),
+    );
+  }
+}
+
+class _ChecksButton extends StatelessWidget {
+  const _ChecksButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final bp = BonkBreakpoint.forWidth(MediaQuery.sizeOf(context).width);
+    if (bp.showsDiagnosticsRail || bp == BonkBreakpoint.mobile) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Semantics(
+        button: true,
+        label: 'Open diagnostics',
+        child: TextButton.icon(
+          key: const Key('topbar.checksButton'),
+          onPressed: () => Scaffold.of(context).openEndDrawer(),
+          icon: const Icon(Icons.checklist, size: 16),
+          label: const Text('Checks'),
+          style: TextButton.styleFrom(
+            foregroundColor: BonkTokens.ink,
+            textStyle: BonkType.sans(size: 12, w: FontWeight.w600),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
       ),
     );
   }

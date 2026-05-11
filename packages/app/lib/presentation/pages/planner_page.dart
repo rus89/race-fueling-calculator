@@ -73,9 +73,16 @@ class _MobileBody extends StatelessWidget {
               Tab(text: 'Diagnostics'),
             ],
           ),
+          // The rails' side-rule decoration is the desktop seam between panels;
+          // inside a TabBarView it reads as a stray vertical line at the tab
+          // content's edge. Mobile tabs opt out.
           Expanded(
             child: TabBarView(
-              children: [SetupRail(), PlanCanvas(), DiagnosticsRail()],
+              children: [
+                SetupRail(showSideRule: false),
+                PlanCanvas(),
+                DiagnosticsRail(showSideRule: false),
+              ],
             ),
           ),
         ],

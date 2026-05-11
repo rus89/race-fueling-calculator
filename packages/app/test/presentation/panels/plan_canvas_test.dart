@@ -9,6 +9,7 @@ import 'package:race_fueling_app/data/plan_storage.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/plan_canvas.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
+import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
 import 'package:race_fueling_app/presentation/widgets/stat_card.dart';
 
 import '../../test_helpers/fake_plan_storage.dart';
@@ -185,12 +186,97 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    // TODO(F1-RESPONSIVE): the 6-card stat grid is a fixed Row; at 200%
-    // text scale on narrow surfaces it can overflow. F1 owns the Wrap
-    // collapse. On this 2400×3200 surface the canvas builds without
-    // throwing — pin that contract so a future regression that flips
-    // it shows up here.
+    // F1c-RESPONSIVE: the stat grid collapses to Wrap below 880px so the
+    // 200% text-scale surface doesn't overflow. 2400×3200 with 2× scale
+    // exercises the wide branch — pin that contract.
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'stat grid collapses to wrap layout below 880px without overflow',
+    (tester) async {
+      // Pump at a narrow viewport so _StatsGrid takes the Wrap branch.
+      // The six cards must all remain findable and no horizontal overflow
+      // can occur (RenderFlex overflow throws an Exception during paint).
+      await tester.binding.setSurfaceSize(const Size(600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final fake = FakePlanStorage();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Avg carbs / hr'), findsOneWidget);
+      expect(find.text('Total carbs'), findsOneWidget);
+      expect(find.text('Glu : Fru'), findsOneWidget);
+      expect(find.text('Caffeine'), findsOneWidget);
+      expect(find.text('Fluid w/ fuel'), findsOneWidget);
+      expect(find.text('Items'), findsOneWidget);
+    },
+  );
+
+  testWidgets('empty plan renders empty-state CTA and hides stat grid', (
+    tester,
+  ) async {
+    await sizeCanvas(tester);
+    // Zero-duration race produces no timeline slots → FuelingPlan.entries
+    // is empty. This is the path the empty-state CTA catches (the user
+    // cleared duration or hasn't set one yet).
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        raceConfig: seed.raceConfig.copyWith(
+          duration: Duration.zero,
+          selectedProducts: const [],
+          aidStations: const [],
+        ),
+      );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    // Empty-state CTA copy is visible.
+    expect(find.text('No plan yet.'), findsOneWidget);
+    expect(
+      find.text('Add a product or set a duration to compute a plan.'),
+      findsOneWidget,
+    );
+    // The stat grid is replaced, not stacked above — labels must not appear.
+    expect(find.text('Avg carbs / hr'), findsNothing);
+    expect(find.text('Total carbs'), findsNothing);
+    // Race-name header at the top of _Body stays visible.
+    expect(find.text('Andalucía Bike Race — Stage 3'), findsOneWidget);
+  });
+
+  testWidgets('empty-state Reset button restores the seed plan', (
+    tester,
+  ) async {
+    await sizeCanvas(tester);
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        raceConfig: seed.raceConfig.copyWith(
+          name: 'My Empty Race',
+          duration: Duration.zero,
+          selectedProducts: const [],
+          aidStations: const [],
+        ),
+      );
+    final container = ProviderContainer(
+      overrides: [planStorageProvider.overrideWithValue(fake)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: PlanCanvas())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reset to seed plan'));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(plannerNotifierProvider).requireValue.raceConfig.name,
+      'Andalucía Bike Race — Stage 3',
+    );
   });
 
   testWidgets(
