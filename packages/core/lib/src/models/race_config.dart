@@ -7,8 +7,15 @@ import 'duration_converter.dart';
 part 'race_config.g.dart';
 
 /// Sentinel marker for [RaceConfig.copyWith] to distinguish "argument omitted"
-/// from "argument explicitly passed as null". Used on `distanceKm` and
-/// `intervalKm` so UI inputs can clear these fields by passing `null`.
+/// from "argument explicitly passed as null".
+///
+/// Scope rule: applied ONLY to nullable fields that the v1.1 UI needs to clear
+/// via a text input (currently `distanceKm` and `intervalKm`). Other nullable
+/// fields (`intervalMinutes`, `customCurve`, `temperature`, `humidity`,
+/// `altitudeM`, `discipline`) retain the standard null-as-no-change pattern
+/// because v1.1 has no "clear this field" affordance for them. If v1.2 adds
+/// such an affordance, promote the affected field to the sentinel pattern; do
+/// not generalize preemptively.
 const Object _kRaceConfigUnset = Object();
 
 enum TimelineMode {
@@ -74,11 +81,12 @@ class AidStation extends Equatable {
 
   /// Returns a copy with the given fields replaced.
   ///
-  /// Null-as-no-change semantics (mirrors [RaceConfig.copyWith]). Callers
-  /// that need to clear `timeMinutes` or `distanceKm` (for example to drop
-  /// the inactive unit when toggling between time and distance) must
-  /// construct a fresh [AidStation] directly — this method cannot express
-  /// "set to null".
+  /// Null-as-no-change semantics — intentionally diverges from
+  /// [RaceConfig.copyWith]'s sentinel pattern. The `AidStationRow` widget at
+  /// `packages/app/lib/presentation/widgets/aid_station_row.dart` constructs a
+  /// fresh [AidStation] rather than using `copyWith` to clear fields. If a
+  /// future UI affordance needs to clear `distanceKm` or `timeMinutes` via
+  /// `copyWith`, promote those fields to the sentinel pattern at that point.
   AidStation copyWith({
     int? timeMinutes,
     double? distanceKm,

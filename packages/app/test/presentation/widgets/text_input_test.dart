@@ -94,4 +94,78 @@ void main() {
     expect(find.bySemanticsLabel('Race name'), findsWidgets);
     handle.dispose();
   });
+
+  testWidgets(
+    'does NOT overwrite controller while focused (preserves typed decimals)',
+    (tester) async {
+      // F1d HIGH#1: when an upstream state echoes a rounded form of the user's
+      // typed value (e.g. user types "158.7" lb → stored 71.989 kg → re-render
+      // "159"), the in-focus controller must not be overwritten mid-edit.
+      String value = '158.7';
+      StateSetter? setter;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (ctx, s) {
+                setter = s;
+                return BonkTextInput(value: value, onChanged: (v) {});
+              },
+            ),
+          ),
+        ),
+      );
+      // User taps the field to start editing.
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      final controller = (tester.widget<TextField>(
+        find.byType(TextField),
+      )).controller!;
+      expect(controller.text, '158.7');
+
+      // Simulate upstream state change rounding the value while focused.
+      setter!(() => value = '159');
+      await tester.pump();
+
+      // Controller text must remain '158.7' — the user is still typing.
+      expect(controller.text, '158.7');
+    },
+  );
+
+  testWidgets('resumes overwrite when field loses focus', (tester) async {
+    // F1d HIGH#1 mirror: once focus leaves, the next external value change
+    // should propagate to the controller as before.
+    String value = '158.7';
+    StateSetter? setter;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (ctx, s) {
+              setter = s;
+              return BonkTextInput(value: value, onChanged: (v) {});
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    final controller = (tester.widget<TextField>(
+      find.byType(TextField),
+    )).controller!;
+    // Confirm the focus guard locks the field while focused.
+    setter!(() => value = '159');
+    await tester.pump();
+    expect(controller.text, '158.7');
+
+    // Drop focus by tapping elsewhere.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+
+    // External update now propagates.
+    setter!(() => value = '200');
+    await tester.pump();
+    expect(controller.text, '200');
+  });
 }

@@ -150,6 +150,133 @@ void main() {
     );
   });
 
+  testWidgets(
+    'imperial body mass displays one-decimal precision (no rounding drift)',
+    (tester) async {
+      // F1d HIGH#1(a): 72 kg renders as 158.7 lb (kgToLb(72) ≈ 158.733...),
+      // NOT "159". Imperial display must keep the typed decimal precision so
+      // the controller doesn't overwrite mid-edit text.
+      final seed = PlannerState.seed();
+      final fake = FakePlanStorage()
+        ..loaded = seed.copyWith(
+          athleteProfile: seed.athleteProfile.copyWith(
+            unitSystem: UnitSystem.imperial,
+            bodyWeightKg: 72.0,
+          ),
+        );
+      await _pump(tester, storage: fake);
+      final field = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('setup.body_mass')),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(field.controller!.text, '158.7');
+    },
+  );
+
+  testWidgets(
+    'imperial distance displays one-decimal precision (no rounding drift)',
+    (tester) async {
+      // F1d HIGH#1(a) mirror for distance: stored distanceKm: 100 → 62.1 mi.
+      final seed = PlannerState.seed();
+      final fake = FakePlanStorage()
+        ..loaded = seed.copyWith(
+          athleteProfile: seed.athleteProfile.copyWith(
+            unitSystem: UnitSystem.imperial,
+          ),
+          raceConfig: seed.raceConfig.copyWith(distanceKm: 100.0),
+        );
+      await _pump(tester, storage: fake);
+      final field = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('setup.distance_km')),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(field.controller!.text, '62.1');
+    },
+  );
+
+  testWidgets('imperial decimal distance "62.5" mi stores ≈ 100.59 km', (
+    tester,
+  ) async {
+    // F1d LOW#13: mirrors the imperial-body-mass decimal test for symmetry.
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        athleteProfile: seed.athleteProfile.copyWith(
+          unitSystem: UnitSystem.imperial,
+        ),
+      );
+    final c = await _pump(tester, storage: fake);
+    await tester.enterText(find.byKey(const Key('setup.distance_km')), '62.5');
+    await tester.pump();
+    expect(
+      c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
+      closeTo(100.59, 0.05),
+    );
+  });
+
+  testWidgets('imperial Semantics label for body mass includes "(lb)"', (
+    tester,
+  ) async {
+    // F1d HIGH#2: AT users must hear the active unit, not just sighted ones.
+    // The label appears twice (BonkFieldShell container + TextField decoration);
+    // RegExp tolerates the merged Semantics announcement.
+    final handle = tester.ensureSemantics();
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        athleteProfile: seed.athleteProfile.copyWith(
+          unitSystem: UnitSystem.imperial,
+        ),
+      );
+    await _pump(tester, storage: fake);
+    expect(find.bySemanticsLabel(RegExp(r'Body mass \(lb\)')), findsWidgets);
+    handle.dispose();
+  });
+
+  testWidgets('imperial Semantics label for distance includes "(mi)"', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        athleteProfile: seed.athleteProfile.copyWith(
+          unitSystem: UnitSystem.imperial,
+        ),
+      );
+    await _pump(tester, storage: fake);
+    expect(
+      find.bySemanticsLabel(RegExp(r'Total distance \(mi\)')),
+      findsWidgets,
+    );
+    handle.dispose();
+  });
+
+  testWidgets('metric Semantics label for body mass includes "(kg)"', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester);
+    expect(find.bySemanticsLabel(RegExp(r'Body mass \(kg\)')), findsWidgets);
+    handle.dispose();
+  });
+
+  testWidgets('metric Semantics label for distance includes "(km)"', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester);
+    expect(
+      find.bySemanticsLabel(RegExp(r'Total distance \(km\)')),
+      findsWidgets,
+    );
+    handle.dispose();
+  });
+
   testWidgets('metric body mass accepts decimal input (72.5 kg)', (
     tester,
   ) async {

@@ -387,8 +387,10 @@ class _DurationRow extends ConsumerWidget {
 class _BodyMassAndDistanceRow extends ConsumerWidget {
   const _BodyMassAndDistanceRow();
 
+  // End-anchored: single optional decimal point, no trailing characters. The
+  // anchor makes the intent self-documenting.
   static final _decimalFormatter = FilteringTextInputFormatter.allow(
-    RegExp(r'^\d*\.?\d*'),
+    RegExp(r'^\d*\.?\d*$'),
   );
 
   @override
@@ -400,31 +402,49 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
     final distUnit = isImperial ? 'mi' : 'km';
 
     // Storage stays canonical SI; convert at the I/O boundary only.
-    final bodyKgStored = state.athleteProfile.bodyWeightKg ?? 70;
-    final massDisplay = isImperial ? kgToLb(bodyKgStored) : bodyKgStored;
-    final distKmStored = state.raceConfig.distanceKm;
+    // Defensive finite-positive guard: even if a non-finite or non-positive
+    // bodyWeightKg slips past the model invariants (release-mode assert
+    // elision, legacy blob loaded pre-finite guard), fall back to a safe
+    // default rather than rendering "NaN" or crashing.
+    final rawKg = state.athleteProfile.bodyWeightKg;
+    final safeKg = (rawKg != null && rawKg.isFinite && rawKg > 0)
+        ? rawKg
+        : 70.0;
+    final massDisplay = isImperial ? kgToLb(safeKg) : safeKg;
+    // Imperial keeps one decimal so the field doesn't overwrite the user's
+    // typed mid-edit precision (e.g. "158.7" lb round-trips to "158.7", not
+    // "159"). Metric uses integer display because kg granularity is coarse
+    // and one-decimal noise would clutter the rail.
+    final massStr = isImperial
+        ? massDisplay.toStringAsFixed(1)
+        : '${massDisplay.round()}';
+
+    final rawKm = state.raceConfig.distanceKm;
+    final safeKm = (rawKm != null && rawKm.isFinite && rawKm > 0)
+        ? rawKm
+        : null;
     final String distDisplay;
-    if (distKmStored == null) {
+    if (safeKm == null) {
       distDisplay = '';
     } else {
-      final shown = isImperial ? kmToMi(distKmStored) : distKmStored;
-      distDisplay = '${shown.round()}';
+      final shown = isImperial ? kmToMi(safeKm) : safeKm;
+      distDisplay = isImperial ? shown.toStringAsFixed(1) : '${shown.round()}';
     }
 
     return Row(
       children: [
         Expanded(
           child: BonkFieldShell(
-            label: 'Body mass',
+            label: 'Body mass ($massUnit)',
             child: Row(
               children: [
                 SizedBox(
                   width: 64,
                   child: BonkTextInput(
                     key: const Key('setup.body_mass'),
-                    value: '${massDisplay.round()}',
+                    value: massStr,
                     monoFont: true,
-                    labelText: 'Body mass',
+                    labelText: 'Body mass ($massUnit)',
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -455,7 +475,7 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
         const SizedBox(width: 10),
         Expanded(
           child: BonkFieldShell(
-            label: 'Total distance',
+            label: 'Total distance ($distUnit)',
             child: Row(
               children: [
                 SizedBox(
@@ -464,7 +484,7 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
                     key: const Key('setup.distance_km'),
                     value: distDisplay,
                     monoFont: true,
-                    labelText: 'Total distance',
+                    labelText: 'Total distance ($distUnit)',
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
