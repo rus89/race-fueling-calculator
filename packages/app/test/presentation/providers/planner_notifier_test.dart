@@ -1,4 +1,4 @@
-// ABOUTME: Unit tests for PlannerNotifier — load + mutate + save plumbing.
+// ABOUTME: Unit tests for PlannerNotifier — load + mutate + debounced save.
 // ABOUTME: Uses an in-memory FakePlanStorage to assert save side effects.
 import 'dart:async';
 
@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
 import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
+import 'package:race_fueling_app/presentation/providers/save_status_provider.dart';
 
 import '../../test_helpers/fake_plan_storage.dart';
 
@@ -16,6 +17,9 @@ ProviderContainer _makeContainer(FakePlanStorage fake) {
   );
   return c;
 }
+
+// Past the 500 ms debounce window plus a small cushion for microtask drain.
+const _pastDebounceWindow = Duration(milliseconds: 600);
 
 void main() {
   test('falls back to seed when storage empty', () async {
@@ -29,22 +33,32 @@ void main() {
     expect(state.isSeedFallback, isTrue);
   });
 
-  test('updateRaceConfig persists new state', () async {
+  test('updateRaceConfig persists new state after debounce window', () async {
     final fake = FakePlanStorage();
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
     await c.read(plannerNotifierProvider.future);
+
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+
+    // State flip is synchronous.
     expect(
       c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
       100,
     );
-    // Drain pending microtasks so the chained save resolves.
-    await Future<void>.delayed(Duration.zero);
-    expect(fake.saveCount, greaterThanOrEqualTo(1));
+    // But disk write is deferred — saveStatus already flipped to inFlight on
+    // the first dirty tick so the Topbar can show "saving…" while the user
+    // is still typing.
+    expect(fake.saveCount, 0);
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+
+    await Future<void>.delayed(_pastDebounceWindow);
+
+    expect(fake.saveCount, 1);
     expect(fake.lastSaved!.raceConfig.targetCarbsGPerHr, 100);
+    expect(c.read(saveStatusProvider), SaveStatus.idle);
   });
 
   test('loaded state takes precedence over seed', () async {
@@ -88,7 +102,7 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(
       c.read(plannerNotifierProvider).requireValue.isSeedFallback,
@@ -107,9 +121,9 @@ void main() {
 
     final notifier = c.read(plannerNotifierProvider.notifier);
     notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
     notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(
       c.read(plannerNotifierProvider).requireValue.isSeedFallback,
@@ -143,7 +157,9 @@ void main() {
     expect(loaded.raceConfig.targetCarbsGPerHr, isNot(999));
   });
 
-  test('two sequential mutations save in order and both persist', () async {
+  test('two mutations separated by a debounce gap save in order', () async {
+    // With the 500 ms debounce window, mutations spaced far apart fire
+    // two distinct saves on the serialized chain.
     final fake = FakePlanStorage();
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
@@ -152,43 +168,92 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
+    await Future<void>.delayed(_pastDebounceWindow);
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
-
-    // Drain pending microtasks so the chained saves resolve.
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(fake.saveCount, 2);
     expect(fake.lastSaved!.raceConfig.targetCarbsGPerHr, 100);
   });
 
-  test('updateAthleteProfile persists new state', () async {
+  test('rapid edits coalesce into one write with the final payload', () async {
+    // 10 successive edits inside the 500 ms debounce window must collapse
+    // to a single disk write carrying the final value.
     final fake = FakePlanStorage();
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
     await c.read(plannerNotifierProvider.future);
-    c
-        .read(plannerNotifierProvider.notifier)
-        .updateAthleteProfile((p) => p.copyWith(gutToleranceGPerHr: 100));
-    expect(
-      c
-          .read(plannerNotifierProvider)
-          .requireValue
-          .athleteProfile
-          .gutToleranceGPerHr,
-      100,
-    );
-    // Drain pending microtasks so the chained save resolves.
-    await Future<void>.delayed(Duration.zero);
+
+    final n = c.read(plannerNotifierProvider.notifier);
+    for (var i = 0; i < 10; i++) {
+      n.updateRaceConfig(
+        (cfg) => cfg.copyWith(targetCarbsGPerHr: 80 + i.toDouble()),
+      );
+    }
+    expect(fake.saveCount, 0);
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+
+    await Future<void>.delayed(_pastDebounceWindow);
+
     expect(fake.saveCount, 1);
-    expect(fake.lastSaved!.athleteProfile.gutToleranceGPerHr, 100);
-    // raceConfig must NOT have changed.
-    expect(
-      c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
-      PlannerState.seed().raceConfig.targetCarbsGPerHr,
-    );
+    expect(fake.lastSaved!.raceConfig.targetCarbsGPerHr, 89);
+    expect(c.read(saveStatusProvider), SaveStatus.idle);
   });
+
+  test(
+    'updateAthleteProfile persists new state after debounce window',
+    () async {
+      final fake = FakePlanStorage();
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      await c.read(plannerNotifierProvider.future);
+      c
+          .read(plannerNotifierProvider.notifier)
+          .updateAthleteProfile((p) => p.copyWith(gutToleranceGPerHr: 100));
+      expect(
+        c
+            .read(plannerNotifierProvider)
+            .requireValue
+            .athleteProfile
+            .gutToleranceGPerHr,
+        100,
+      );
+      // Disk write still deferred.
+      expect(fake.saveCount, 0);
+
+      await Future<void>.delayed(_pastDebounceWindow);
+      expect(fake.saveCount, 1);
+      expect(fake.lastSaved!.athleteProfile.gutToleranceGPerHr, 100);
+      // raceConfig must NOT have changed.
+      expect(
+        c
+            .read(plannerNotifierProvider)
+            .requireValue
+            .raceConfig
+            .targetCarbsGPerHr,
+        PlannerState.seed().raceConfig.targetCarbsGPerHr,
+      );
+    },
+  );
+
+  test(
+    'save failure flips saveStatus to failed after debounce window',
+    () async {
+      final fake = FakePlanStorage()..saveError = StateError('disk full');
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      await c.read(plannerNotifierProvider.future);
+
+      c
+          .read(plannerNotifierProvider.notifier)
+          .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+      await Future<void>.delayed(_pastDebounceWindow);
+
+      expect(c.read(saveStatusProvider), SaveStatus.failed);
+    },
+  );
 
   test('emits AsyncError when storage load throws', () async {
     final fake = FakePlanStorage()..loadError = StateError('boom');
@@ -219,7 +284,7 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 999));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(fake.saveCount, 0);
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
@@ -237,7 +302,7 @@ void main() {
     final notifier = c.read(plannerNotifierProvider.notifier);
     notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 99));
     notifier.updateAthleteProfile((p) => p.copyWith(gutToleranceGPerHr: 88));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     // Cumulative saves: zero. Both mutations short-circuit on the
     // AsyncError guard so the corrupted blob remains recoverable.
@@ -256,7 +321,10 @@ void main() {
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
 
     c.read(plannerNotifierProvider.notifier).discardCorruptedAndUseSeed();
-    await Future<void>.delayed(Duration.zero);
+    // Drain microtasks — destructive recovery flushes the debouncer
+    // synchronously so the corrupted blob is overwritten immediately.
+    await Future<void>.value();
+    await Future<void>.value();
 
     final after = c.read(plannerNotifierProvider);
     expect(after.hasValue, isTrue);
@@ -264,6 +332,34 @@ void main() {
     expect(fake.saveCount, 1);
     expect(fake.lastSaved!.isSeedFallback, isTrue);
   });
+
+  test(
+    'discardCorruptedAndUseSeed flushes the save immediately (no 500ms wait)',
+    () async {
+      // Pin the flushNow: true invariant on discardCorruptedAndUseSeed. The
+      // destructive recovery must overwrite the corrupted blob on disk
+      // before the user can reload — a 500 ms gap leaves the bad payload
+      // accessible to a confused reload.
+      final fake = FakePlanStorage()..loadError = StateError('corrupted');
+      final c = _makeContainer(fake);
+      addTearDown(c.dispose);
+      // Drain the load future without letting the test framework treat the
+      // load error as a test failure. Mirrors the pattern used by every
+      // other AsyncError-path test in this file.
+      await c
+          .read(plannerNotifierProvider.future)
+          .then<Object?>((s) => null, onError: (Object e) => e);
+      expect(c.read(plannerNotifierProvider).hasError, isTrue);
+
+      c.read(plannerNotifierProvider.notifier).discardCorruptedAndUseSeed();
+      // Microtask cycle only — no Future.delayed past the debounce window.
+      await Future<void>.value();
+      await Future<void>.value();
+
+      expect(fake.saveCount, 1);
+      expect(fake.lastSaved!.isSeedFallback, isTrue);
+    },
+  );
 
   test(
     'discardCorruptedAndUseSeed is a no-op when state is AsyncData',
@@ -274,7 +370,7 @@ void main() {
       await c.read(plannerNotifierProvider.future);
 
       c.read(plannerNotifierProvider.notifier).discardCorruptedAndUseSeed();
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(_pastDebounceWindow);
 
       // No extraneous save; the user wasn't in an error state.
       expect(fake.saveCount, 0);
@@ -296,7 +392,7 @@ void main() {
       expect(c.read(plannerNotifierProvider).isLoading, isTrue);
 
       notifier.discardCorruptedAndUseSeed();
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(_pastDebounceWindow);
 
       expect(fake.saveCount, 0);
       expect(c.read(plannerNotifierProvider).isLoading, isTrue);
@@ -380,11 +476,39 @@ void main() {
     final before = fake.saveCount;
 
     c.read(plannerNotifierProvider.notifier).retrySave();
-    // Drain the chained save microtask.
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+    // retrySave passes flushNow: true so the save fires on the next
+    // microtask cycle — no debounce-window wait.
+    await Future<void>.value();
+    await Future<void>.value();
 
     expect(fake.saveCount, before + 1);
+  });
+
+  test('retrySave flushes the save immediately (no 500ms wait)', () async {
+    // Pin the flushNow: true invariant on retrySave. The user clicked
+    // "Retry save" because a previous save failed; they expect an
+    // immediate retry, not a debounce-window stall.
+    final fake = FakePlanStorage()..saveError = StateError('disk full');
+    final c = _makeContainer(fake);
+    addTearDown(c.dispose);
+    await c.read(plannerNotifierProvider.future);
+
+    // Drive a save failure by editing the plan and waiting past the window.
+    c
+        .read(plannerNotifierProvider.notifier)
+        .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
+    await Future<void>.delayed(_pastDebounceWindow);
+    expect(c.read(saveStatusProvider), SaveStatus.failed);
+    final failedCount = fake.saveCount;
+
+    // Recovery: storage works again, user clicks Retry.
+    fake.saveError = null;
+    c.read(plannerNotifierProvider.notifier).retrySave();
+    // Microtask cycle only — no Future.delayed.
+    await Future<void>.value();
+    await Future<void>.value();
+
+    expect(fake.saveCount, failedCount + 1);
   });
 
   test('retrySave is a no-op when state has no current value', () async {
@@ -400,7 +524,7 @@ void main() {
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
 
     c.read(plannerNotifierProvider.notifier).retrySave();
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(fake.saveCount, 0);
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
@@ -429,7 +553,9 @@ void main() {
       final beforeCount = fake.saveCount;
 
       c.read(plannerNotifierProvider.notifier).resetToSeed();
-      await Future<void>.delayed(Duration.zero);
+      // resetToSeed does NOT pass flushNow — it has no user-facing
+      // immediacy requirement, so the debounce window applies.
+      await Future<void>.delayed(_pastDebounceWindow);
 
       final after = c.read(plannerNotifierProvider).requireValue;
       expect(after.raceConfig.name, contains('Andalucía'));
@@ -455,7 +581,7 @@ void main() {
     // destructive recovery path (discardCorruptedAndUseSeed). The healthy
     // resetToSeed must not bypass the AsyncError guard.
     c.read(plannerNotifierProvider.notifier).resetToSeed();
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
     expect(fake.saveCount, 0);
@@ -477,7 +603,7 @@ void main() {
     // independently of the _currentOrNull short-circuit on the public mutators.
     final notifier = c.read(plannerNotifierProvider.notifier);
     notifier.debugEmit(PlannerState.seed());
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(c.read(plannerNotifierProvider).hasError, isTrue);
     expect(fake.saveCount, 0);

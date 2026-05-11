@@ -1,5 +1,5 @@
 // ABOUTME: AsyncNotifier holding the working PlannerState; loads from storage.
-// ABOUTME: Mutators emit a new state and trigger save (debouncing comes in F2).
+// ABOUTME: Mutators emit a new state and trigger a debounced save.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/domain.dart';
 import '../../domain/planner_state.dart';
+import 'debounced_save.dart';
 import 'plan_storage_provider.dart';
 import 'save_status_provider.dart';
 
@@ -15,8 +16,22 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   // resolve out-of-order on the underlying store (e.g. Web IndexedDB).
   Future<void> _lastSave = Future.value();
 
+  // Debounces storage writes so rapid drags/typing coalesce into one save.
+  // The 500 ms window is the standard "stopped editing" quiescence used by
+  // every other auto-save UI in the codebase.
+  final _saveDebouncer = Debouncer<PlannerState>(
+    const Duration(milliseconds: 500),
+  );
+
   @override
   Future<PlannerState> build() async {
+    ref.onDispose(() {
+      // Discard pending edits — flushing here would read disposed providers
+      // (planStorageProvider / saveStatusProvider). Container teardown
+      // already implies "the user is gone"; treating the last 500 ms like a
+      // crash is consistent and avoids the disposal-order trap.
+      _saveDebouncer.dispose();
+    });
     final storage = ref.watch(planStorageProvider);
     try {
       final loaded = await storage.load();
@@ -66,14 +81,41 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   /// [_emitForce] bypasses both the AsyncError guard and the seed-flag flip.
   /// Used by `discardCorruptedAndUseSeed` (must escape the guard) and
   /// `resetToSeed` (must preserve `isSeedFallback: true`).
-  void _emitForce(PlannerState next) {
+  ///
+  /// State emission is synchronous (UI is snappy) and `beginSave` fires on
+  /// the first dirty tick of a debounce window so the Topbar flips to
+  /// `inFlight` while the user is still typing. The actual storage call is
+  /// deferred to [_flushSave] via [_saveDebouncer], which only enqueues onto
+  /// the [_lastSave] chain once the 500 ms quiescent window settles.
+  ///
+  /// Pass `flushNow: true` from user-explicit recovery paths (Discard, Retry
+  /// save) so the write lands immediately without a 500 ms wait — the
+  /// destructive recovery guarantees the corrupted blob on disk is
+  /// overwritten before the user can reload.
+  void _emitForce(PlannerState next, {bool flushNow = false}) {
     state = AsyncData(next);
+    final statusCtrl = ref.read(saveStatusProvider.notifier);
+    // First dirty tick of a debounce window: mark inFlight immediately so the
+    // Topbar flips to "· saving…" while the user is still typing. Subsequent
+    // ticks within the same window keep the existing inFlight lifecycle.
+    if (!_saveDebouncer.hasPending) {
+      statusCtrl.beginSave();
+    }
+    _saveDebouncer.run(next, _flushSave);
+    if (flushNow) {
+      _saveDebouncer.flush();
+    }
+  }
+
+  /// Enqueues the actual storage write on the serialized [_lastSave] chain.
+  /// Called by the debouncer once the quiescent window settles (or
+  /// synchronously via `flush()` from a user-explicit recovery path).
+  void _flushSave(PlannerState payload) {
     final storage = ref.read(planStorageProvider);
     final statusCtrl = ref.read(saveStatusProvider.notifier);
-    statusCtrl.beginSave();
     _lastSave = _lastSave.then((_) async {
       try {
-        await storage.save(next);
+        await storage.save(payload);
         statusCtrl.endSaveSuccess();
       } catch (e, st) {
         // L1 observability: log the failure. L3 surfacing flows through
@@ -104,7 +146,10 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   /// confirmed user action ("Start fresh"). No-op outside AsyncError.
   void discardCorruptedAndUseSeed() {
     if (state is! AsyncError) return;
-    _emitForce(PlannerState.seed());
+    // flushNow: destructive recovery must overwrite the corrupted blob on
+    // disk immediately — no 500 ms window where the bad payload is still
+    // recoverable to a confused user.
+    _emitForce(PlannerState.seed(), flushNow: true);
   }
 
   /// Restores the seed plan. v1.1 has no UI consumer (the empty-plan CTA
@@ -132,7 +177,10 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   void retrySave() {
     final cur = _currentOrNull();
     if (cur == null) return;
-    _emitForce(cur);
+    // flushNow: the user explicitly clicked "Retry save" because the
+    // previous save failed. They expect an immediate retry, not a 500 ms
+    // debounce wait.
+    _emitForce(cur, flushNow: true);
   }
 
   void updateRaceConfig(RaceConfig Function(RaceConfig) edit) {

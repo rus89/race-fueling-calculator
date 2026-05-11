@@ -58,6 +58,8 @@ void main() {
     await tester.enterText(field, 'New Race Name');
     await tester.pump();
     expect(find.text('New Race Name'), findsOneWidget);
+    // Drain the F2 save debounce timer before the test body returns.
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('discipline segments include all 5 disciplines', (tester) async {
@@ -148,6 +150,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       closeTo(99.78, 0.05),
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets(
@@ -216,6 +219,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       closeTo(100.59, 0.05),
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('imperial Semantics label for body mass includes "(lb)"', (
@@ -290,6 +294,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.athleteProfile.bodyWeightKg,
       72.5,
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('valid distance km updates state', (tester) async {
@@ -300,6 +305,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       120.0,
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('emptying the distance input clears the stored distance', (
@@ -320,6 +326,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
       isNull,
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('valid body mass updates state in kg', (tester) async {
@@ -330,6 +337,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.athleteProfile.bodyWeightKg,
       75.0,
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('zero body mass is rejected', (tester) async {
@@ -356,6 +364,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.discipline,
       Discipline.run,
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('controller stays in sync when widget.value mutates externally', (
@@ -367,6 +376,7 @@ void main() {
         .updateRaceConfig((cfg) => cfg.copyWith(name: 'External Change'));
     await tester.pump();
     expect(find.text('External Change'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('target slider initial label shows current value', (
@@ -396,6 +406,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.targetCarbsGPerHr,
       greaterThan(80.0),
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('gut-tolerance slider drag updates athleteProfile', (
@@ -413,6 +424,7 @@ void main() {
           .gutToleranceGPerHr,
       greaterThan(75.0),
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('tapping Front-load distribution updates strategy', (
@@ -425,6 +437,7 @@ void main() {
       c.read(plannerNotifierProvider).requireValue.raceConfig.strategy,
       Strategy.frontLoad,
     );
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('inventory section lists products from library', (tester) async {
@@ -448,6 +461,7 @@ void main() {
         .firstWhere((s) => s.productId == 'maurten-160')
         .quantity;
     expect(updatedCount, 5);
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('+ Add aid station appends a station at duration / 2', (
@@ -473,6 +487,7 @@ void main() {
     expect(stations.length, originalCount + 1);
     // Seed duration is 4h30m = 270 min, so half is 135.
     expect(stations.last.timeMinutes, 135);
+    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('empty aid stations list renders the carrying-everything copy', (

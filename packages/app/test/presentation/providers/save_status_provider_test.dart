@@ -1,5 +1,5 @@
 // ABOUTME: Tests for saveStatusProvider — sticky-until-success failure semantics.
-// ABOUTME: Drives status transitions through PlannerNotifier mutations.
+// ABOUTME: Drives status transitions through debounced PlannerNotifier mutations.
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +12,9 @@ import '../../test_helpers/fake_plan_storage.dart';
 
 ProviderContainer _makeContainer(FakePlanStorage fake) =>
     ProviderContainer(overrides: [planStorageProvider.overrideWithValue(fake)]);
+
+// Past the 500 ms debounce window plus a small cushion for microtask drain.
+const _pastDebounceWindow = Duration(milliseconds: 600);
 
 void main() {
   test('initial state is idle', () {
@@ -29,7 +32,11 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-    await Future<void>.delayed(Duration.zero);
+    // First dirty tick flips status to inFlight synchronously, before the
+    // 500 ms debounce window closes and the chained save lands.
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(c.read(saveStatusProvider), SaveStatus.idle);
     expect(fake.saveCount, 1);
@@ -45,7 +52,7 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(c.read(saveStatusProvider), SaveStatus.failed);
   });
@@ -62,14 +69,14 @@ void main() {
       c
           .read(plannerNotifierProvider.notifier)
           .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(_pastDebounceWindow);
       expect(c.read(saveStatusProvider), SaveStatus.failed);
 
       fake.saveError = null;
       c
           .read(plannerNotifierProvider.notifier)
           .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(_pastDebounceWindow);
 
       expect(c.read(saveStatusProvider), SaveStatus.idle);
     },
@@ -85,7 +92,7 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 85));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
     expect(c.read(saveStatusProvider), SaveStatus.idle);
 
     // failure
@@ -93,13 +100,13 @@ void main() {
     c
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
     expect(c.read(saveStatusProvider), SaveStatus.failed);
   });
 
-  test('two simultaneous saves: status reflects most recent outcome', () async {
-    // Two writes back-to-back — second one fails. Status must end at failed
-    // because the chained save's tail outcome wins.
+  test('two debounce-window-separated saves: tail outcome wins', () async {
+    // Two writes separated by the debounce window — second one fails.
+    // Status ends at failed because the chained save's tail outcome wins.
     final fake = FakePlanStorage();
     final c = _makeContainer(fake);
     addTearDown(c.dispose);
@@ -107,9 +114,10 @@ void main() {
 
     final notifier = c.read(plannerNotifierProvider.notifier);
     notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 85));
+    await Future<void>.delayed(_pastDebounceWindow);
     fake.saveError = StateError('boom');
     notifier.updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(_pastDebounceWindow);
 
     expect(c.read(saveStatusProvider), SaveStatus.failed);
   });
@@ -126,14 +134,14 @@ void main() {
       c
           .read(plannerNotifierProvider.notifier)
           .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 90));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(_pastDebounceWindow);
       expect(fake.saveCount, 0);
 
       fake.saveError = null;
       c
           .read(plannerNotifierProvider.notifier)
           .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(_pastDebounceWindow);
 
       // The save chain didn't deadlock: the post-failure write still landed.
       expect(fake.saveCount, 1);
@@ -208,9 +216,15 @@ void main() {
         .read(plannerNotifierProvider.notifier)
         .updateRaceConfig((cfg) => cfg.copyWith(targetCarbsGPerHr: 100));
 
-    // Microtask drain so the chained save begins. Status flips to inFlight
-    // because beginSave() was called synchronously inside _emitForce.
-    await Future<void>.delayed(Duration.zero);
+    // First dirty tick flips status to inFlight synchronously inside
+    // _emitForce so the Topbar can show "saving…" while the user is still
+    // typing — even though the actual storage.save() call is deferred until
+    // the debounce window closes.
+    expect(c.read(saveStatusProvider), SaveStatus.inFlight);
+
+    // Wait past the debounce window so the chained save fires and is now
+    // blocked on the saveGate. Status must still be inFlight.
+    await Future<void>.delayed(_pastDebounceWindow);
     expect(c.read(saveStatusProvider), SaveStatus.inFlight);
 
     // Resolve the gate; status returns to idle once the save settles.
