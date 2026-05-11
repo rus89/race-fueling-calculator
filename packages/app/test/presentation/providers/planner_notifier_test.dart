@@ -424,6 +424,10 @@ void main() {
         'My Race',
       );
 
+      // Capture saveCount before the call so the delta assertion is
+      // robust to chained saves landing during load/seed boot. LOW#12.
+      final beforeCount = fake.saveCount;
+
       c.read(plannerNotifierProvider.notifier).resetToSeed();
       await Future<void>.delayed(Duration.zero);
 
@@ -433,6 +437,8 @@ void main() {
       // the quickstart treatment instead of silently advancing past it.
       expect(after.isSeedFallback, isTrue);
       expect(fake.lastSaved!.isSeedFallback, isTrue);
+      // Exactly one save from the resetToSeed call itself.
+      expect(fake.saveCount, beforeCount + 1);
     },
   );
 

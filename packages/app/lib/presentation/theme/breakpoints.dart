@@ -18,6 +18,13 @@ enum BonkBreakpoint {
   bool get showsDiagnosticsRail =>
       this == BonkBreakpoint.wide || this == BonkBreakpoint.medium;
   bool get showsSetupRail => this != BonkBreakpoint.mobile;
+
+  /// True when the inline diagnostics rail is hidden BUT the page isn't using
+  /// mobile tabs — so an EndDrawer trigger ("Checks" button) is the user's
+  /// only path to the diagnostics surface. Use this to gate the endDrawer
+  /// registration and the Topbar's trigger button.
+  bool get usesEndDrawerForDiagnostics =>
+      !showsDiagnosticsRail && this != BonkBreakpoint.mobile;
   double get setupRailWidth => this == BonkBreakpoint.wide
       ? 320
       : (this == BonkBreakpoint.mobile ? 0 : 280);

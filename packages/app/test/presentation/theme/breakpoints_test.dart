@@ -70,4 +70,22 @@ void main() {
       });
     }
   });
+
+  group('usesEndDrawerForDiagnostics', () {
+    // Pinned table: only the two intermediate tiers (noDiagnostics, narrow)
+    // route the diagnostics surface through an endDrawer. wide/medium have
+    // the inline rail; mobile uses tabs.
+    final cases = <BonkBreakpoint, bool>{
+      BonkBreakpoint.wide: false,
+      BonkBreakpoint.medium: false,
+      BonkBreakpoint.noDiagnostics: true,
+      BonkBreakpoint.narrow: true,
+      BonkBreakpoint.mobile: false,
+    };
+    for (final entry in cases.entries) {
+      test('${entry.key.name} → ${entry.value}', () {
+        expect(entry.key.usesEndDrawerForDiagnostics, entry.value);
+      });
+    }
+  });
 }

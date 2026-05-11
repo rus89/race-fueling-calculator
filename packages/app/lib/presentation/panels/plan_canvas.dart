@@ -1,5 +1,6 @@
 // ABOUTME: Center pane — race title, 6 stat cards, vertical timeline.
 // ABOUTME: Reads plannerNotifierProvider + planProvider; surfaces AsyncError.
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:race_fueling_core/core.dart';
@@ -108,8 +109,9 @@ class _ErrorFallback extends StatelessWidget {
     // an engine-layer failure. The banner above the three-pane body is the
     // canonical recovery affordance — the canvas just signposts it.
     // PlanStorageException.toString() excludes rawBytes, so debugPrint is
-    // safe for L1 telemetry; users see the static copy.
-    debugPrint('PlanCanvas error: $error');
+    // safe for L1 telemetry; users see the static copy. kDebugMode guard
+    // matches the planner_notifier pattern — release builds stay silent.
+    if (kDebugMode) debugPrint('PlanCanvas error: $error');
     final message = error is PlanStorageException
         ? 'Saved plan unreadable — see recovery options.'
         : "Couldn't compute plan — see recovery options.";
@@ -144,6 +146,12 @@ class _StatsGrid extends StatelessWidget {
   final FuelingPlan plan;
   final double target;
   const _StatsGrid({required this.plan, required this.target});
+
+  // Canvas-local wrap threshold: NOT the page breakpoint. The canvas sits
+  // inside the three-pane layout, so its own width is what governs whether
+  // six stat cards fit in one row. At sub-880 px canvas widths, drop to a
+  // 2-up Wrap.
+  static const double _statsWrapBelow = 880;
 
   @override
   Widget build(BuildContext context) {
@@ -195,11 +203,12 @@ class _StatsGrid extends StatelessWidget {
     // size 36; non-hero cards use statValue at size 20). A fixed-aspect
     // GridView clips the hero. Row + Expanded + IntrinsicHeight lets the
     // tallest card set the row height and stretches the others to match.
-    // F1c-RESPONSIVE: below 880px the six-card Row overflows; switch to
-    // a 2-up Wrap so cards stack into three rows at mobile viewports.
+    // F1c-RESPONSIVE: below _statsWrapBelow the six-card Row overflows;
+    // switch to a 2-up Wrap so cards stack into three rows at mobile
+    // viewports.
     return LayoutBuilder(
       builder: (context, c) {
-        if (c.maxWidth >= 880) {
+        if (c.maxWidth >= _statsWrapBelow) {
           return IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -226,14 +235,22 @@ class _StatsGrid extends StatelessWidget {
   }
 }
 
-class _EmptyState extends ConsumerWidget {
+class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    // Empty-state fires when plan.entries is empty — in practice when the
+    // user has cleared duration or hasn't started yet. F1c review HIGH#1
+    // removed the destructive "Reset to seed plan" button (it overwrote
+    // healthy in-progress work) and replaced it with copy that points the
+    // user at the Setup rail/tab where they can actually fix the cause.
+    const subhead =
+        'Set a duration and add at least one product in Setup to compute '
+        'your plan.';
     return Semantics(
       container: true,
-      label: 'No plan yet. Add a product or set a duration to compute a plan.',
+      label: 'No plan yet. $subhead',
       child: Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
@@ -251,15 +268,9 @@ class _EmptyState extends ConsumerWidget {
             const SizedBox(height: 6),
             ExcludeSemantics(
               child: Text(
-                'Add a product or set a duration to compute a plan.',
+                subhead,
                 style: BonkType.sans(size: 13).copyWith(color: BonkTokens.ink2),
               ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () =>
-                  ref.read(plannerNotifierProvider.notifier).resetToSeed(),
-              child: const Text('Reset to seed plan'),
             ),
           ],
         ),

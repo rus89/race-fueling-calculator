@@ -1294,4 +1294,26 @@ Each task ran a four-reviewer parallel pass (architecture / test coverage / a11y
 
 9 commits net on `feat/v1.1-phase-e-diagnostics-rail`. All four reviewers signed off across all four tasks (E1–E4), with two HIGH-severity findings (E2 hot threshold, E2 NaN bypass) and two MEDIUM-severity findings (E1 OK-band contrast, E4 `_AllClearCard` dot contrast) addressed in the convergent fix commits before moving to the next task. DiagnosticsRail + RatioBar + CaffeineMeter + FlagCard are fully implemented and tested but **not yet wired into `PlannerPage`** — F1 (Phase F assembly) does the three-pane layout. 242 app + 266 core + 279 cli tests at branch close (full suite verified fresh: `flutter test` 242/0/0; `flutter analyze` 0 issues).
 
+## F1c review fix-up — 2026-05-11
+
+The four-reviewer pass on F1c surfaced two HIGHs and several MEDIUMs/LOWs that the implementer either missed or rejected. Addressed:
+
+- **HIGH#1** Empty-state Reset button removed — it destructively overwrote in-progress work whenever the user temporarily cleared duration. Replaced with explanatory copy pointing at the Setup rail; `_EmptyState` is back to `StatelessWidget`. `PlannerNotifier.resetToSeed()` stays public for a future Start-over affordance (doc-commented), no v1.1 UI consumer.
+- **HIGH#2** TimelineRow aid-station ellipsis now has direct test coverage at 320 px width × 6-item refill list.
+- **MED#4** `BonkBreakpoint.usesEndDrawerForDiagnostics` getter added (`!showsDiagnosticsRail && this != mobile`). Wired into Topbar `_ChecksButton` and pinned by a 5-tier table in `breakpoints_test`. The endDrawer registration on PlannerPage stays unconditional — the button is the only UI affordance to open it, and it's gated.
+- **MED#5/#6** 880-px boundary tests + 2-up Wrap shape assertions (six equal-width SizedBox children) on `_StatsGrid`. Tests address the boundary by inner-pane width (936/935 surface → 880/879 inner) since `LayoutBuilder` sits inside the canvas's 28+28 padding.
+- **MED#8** Topbar TextScaler-200% overflow at 1000 px width fixed by replacing the post-brand `Spacer` with `Expanded(Row(mainAxisAlignment: end))` and wrapping each text node in `Flexible(maxLines: 1, overflow: clip)`. Pinned at `Size(1000, 200)` × 2× scaler.
+- **LOW#9** Magic `880` replaced by `_statsWrapBelow` const with canvas-local doc-comment.
+- **LOW#10** `_emit` vs `_emitForce` invariants documented as inline doc-comments.
+- **LOW#11** Stable `Key('setup-rail.outer')` / `Key('diagnostics-rail.outer')` on the rule-painting Containers; the `showSideRule` tests no longer depend on `find.descendant(...).first` ordering.
+- **LOW#12** `resetToSeed` saveCount delta captured before + after the call so the assertion is robust to chained boot saves.
+- **LOW#14** Mobile-tab integration test verifies side-rule suppression on BOTH Setup and Diagnostics tabs via the new outer Keys.
+- **LOW#15** Parallel `Size(1000, 900)` Checks-drawer test added.
+- **LOW#16** `_ChecksButton` outer Semantics replaced with `Tooltip` — supplies the AT label via `message` and adds a pointer-hover affordance; Material `TextButton.icon` already exposes button semantics.
+- **LOW#17** `debugPrint` in `plan_canvas.dart` `_ErrorFallback` guarded with `kDebugMode` (matches planner_notifier pattern).
+
+Deferred (documented for v1.2): the `showSideRule` invert refactor (parent-paints-divider) and the FlagCard "ADVISORY" / banner "WARNING" severity-vocabulary unification. F1d (sentinel copyWith, imperial) and F2 (debounce) untouched.
+
+`flutter test` 288/0/0; `dart analyze` clean. Test count delta +9 (279 → 288).
+
 

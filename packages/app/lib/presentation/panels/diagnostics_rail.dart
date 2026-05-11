@@ -31,6 +31,7 @@ class DiagnosticsRail extends ConsumerWidget {
     final warnings = ref.watch(warningsProvider);
 
     return Container(
+      key: const Key('diagnostics-rail.outer'),
       decoration: BoxDecoration(
         color: BonkTokens.bg,
         border: showSideRule

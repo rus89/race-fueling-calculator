@@ -176,13 +176,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // Stable outer-container Key (LOW#11): the rule-painting Container
+      // exposes Key('diagnostics-rail.outer').
       final container = tester.widget<Container>(
-        find
-            .descendant(
-              of: find.byType(DiagnosticsRail),
-              matching: find.byType(Container),
-            )
-            .first,
+        find.byKey(const Key('diagnostics-rail.outer')),
       );
       final decoration = container.decoration as BoxDecoration?;
       expect(decoration?.border, isNull);

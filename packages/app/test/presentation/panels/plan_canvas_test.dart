@@ -9,7 +9,6 @@ import 'package:race_fueling_app/data/plan_storage.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/plan_canvas.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
-import 'package:race_fueling_app/presentation/providers/planner_notifier.dart';
 import 'package:race_fueling_app/presentation/widgets/stat_card.dart';
 
 import '../../test_helpers/fake_plan_storage.dart';
@@ -210,8 +209,55 @@ void main() {
       expect(find.text('Caffeine'), findsOneWidget);
       expect(find.text('Fluid w/ fuel'), findsOneWidget);
       expect(find.text('Items'), findsOneWidget);
+
+      // F1c-WRAP-SHAPE: the 2-up Wrap composes exactly one Wrap with six
+      // SizedBox children sized to (innerWidth - space4) / 2. Pin the
+      // shape so a regression to GridView or three-column Row shows here.
+      final wrapFinder = find.byType(Wrap);
+      expect(wrapFinder, findsOneWidget);
+      final wrapWidget = tester.widget<Wrap>(wrapFinder);
+      final sizedBoxes = wrapWidget.children.whereType<SizedBox>().toList();
+      expect(sizedBoxes.length, 6);
+      // Each SizedBox width = (innerWidth - 16) / 2 and all are equal.
+      // Probe the LayoutBuilder's effective inner width via the first card
+      // and assert the others are within 1px (rounding).
+      final firstWidth = sizedBoxes.first.width!;
+      expect(firstWidth, greaterThan(0));
+      for (final box in sizedBoxes) {
+        expect(box.width, closeTo(firstWidth, 1.0));
+      }
     },
   );
+
+  testWidgets('stat grid uses Row layout at exactly 880px inner width', (
+    tester,
+  ) async {
+    // Boundary check: 880px is the wrap-below threshold INSIDE _StatsGrid's
+    // LayoutBuilder. The canvas applies 28+28 horizontal padding, so a
+    // 936px surface yields exactly 880px inner. At >= 880px inner the grid
+    // uses IntrinsicHeight + Row, NOT Wrap.
+    await tester.binding.setSurfaceSize(const Size(936, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fake = FakePlanStorage();
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    expect(find.byType(IntrinsicHeight), findsOneWidget);
+    expect(find.byType(Wrap), findsNothing);
+  });
+
+  testWidgets('stat grid uses Wrap layout at 879px inner width', (
+    tester,
+  ) async {
+    // Boundary check: 879px inner (935px surface) is just below the
+    // threshold; Wrap branch.
+    await tester.binding.setSurfaceSize(const Size(935, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fake = FakePlanStorage();
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    expect(find.byType(Wrap), findsOneWidget);
+    expect(find.byType(IntrinsicHeight), findsNothing);
+  });
 
   testWidgets('empty plan renders empty-state CTA and hides stat grid', (
     tester,
@@ -234,49 +280,20 @@ void main() {
     // Empty-state CTA copy is visible.
     expect(find.text('No plan yet.'), findsOneWidget);
     expect(
-      find.text('Add a product or set a duration to compute a plan.'),
+      find.text(
+        'Set a duration and add at least one product in Setup to compute '
+        'your plan.',
+      ),
       findsOneWidget,
     );
+    // The empty-state explanatory copy is the entire affordance — no button
+    // that destroys in-progress work. F1c review HIGH#1.
+    expect(find.byType(FilledButton), findsNothing);
     // The stat grid is replaced, not stacked above — labels must not appear.
     expect(find.text('Avg carbs / hr'), findsNothing);
     expect(find.text('Total carbs'), findsNothing);
     // Race-name header at the top of _Body stays visible.
     expect(find.text('Andalucía Bike Race — Stage 3'), findsOneWidget);
-  });
-
-  testWidgets('empty-state Reset button restores the seed plan', (
-    tester,
-  ) async {
-    await sizeCanvas(tester);
-    final seed = PlannerState.seed();
-    final fake = FakePlanStorage()
-      ..loaded = seed.copyWith(
-        raceConfig: seed.raceConfig.copyWith(
-          name: 'My Empty Race',
-          duration: Duration.zero,
-          selectedProducts: const [],
-          aidStations: const [],
-        ),
-      );
-    final container = ProviderContainer(
-      overrides: [planStorageProvider.overrideWithValue(fake)],
-    );
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: Scaffold(body: PlanCanvas())),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Reset to seed plan'));
-    await tester.pumpAndSettle();
-
-    expect(
-      container.read(plannerNotifierProvider).requireValue.raceConfig.name,
-      'Andalucía Bike Race — Stage 3',
-    );
   });
 
   testWidgets(

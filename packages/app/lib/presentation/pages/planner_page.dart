@@ -96,6 +96,10 @@ class _DiagnosticsEndDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The endDrawer is registered unconditionally; the Topbar's Checks
+    // button — the only UI affordance that opens it — is gated by
+    // [BonkBreakpoint.usesEndDrawerForDiagnostics] so wide/medium (inline
+    // rail visible) and mobile (tabs) never reach this surface in practice.
     return const Drawer(
       width: 380,
       backgroundColor: BonkTokens.bg,

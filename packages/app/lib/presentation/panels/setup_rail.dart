@@ -67,6 +67,7 @@ class _RailBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(plannerNotifierProvider.notifier);
     return Container(
+      key: const Key('setup-rail.outer'),
       decoration: BoxDecoration(
         border: showSideRule
             ? const Border(right: BorderSide(color: BonkTokens.rule))

@@ -89,74 +89,109 @@ class BonkTopbar extends ConsumerWidget {
             ).copyWith(letterSpacing: -0.2),
           ),
           const SizedBox(width: 6),
-          Text(
-            'v0.1 · race fueling planner',
-            style: BonkType.mono(size: 11).copyWith(color: BonkTokens.ink3),
-          ),
-          const Spacer(),
-          // Plan summary — only when planProvider has resolved AND notifier has state.
-          // planProvider is AsyncValue<FuelingPlan> (PB-DATA-1); use hasValue, not != null.
-          if (asyncPlan.hasValue && asyncState.hasValue) ...[
-            Text(
-              'Plan',
-              style: BonkType.sans(size: 12).copyWith(color: BonkTokens.ink3),
+          Flexible(
+            child: Text(
+              'v0.1 · race fueling planner',
+              style: BonkType.mono(size: 11).copyWith(color: BonkTokens.ink3),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
             ),
-            const SizedBox(width: 8),
-            Builder(
-              builder: (_) {
-                final totalCarbs = asyncPlan.requireValue.summary.totalCarbs;
-                final carbsStr = totalCarbs.isFinite
-                    ? totalCarbs.round().toString()
-                    : '—';
-                final timeStr = _fmtTime(
-                  asyncState.requireValue.raceConfig.duration,
-                );
-                return Text(
-                  '${carbsStr}g · $timeStr',
-                  style: BonkType.mono(
-                    size: 12,
-                  ).copyWith(color: BonkTokens.ink2),
-                );
-              },
-            ),
-            const SizedBox(width: 12),
-          ],
-          // Save indicator: dot + status text. The Semantics node is always
-          // mounted so AT keeps tracking the live region across notifier
-          // state transitions; the visible dot/text only render once the
-          // notifier has hydrated state.
-          Semantics(
-            liveRegion: saveStatus != SaveStatus.idle,
-            child: asyncState.hasValue
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ExcludeSemantics(
-                        child: Container(
-                          key: const Key('topbar.saveDot'),
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: indicator.dot,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        indicator.label,
-                        style: BonkType.sans(
-                          size: 12,
-                        ).copyWith(color: BonkTokens.ink3),
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
           ),
-          // F1c: at noDiagnostics / narrow widths the inline diagnostics rail
-          // is hidden but the page is not in tab mode — surface a way to open
-          // the endDrawer so checks remain reachable. Mobile uses tabs.
-          const _ChecksButton(),
+          // Right cluster: plan summary + save indicator + (optional) Checks
+          // button. Wrap in Expanded + end-alignment so the cluster claims
+          // the leftover space (replacing the previous Spacer) and clamp
+          // each Text to one line. Each text node sits in a Flexible so
+          // a 200% textScaler at narrow widths clips rather than throws a
+          // RenderFlex overflow (F1c review MEDIUM#8).
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                // Plan summary — only when planProvider has resolved AND notifier has state.
+                // planProvider is AsyncValue<FuelingPlan> (PB-DATA-1); use hasValue, not != null.
+                if (asyncPlan.hasValue && asyncState.hasValue) ...[
+                  Flexible(
+                    child: Text(
+                      'Plan',
+                      style: BonkType.sans(
+                        size: 12,
+                      ).copyWith(color: BonkTokens.ink3),
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Builder(
+                      builder: (_) {
+                        final totalCarbs =
+                            asyncPlan.requireValue.summary.totalCarbs;
+                        final carbsStr = totalCarbs.isFinite
+                            ? totalCarbs.round().toString()
+                            : '—';
+                        final timeStr = _fmtTime(
+                          asyncState.requireValue.raceConfig.duration,
+                        );
+                        return Text(
+                          '${carbsStr}g · $timeStr',
+                          style: BonkType.mono(
+                            size: 12,
+                          ).copyWith(color: BonkTokens.ink2),
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                // Save indicator: dot + status text. The Semantics node is
+                // always mounted so AT keeps tracking the live region across
+                // notifier state transitions; the visible dot/text only
+                // render once the notifier has hydrated state.
+                Flexible(
+                  child: Semantics(
+                    liveRegion: saveStatus != SaveStatus.idle,
+                    child: asyncState.hasValue
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ExcludeSemantics(
+                                child: Container(
+                                  key: const Key('topbar.saveDot'),
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: indicator.dot,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  indicator.label,
+                                  style: BonkType.sans(
+                                    size: 12,
+                                  ).copyWith(color: BonkTokens.ink3),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.clip,
+                                ),
+                              ),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                // F1c: at noDiagnostics / narrow widths the inline diagnostics
+                // rail is hidden but the page is not in tab mode — surface a
+                // way to open the endDrawer so checks remain reachable.
+                // Mobile uses tabs.
+                const _ChecksButton(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -169,14 +204,16 @@ class _ChecksButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bp = BonkBreakpoint.forWidth(MediaQuery.sizeOf(context).width);
-    if (bp.showsDiagnosticsRail || bp == BonkBreakpoint.mobile) {
+    if (!bp.usesEndDrawerForDiagnostics) {
       return const SizedBox.shrink();
     }
+    // Material TextButton.icon already exposes button semantics; a Tooltip
+    // here supplies both the accessible label (via its `message`) and a
+    // hover affordance for pointer users.
     return Padding(
       padding: const EdgeInsets.only(left: 8),
-      child: Semantics(
-        button: true,
-        label: 'Open diagnostics',
+      child: Tooltip(
+        message: 'Open diagnostics',
         child: TextButton.icon(
           key: const Key('topbar.checksButton'),
           onPressed: () => Scaffold.of(context).openEndDrawer(),

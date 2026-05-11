@@ -362,13 +362,11 @@ void main() {
         ),
       );
       await tester.pump();
+      // Stable outer-container Key (LOW#11): the rule-painting Container
+      // exposes Key('setup-rail.outer') so tests can find it without
+      // relying on descendant order.
       final box = tester.widget<Container>(
-        find
-            .descendant(
-              of: find.byType(SetupRail),
-              matching: find.byType(Container),
-            )
-            .first,
+        find.byKey(const Key('setup-rail.outer')),
       );
       final decoration = box.decoration as BoxDecoration?;
       expect(decoration?.border, isNull);

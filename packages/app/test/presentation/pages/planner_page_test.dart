@@ -158,6 +158,18 @@ void main() {
     );
     expect(find.text('Diagnostics'), findsOneWidget);
 
+    // LOW#14: Setup tab is default — verify the rail panel inside doesn't
+    // render the desktop side-rule. Outer-container Key('setup-rail.outer')
+    // is the stable lookup (LOW#11).
+    final setupOuter = tester.widget<Container>(
+      find.byKey(const Key('setup-rail.outer')),
+    );
+    expect(
+      (setupOuter.decoration as BoxDecoration?)?.border,
+      isNull,
+      reason: 'mobile-tab Setup must not paint the desktop side-rule',
+    );
+
     // Default tab is Setup; tap Plan and assert the canvas header appears.
     await tester.tap(
       find.descendant(of: find.byType(TabBar), matching: find.text('Plan')),
@@ -165,5 +177,55 @@ void main() {
     await tester.pumpAndSettle();
     tester.takeException(); // drain residual overflow events from pump
     expect(find.text('02 / PLAN'), findsOneWidget);
+
+    // LOW#14: navigate to Diagnostics tab and verify its outer container
+    // also opts out of the side-rule.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('Diagnostics'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    tester.takeException();
+    final diagOuter = tester.widget<Container>(
+      find.byKey(const Key('diagnostics-rail.outer')),
+    );
+    expect(
+      (diagOuter.decoration as BoxDecoration?)?.border,
+      isNull,
+      reason: 'mobile-tab Diagnostics must not paint the desktop side-rule',
+    );
   });
+
+  testWidgets(
+    'Checks button in Topbar opens the diagnostics endDrawer at 1000w',
+    (tester) async {
+      // LOW#15: narrow tier (880 ≤ w < 1080) also surfaces the Checks
+      // button. Tapping it must open the Drawer with the diagnostics
+      // header inside — same contract as the 1200w (noDiagnostics) case.
+      tester.view.physicalSize = const Size(1000, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [planStorageProvider.overrideWithValue(FakePlanStorage())],
+          child: const MaterialApp(home: PlannerPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(Drawer), findsNothing);
+
+      final btn = find.byKey(const Key('topbar.checksButton'));
+      expect(btn, findsOneWidget);
+      await tester.tap(btn);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Drawer), findsOneWidget);
+      expect(find.text('03 / DIAGNOSTICS'), findsOneWidget);
+    },
+  );
 }

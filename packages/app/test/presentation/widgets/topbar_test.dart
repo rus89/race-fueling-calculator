@@ -241,6 +241,38 @@ void main() {
     expect(find.byKey(const Key('topbar.checksButton')), findsNothing);
   });
 
+  testWidgets(
+    'narrow width + 200% textScaler with Checks button visible does not overflow',
+    (tester) async {
+      // F1c review MEDIUM#8: at TextScaler 2.0 + narrow (1000px) the right
+      // cluster (plan summary + save indicator + Checks button) can exceed
+      // the available horizontal space after the Spacer. Wrapping the
+      // cluster in Flexible + clamping text overflow keeps the row from
+      // throwing a RenderFlex overflow.
+      await tester.binding.setSurfaceSize(const Size(1000, 200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final fake = FakePlanStorage();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [planStorageProvider.overrideWithValue(fake)],
+          child: const MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(
+                size: Size(1000, 200),
+                textScaler: TextScaler.linear(2.0),
+              ),
+              child: Scaffold(body: BonkTopbar()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // Checks button must still be present at this width.
+      expect(find.byKey(const Key('topbar.checksButton')), findsOneWidget);
+    },
+  );
+
   testWidgets('bar grows past 44px at very large text scales (minHeight)', (
     tester,
   ) async {

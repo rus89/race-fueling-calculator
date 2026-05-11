@@ -124,6 +124,51 @@ void main() {
     expect(find.text('Aid station — refill 2 items'), findsOneWidget);
   });
 
+  testWidgets(
+    'aid-station label ellipsizes (overflow guarded) at narrow widths',
+    (tester) async {
+      // Refill count of 6 produces "refill 6 items" — pluralization is fine,
+      // but at a 320px-wide constraint the items column lives inside ~88px
+      // (320 - 64 time - 160 bar - 80 cumulative - 8 padding). The aid label
+      // would overflow that without the Flexible + TextOverflow.ellipsis
+      // wrapping. Pin the contract: no paint exception AND the rendered Text
+      // declares ellipsis overflow.
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              child: TimelineRow(
+                entry: PlanEntry(
+                  timeMark: Duration(minutes: 90),
+                  products: [],
+                  carbsGlucose: 0,
+                  carbsFructose: 0,
+                  carbsTotal: 0,
+                  cumulativeCarbs: 50,
+                  cumulativeCaffeine: 0,
+                  waterMl: 0,
+                  aidStation: AidStation(
+                    timeMinutes: 90,
+                    refill: ['a', 'b', 'c', 'd', 'e', 'f'],
+                  ),
+                ),
+                targetG: 20,
+                peakG: 25,
+                productsById: {},
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      final label = tester.widget<Text>(
+        find.text('Aid station — refill 6 items'),
+      );
+      expect(label.overflow, TextOverflow.ellipsis);
+    },
+  );
+
   testWidgets('shows sip-bottle line when only effectiveDrinkCarbs > 0', (
     tester,
   ) async {

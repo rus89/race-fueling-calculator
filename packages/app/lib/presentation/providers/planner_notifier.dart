@@ -50,12 +50,11 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
   // in `_emit` — that's the line that refuses to save during error.
   PlannerState? _currentOrNull() => state.value;
 
-  // Refuses to emit while the prior state is AsyncError so a stealth save
-  // cannot overwrite a recoverable corrupted blob with an in-memory seed.
-  // The user must explicitly opt in via `discardCorruptedAndUseSeed`.
-  //
-  // Any user-driven mutation flips `isSeedFallback` off — by definition
-  // the working state is no longer a fallback once the user has touched it.
+  /// [_emit] is the user-mutation path: it (a) refuses to emit during AsyncError,
+  /// (b) flips `isSeedFallback` to false on any state change (a real user edit
+  /// means the working state is no longer the seed fallback). Callers that
+  /// need to preserve the seed flag (e.g. resetToSeed) or escape AsyncError
+  /// (e.g. discardCorruptedAndUseSeed) must use [_emitForce] directly.
   void _emit(PlannerState next) {
     if (state is AsyncError) return;
     final flipped = next.isSeedFallback
@@ -64,9 +63,9 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     _emitForce(flipped);
   }
 
-  // Emits unconditionally and schedules a save. Used internally by `_emit`
-  // after the AsyncError guard, and by `discardCorruptedAndUseSeed` to
-  // escape it.
+  /// [_emitForce] bypasses both the AsyncError guard and the seed-flag flip.
+  /// Used by `discardCorruptedAndUseSeed` (must escape the guard) and
+  /// `resetToSeed` (must preserve `isSeedFallback: true`).
   void _emitForce(PlannerState next) {
     state = AsyncData(next);
     final storage = ref.read(planStorageProvider);
@@ -108,7 +107,8 @@ class PlannerNotifier extends AsyncNotifier<PlannerState> {
     _emitForce(PlannerState.seed());
   }
 
-  /// User-driven "Reset to seed plan" on the healthy path (empty-plan CTA).
+  /// Restores the seed plan. v1.1 has no UI consumer (the empty-plan CTA
+  /// is non-destructive) — wired for a future Start-over affordance.
   /// Honors the AsyncError guard so users on a broken-storage state must go
   /// through `discardCorruptedAndUseSeed` instead. Uses `_emitForce` so the
   /// seed's `isSeedFallback: true` flag survives the emission — the explicit
