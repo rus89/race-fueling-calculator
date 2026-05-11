@@ -53,9 +53,6 @@ class _RailBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(plannerNotifierProvider.notifier);
     return Container(
-      // PC-RESPONSIVE: F1 will swap this hardcoded width for
-      // BonkBreakpoint.setupRailWidth driven by MediaQuery.sizeOf(context).
-      width: 320,
       decoration: const BoxDecoration(
         border: Border(right: BorderSide(color: BonkTokens.rule)),
         color: BonkTokens.bg,

@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:race_fueling_app/presentation/theme/breakpoints.dart';
 
 void main() {
-  test('1500 → wide', () {
-    expect(BonkBreakpoint.forWidth(1500), BonkBreakpoint.wide);
+  test('1600 → wide', () {
+    expect(BonkBreakpoint.forWidth(1600), BonkBreakpoint.wide);
   });
   test('1400 → medium', () {
     expect(BonkBreakpoint.forWidth(1400), BonkBreakpoint.medium);
@@ -20,9 +20,9 @@ void main() {
   });
 
   group('boundary equality', () {
-    test('1480 → wide, 1479.999 → medium', () {
-      expect(BonkBreakpoint.forWidth(1480), BonkBreakpoint.wide);
-      expect(BonkBreakpoint.forWidth(1479.999), BonkBreakpoint.medium);
+    test('1520 → wide, 1519.999 → medium', () {
+      expect(BonkBreakpoint.forWidth(1520), BonkBreakpoint.wide);
+      expect(BonkBreakpoint.forWidth(1519.999), BonkBreakpoint.medium);
     });
     test('1380 → medium, 1379.999 → noDiagnostics', () {
       expect(BonkBreakpoint.forWidth(1380), BonkBreakpoint.medium);
@@ -44,8 +44,8 @@ void main() {
   group('convenience getters', () {
     // Table: tier → (showsDiagnostics, showsSetup, setupWidth, diagnosticsWidth)
     final cases = <BonkBreakpoint, (bool, bool, double, double)>{
-      BonkBreakpoint.wide: (true, true, 320, 300),
-      BonkBreakpoint.medium: (true, true, 280, 280),
+      BonkBreakpoint.wide: (true, true, 320, 380),
+      BonkBreakpoint.medium: (true, true, 280, 360),
       BonkBreakpoint.noDiagnostics: (false, true, 280, 0),
       BonkBreakpoint.narrow: (false, true, 280, 0),
       BonkBreakpoint.mobile: (false, false, 0, 0),

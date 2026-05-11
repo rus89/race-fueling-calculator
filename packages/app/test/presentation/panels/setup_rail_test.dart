@@ -295,6 +295,31 @@ void main() {
     await _pumpTall(tester, storage: fake);
     expect(find.textContaining('carrying everything'), findsOneWidget);
   });
+
+  testWidgets('lays out inside a 280px-wide parent without overflow', (
+    tester,
+  ) async {
+    // F1 pins the contract that SetupRail is width-driven by its parent.
+    // BonkBreakpoint.setupRailWidth returns 280 at medium/noDiagnostics/narrow.
+    await tester.binding.setSurfaceSize(const Size(280, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fake = FakePlanStorage();
+    final container = ProviderContainer(
+      overrides: [planStorageProvider.overrideWithValue(fake)],
+    );
+    addTearDown(container.dispose);
+    await container.read(plannerNotifierProvider.future);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(body: SizedBox(width: 280, child: SetupRail())),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Pumps the rail under a 360x2400 surface so all sections (carb strategy,
