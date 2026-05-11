@@ -198,11 +198,11 @@ void main() {
       expect(config.copyWith().schemaVersion, config.schemaVersion);
     });
 
-    // The standard `?? this.field` pattern means passing null explicitly to
-    // copyWith is indistinguishable from omitting the argument — both keep
-    // the existing value. These tests pin that contract so callers cannot
-    // rely on null to mean "clear the field".
-    test('copyWith preserves distanceKm when null is passed explicitly', () {
+    // distanceKm and intervalKm use a sentinel-aware copyWith so explicit
+    // `null` clears the field. Omitting the argument keeps the existing
+    // value. Other nullable fields still use the standard null-as-no-change
+    // pattern (see preserves-temperature / humidity / altitude tests below).
+    test('copyWith clears distanceKm when null is passed explicitly', () {
       final config = RaceConfig(
         name: 'Test',
         duration: Duration(hours: 5),
@@ -213,7 +213,21 @@ void main() {
         strategy: Strategy.steady,
         selectedProducts: [],
       );
-      expect(config.copyWith(distanceKm: null).distanceKm, 100.0);
+      expect(config.copyWith(distanceKm: null).distanceKm, isNull);
+    });
+
+    test('copyWith preserves distanceKm when argument is omitted', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 75.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith().distanceKm, 100.0);
     });
 
     test(
@@ -232,7 +246,7 @@ void main() {
       },
     );
 
-    test('copyWith preserves intervalKm when null is passed explicitly', () {
+    test('copyWith clears intervalKm when null is passed explicitly', () {
       final config = RaceConfig(
         name: 'Test',
         duration: Duration(hours: 5),
@@ -243,7 +257,21 @@ void main() {
         strategy: Strategy.steady,
         selectedProducts: [],
       );
-      expect(config.copyWith(intervalKm: null).intervalKm, 10.0);
+      expect(config.copyWith(intervalKm: null).intervalKm, isNull);
+    });
+
+    test('copyWith preserves intervalKm when argument is omitted', () {
+      final config = RaceConfig(
+        name: 'Test',
+        duration: Duration(hours: 5),
+        distanceKm: 100.0,
+        timelineMode: TimelineMode.distanceBased,
+        intervalKm: 10.0,
+        targetCarbsGPerHr: 60.0,
+        strategy: Strategy.steady,
+        selectedProducts: [],
+      );
+      expect(config.copyWith().intervalKm, 10.0);
     });
 
     test('copyWith preserves temperature when null is passed explicitly', () {

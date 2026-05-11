@@ -10,6 +10,7 @@ import '../providers/planner_notifier.dart';
 import '../providers/product_library_provider.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
+import '../util/units.dart';
 import '../widgets/aid_station_row.dart';
 import '../widgets/field_shell.dart';
 import '../widgets/inventory_row.dart';
@@ -385,16 +386,31 @@ class _DurationRow extends ConsumerWidget {
 
 class _BodyMassAndDistanceRow extends ConsumerWidget {
   const _BodyMassAndDistanceRow();
+
+  static final _decimalFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'^\d*\.?\d*'),
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(plannerNotifierProvider).requireValue;
     final notifier = ref.read(plannerNotifierProvider.notifier);
-    // PC-UNIT-CONVERSION: hardcoded to canonical SI units until F1 wires real
-    // conversion. Imperial users see 'kg' / 'km' — accurate to the stored
-    // value even if the user's unitSystem preference says otherwise. See
-    // JOURNAL PB-Phase-C for the F1 follow-up.
-    const unit = 'kg';
-    const distUnit = 'km';
+    final isImperial = state.athleteProfile.unitSystem == UnitSystem.imperial;
+    final massUnit = isImperial ? 'lb' : 'kg';
+    final distUnit = isImperial ? 'mi' : 'km';
+
+    // Storage stays canonical SI; convert at the I/O boundary only.
+    final bodyKgStored = state.athleteProfile.bodyWeightKg ?? 70;
+    final massDisplay = isImperial ? kgToLb(bodyKgStored) : bodyKgStored;
+    final distKmStored = state.raceConfig.distanceKm;
+    final String distDisplay;
+    if (distKmStored == null) {
+      distDisplay = '';
+    } else {
+      final shown = isImperial ? kmToMi(distKmStored) : distKmStored;
+      distDisplay = '${shown.round()}';
+    }
+
     return Row(
       children: [
         Expanded(
@@ -406,25 +422,27 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
                   width: 64,
                   child: BonkTextInput(
                     key: const Key('setup.body_mass'),
-                    value: '${state.athleteProfile.bodyWeightKg ?? 70}',
+                    value: '${massDisplay.round()}',
                     monoFont: true,
                     labelText: 'Body mass',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [_decimalFormatter],
                     onChanged: (v) {
-                      final w = double.tryParse(v);
-                      if (w != null && w > 0) {
-                        notifier.updateAthleteProfile(
-                          (p) => p.copyWith(bodyWeightKg: w),
-                        );
-                      }
+                      final typed = double.tryParse(v);
+                      if (typed == null || typed <= 0) return;
+                      final kg = isImperial ? lbToKg(typed) : typed;
+                      notifier.updateAthleteProfile(
+                        (p) => p.copyWith(bodyWeightKg: kg),
+                      );
                     },
                   ),
                 ),
                 const SizedBox(width: 4),
                 ExcludeSemantics(
                   child: Text(
-                    unit,
+                    massUnit,
                     style: BonkType.mono(
                       size: 11,
                     ).copyWith(color: BonkTokens.ink3),
@@ -438,29 +456,31 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
         Expanded(
           child: BonkFieldShell(
             label: 'Total distance',
-            // PC-PRESERVE-DIST: RaceConfig.copyWith treats a null `distanceKm`
-            // argument as "no change" (standard Dart pattern), so a user who
-            // empties the field cannot clear the stored distance via this
-            // input — the previous value is preserved. F1 will introduce
-            // an explicit "clear distance" affordance or a sentinel-aware
-            // copyWith if product needs the cleared state.
             child: Row(
               children: [
                 SizedBox(
                   width: 64,
                   child: BonkTextInput(
                     key: const Key('setup.distance_km'),
-                    value: state.raceConfig.distanceKm == null
-                        ? ''
-                        : '${state.raceConfig.distanceKm!.round()}',
+                    value: distDisplay,
                     monoFont: true,
                     labelText: 'Total distance',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                    ],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [_decimalFormatter],
                     onChanged: (v) {
-                      final km = double.tryParse(v);
+                      if (v.isEmpty) {
+                        // Sentinel-aware copyWith: passing null clears the
+                        // field so the user can drop the distance entirely.
+                        notifier.updateRaceConfig(
+                          (c) => c.copyWith(distanceKm: null),
+                        );
+                        return;
+                      }
+                      final typed = double.tryParse(v);
+                      if (typed == null) return;
+                      final km = isImperial ? miToKm(typed) : typed;
                       notifier.updateRaceConfig(
                         (c) => c.copyWith(distanceKm: km),
                       );

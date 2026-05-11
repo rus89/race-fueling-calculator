@@ -6,6 +6,11 @@ import 'duration_converter.dart';
 
 part 'race_config.g.dart';
 
+/// Sentinel marker for [RaceConfig.copyWith] to distinguish "argument omitted"
+/// from "argument explicitly passed as null". Used on `distanceKm` and
+/// `intervalKm` so UI inputs can clear these fields by passing `null`.
+const Object _kRaceConfigUnset = Object();
+
 enum TimelineMode {
   @JsonValue('time_based')
   timeBased,
@@ -155,13 +160,19 @@ class RaceConfig extends Equatable {
 
   Map<String, dynamic> toJson() => _$RaceConfigToJson(this);
 
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// `distanceKm` and `intervalKm` use a sentinel-aware pattern: omitting the
+  /// argument keeps the existing value; passing `null` explicitly clears the
+  /// field. All other nullable fields use the standard null-as-no-change
+  /// pattern — they cannot be cleared via `copyWith`.
   RaceConfig copyWith({
     String? name,
     Duration? duration,
-    double? distanceKm,
+    Object? distanceKm = _kRaceConfigUnset,
     TimelineMode? timelineMode,
     int? intervalMinutes,
-    double? intervalKm,
+    Object? intervalKm = _kRaceConfigUnset,
     double? targetCarbsGPerHr,
     Strategy? strategy,
     List<CurveSegment>? customCurve,
@@ -175,10 +186,14 @@ class RaceConfig extends Equatable {
     return RaceConfig(
       name: name ?? this.name,
       duration: duration ?? this.duration,
-      distanceKm: distanceKm ?? this.distanceKm,
+      distanceKm: identical(distanceKm, _kRaceConfigUnset)
+          ? this.distanceKm
+          : distanceKm as double?,
       timelineMode: timelineMode ?? this.timelineMode,
       intervalMinutes: intervalMinutes ?? this.intervalMinutes,
-      intervalKm: intervalKm ?? this.intervalKm,
+      intervalKm: identical(intervalKm, _kRaceConfigUnset)
+          ? this.intervalKm
+          : intervalKm as double?,
       targetCarbsGPerHr: targetCarbsGPerHr ?? this.targetCarbsGPerHr,
       strategy: strategy ?? this.strategy,
       customCurve: customCurve ?? this.customCurve,

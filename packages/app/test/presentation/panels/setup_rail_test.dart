@@ -1,6 +1,6 @@
 // ABOUTME: Widget tests for the SetupRail — race section input wiring.
-// ABOUTME: Asserts user input flows through PlannerNotifier and locks bug
-// ABOUTME: contracts (PC-PRESERVE-DIST, PC-UNIT-CONVERSION) F1 will revisit.
+// ABOUTME: Asserts user input flows through PlannerNotifier including
+// ABOUTME: metric/imperial unit conversion and sentinel-aware distance clear.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -91,11 +91,78 @@ void main() {
     expect(find.textContaining('see recovery options'), findsOneWidget);
   });
 
-  testWidgets('PC-UNIT-CONVERSION: unit labels are hardcoded kg/km regardless '
-      'of unitSystem', (tester) async {
+  testWidgets('metric unitSystem renders kg/km labels', (tester) async {
     await _pump(tester);
     expect(find.text('kg'), findsOneWidget);
     expect(find.text('km'), findsOneWidget);
+  });
+
+  testWidgets('imperial unitSystem renders lb/mi labels', (tester) async {
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        athleteProfile: seed.athleteProfile.copyWith(
+          unitSystem: UnitSystem.imperial,
+        ),
+      );
+    await _pump(tester, storage: fake);
+    expect(find.text('lb'), findsOneWidget);
+    expect(find.text('mi'), findsOneWidget);
+    expect(find.text('kg'), findsNothing);
+    expect(find.text('km'), findsNothing);
+  });
+
+  testWidgets('imperial body mass input stores converted kg value', (
+    tester,
+  ) async {
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        athleteProfile: seed.athleteProfile.copyWith(
+          unitSystem: UnitSystem.imperial,
+        ),
+      );
+    final c = await _pump(tester, storage: fake);
+    await tester.enterText(find.byKey(const Key('setup.body_mass')), '158.7');
+    await tester.pump();
+    expect(
+      c.read(plannerNotifierProvider).requireValue.athleteProfile.bodyWeightKg,
+      closeTo(72.0, 0.05),
+    );
+  });
+
+  testWidgets('imperial distance input stores converted km value', (
+    tester,
+  ) async {
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        athleteProfile: seed.athleteProfile.copyWith(
+          unitSystem: UnitSystem.imperial,
+        ),
+      );
+    final c = await _pump(tester, storage: fake);
+    await tester.enterText(find.byKey(const Key('setup.distance_km')), '62');
+    await tester.pump();
+    expect(
+      c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
+      closeTo(99.78, 0.05),
+    );
+  });
+
+  testWidgets('metric body mass accepts decimal input (72.5 kg)', (
+    tester,
+  ) async {
+    // Regression guard: F1d swapped the body-mass formatter from digitsOnly
+    // to the decimal-tolerant pattern so imperial lbs round-trip. Metric
+    // users must keep being able to type '72.5'.
+    final c = await _pump(tester);
+    await tester.enterText(find.byKey(const Key('setup.body_mass')), '72.5');
+    await tester.pump();
+    expect(
+      c.read(plannerNotifierProvider).requireValue.athleteProfile.bodyWeightKg,
+      72.5,
+    );
   });
 
   testWidgets('valid distance km updates state', (tester) async {
@@ -108,9 +175,11 @@ void main() {
     );
   });
 
-  testWidgets('PC-PRESERVE-DIST: empty distance input preserves prior value', (
+  testWidgets('emptying the distance input clears the stored distance', (
     tester,
   ) async {
+    // Sentinel-aware copyWith: passing distanceKm: null clears the field, so
+    // an empty input frees the user from a previously-set value.
     final c = await _pump(tester);
     final originalDist = c
         .read(plannerNotifierProvider)
@@ -120,17 +189,9 @@ void main() {
     expect(originalDist, isNotNull);
     await tester.enterText(find.byKey(const Key('setup.distance_km')), '');
     await tester.pump();
-    final after = c
-        .read(plannerNotifierProvider)
-        .requireValue
-        .raceConfig
-        .distanceKm;
     expect(
-      after,
-      originalDist,
-      reason:
-          'PC-PRESERVE-DIST: copyWith(distanceKm: null) is a no-op; '
-          'F1 will fix via sentinel-aware copyWith or explicit Clear button.',
+      c.read(plannerNotifierProvider).requireValue.raceConfig.distanceKm,
+      isNull,
     );
   });
 
