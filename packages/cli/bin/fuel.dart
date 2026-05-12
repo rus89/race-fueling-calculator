@@ -21,13 +21,14 @@ Future<void> main(List<String> args) async {
 
   try {
     final storage = FileStorageAdapter();
-    final runner = CommandRunner<void>(
-      'fuel',
-      'Race Fueling Calculator — plan your race-day nutrition',
-    )
-      ..addCommand(ProfileCommand(storage))
-      ..addCommand(ProductsCommand(storage))
-      ..addCommand(PlanCommand(storage));
+    final runner =
+        CommandRunner<void>(
+            'fuel',
+            'Race Fueling Calculator — plan your race-day nutrition',
+          )
+          ..addCommand(ProfileCommand(storage))
+          ..addCommand(ProductsCommand(storage))
+          ..addCommand(PlanCommand(storage));
     exitCode = await runFuel(runner, args);
   } on FormatException catch (e) {
     stderr.writeln(e.message);

@@ -43,20 +43,22 @@ void main() {
       expect(captured.stderr, isEmpty);
     });
 
-    test('translates FormatException to exit 65 with friendly message',
-        () async {
-      late final bool result;
-      final captured = await captureOutput(() async {
-        result = await withFriendlyErrors(() async {
-          throw const FormatException('bad json');
+    test(
+      'translates FormatException to exit 65 with friendly message',
+      () async {
+        late final bool result;
+        final captured = await captureOutput(() async {
+          result = await withFriendlyErrors(() async {
+            throw const FormatException('bad json');
+          });
         });
-      });
 
-      expect(result, isFalse);
-      expect(exitCode, kExitData);
-      expect(captured.stderr, contains('bad json'));
-      expect(captured.stderr, isNot(contains('Invalid data')));
-    });
+        expect(result, isFalse);
+        expect(exitCode, kExitData);
+        expect(captured.stderr, contains('bad json'));
+        expect(captured.stderr, isNot(contains('Invalid data')));
+      },
+    );
 
     test('translates FileSystemException to exit 65 with the path', () async {
       late final bool result;

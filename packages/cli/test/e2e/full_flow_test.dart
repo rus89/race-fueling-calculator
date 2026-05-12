@@ -12,8 +12,8 @@ void main() {
   final cwd = Directory.current.path;
   final packageRoot =
       p.basename(cwd) == 'cli' && p.basename(p.dirname(cwd)) == 'packages'
-          ? cwd
-          : p.join(cwd, 'packages', 'cli');
+      ? cwd
+      : p.join(cwd, 'packages', 'cli');
 
   late Directory tempHome;
 
@@ -35,10 +35,7 @@ void main() {
       Platform.resolvedExecutable,
       ['run', 'bin/fuel.dart', ...args],
       workingDirectory: packageRoot,
-      environment: {
-        'FUEL_HOME': tempHome.path,
-        ...extraEnv,
-      },
+      environment: {'FUEL_HOME': tempHome.path, ...extraEnv},
     );
   }
 
@@ -85,37 +82,54 @@ void main() {
   void expectNoColorOutputContract(String stdout) {
     expect(stdout, contains('=== SUMMARY ==='));
     expect(stdout.contains('\x1B'), isFalse, reason: 'no ANSI escapes');
-    expect(stdout.contains('│'), isFalse,
-        reason: 'no Unicode box-drawing under no-color');
-    expect(stdout.contains('─'), isFalse,
-        reason: 'no Unicode divider under no-color');
-    expect(stdout.contains('═'), isFalse,
-        reason: 'no Unicode banner under no-color');
+    expect(
+      stdout.contains('│'),
+      isFalse,
+      reason: 'no Unicode box-drawing under no-color',
+    );
+    expect(
+      stdout.contains('─'),
+      isFalse,
+      reason: 'no Unicode divider under no-color',
+    );
+    expect(
+      stdout.contains('═'),
+      isFalse,
+      reason: 'no Unicode banner under no-color',
+    );
     expect(stdout.contains('\r'), isFalse, reason: 'LF line endings only');
   }
 
-  test('plan generate --no-color emits ASCII summary and zero ANSI escapes',
-      () async {
-    await seedPlan();
+  test(
+    'plan generate --no-color emits ASCII summary and zero ANSI escapes',
+    () async {
+      await seedPlan();
 
-    final gen = await runFuel(
-      ['plan', 'generate', '--plan', 'e2e', '--no-color'],
-    );
+      final gen = await runFuel([
+        'plan',
+        'generate',
+        '--plan',
+        'e2e',
+        '--no-color',
+      ]);
 
-    expect(gen.exitCode, 0, reason: gen.stderr.toString());
-    expectNoColorOutputContract(gen.stdout.toString());
-  });
+      expect(gen.exitCode, 0, reason: gen.stderr.toString());
+      expectNoColorOutputContract(gen.stdout.toString());
+    },
+  );
 
-  test('plan generate honors NO_COLOR=1 env var without --no-color flag',
-      () async {
-    await seedPlan();
+  test(
+    'plan generate honors NO_COLOR=1 env var without --no-color flag',
+    () async {
+      await seedPlan();
 
-    final gen = await runFuel(
-      ['plan', 'generate', '--plan', 'e2e'],
-      extraEnv: {'NO_COLOR': '1'},
-    );
+      final gen = await runFuel(
+        ['plan', 'generate', '--plan', 'e2e'],
+        extraEnv: {'NO_COLOR': '1'},
+      );
 
-    expect(gen.exitCode, 0, reason: gen.stderr.toString());
-    expectNoColorOutputContract(gen.stdout.toString());
-  });
+      expect(gen.exitCode, 0, reason: gen.stderr.toString());
+      expectNoColorOutputContract(gen.stdout.toString());
+    },
+  );
 }

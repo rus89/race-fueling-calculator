@@ -24,18 +24,20 @@ void main() {
       expect(parseDoubleFlag(results, 'target'), 75.0);
     });
 
-    test('throws UsageException naming the flag and raw value on bad input',
-        () {
-      final results = _parse(['--target', 'banana']);
-      expect(
-        () => parseDoubleFlag(results, 'target'),
-        throwsA(
-          isA<UsageException>()
-              .having((e) => e.message, 'message', contains('--target'))
-              .having((e) => e.message, 'message', contains('banana')),
-        ),
-      );
-    });
+    test(
+      'throws UsageException naming the flag and raw value on bad input',
+      () {
+        final results = _parse(['--target', 'banana']);
+        expect(
+          () => parseDoubleFlag(results, 'target'),
+          throwsA(
+            isA<UsageException>()
+                .having((e) => e.message, 'message', contains('--target'))
+                .having((e) => e.message, 'message', contains('banana')),
+          ),
+        );
+      },
+    );
   });
 
   group('parseIntFlag', () {
@@ -49,17 +51,19 @@ void main() {
       expect(parseIntFlag(results, 'interval'), 20);
     });
 
-    test('throws UsageException naming the flag and raw value on bad input',
-        () {
-      final results = _parse(['--interval', '1.5']);
-      expect(
-        () => parseIntFlag(results, 'interval'),
-        throwsA(
-          isA<UsageException>()
-              .having((e) => e.message, 'message', contains('--interval'))
-              .having((e) => e.message, 'message', contains('1.5')),
-        ),
-      );
-    });
+    test(
+      'throws UsageException naming the flag and raw value on bad input',
+      () {
+        final results = _parse(['--interval', '1.5']);
+        expect(
+          () => parseIntFlag(results, 'interval'),
+          throwsA(
+            isA<UsageException>()
+                .having((e) => e.message, 'message', contains('--interval'))
+                .having((e) => e.message, 'message', contains('1.5')),
+          ),
+        );
+      },
+    );
   });
 }

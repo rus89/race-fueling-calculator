@@ -63,7 +63,9 @@ void main() {
   group('distributeCarbs — front-load', () {
     test('first third gets ~110%, last third gets ~90%', () {
       final slots = List.generate(
-          9, (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)));
+        9,
+        (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)),
+      );
       final config = RaceConfig(
         name: 'Test',
         duration: Duration(hours: 3),
@@ -86,7 +88,9 @@ void main() {
   group('distributeCarbs — back-load', () {
     test('first third gets ~90%, last third gets ~110%', () {
       final slots = List.generate(
-          9, (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)));
+        9,
+        (i) => TimeSlot(timeMark: Duration(minutes: (i + 1) * 20)),
+      );
       final config = RaceConfig(
         name: 'Test',
         duration: Duration(hours: 3),
@@ -155,8 +159,10 @@ void main() {
         ],
       );
 
-      final warning =
-          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+      final warning = detectCustomCurveCoverageWarning(
+        config,
+        config.targetCarbsGPerHr,
+      );
 
       expect(warning, isNull);
     });
@@ -171,13 +177,13 @@ void main() {
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.custom,
         selectedProducts: [],
-        customCurve: [
-          CurveSegment(durationMinutes: 60, targetGPerHr: 80.0),
-        ],
+        customCurve: [CurveSegment(durationMinutes: 60, targetGPerHr: 80.0)],
       );
 
-      final warning =
-          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+      final warning = detectCustomCurveCoverageWarning(
+        config,
+        config.targetCarbsGPerHr,
+      );
 
       expect(warning, isNotNull);
       expect(warning!.severity, Severity.advisory);
@@ -186,52 +192,59 @@ void main() {
     });
 
     test(
-        'returns advisory when total curve duration is less than race even with multiple segments',
-        () {
-      // Race is 180 min; curve covers 60 + 30 = 90 min.
-      final config = RaceConfig(
-        name: 'Test',
-        duration: Duration(hours: 3),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 30,
-        targetCarbsGPerHr: 70.0,
-        strategy: Strategy.custom,
-        selectedProducts: [],
-        customCurve: [
-          CurveSegment(durationMinutes: 60, targetGPerHr: 90.0),
-          CurveSegment(durationMinutes: 30, targetGPerHr: 50.0),
-        ],
-      );
+      'returns advisory when total curve duration is less than race even with multiple segments',
+      () {
+        // Race is 180 min; curve covers 60 + 30 = 90 min.
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 3),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 30,
+          targetCarbsGPerHr: 70.0,
+          strategy: Strategy.custom,
+          selectedProducts: [],
+          customCurve: [
+            CurveSegment(durationMinutes: 60, targetGPerHr: 90.0),
+            CurveSegment(durationMinutes: 30, targetGPerHr: 50.0),
+          ],
+        );
 
-      final warning =
-          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+        final warning = detectCustomCurveCoverageWarning(
+          config,
+          config.targetCarbsGPerHr,
+        );
 
-      expect(warning, isNotNull);
-      expect(warning!.severity, Severity.advisory);
-      expect(warning.message, contains('90/180'));
-      expect(warning.message, contains('90')); // gap = 90 minutes
-    });
+        expect(warning, isNotNull);
+        expect(warning!.severity, Severity.advisory);
+        expect(warning.message, contains('90/180'));
+        expect(warning.message, contains('90')); // gap = 90 minutes
+      },
+    );
 
-    test('returns advisory with full-fallback wording when curve list is empty',
-        () {
-      final config = RaceConfig(
-        name: 'Test',
-        duration: Duration(hours: 1),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 60.0,
-        strategy: Strategy.custom,
-        selectedProducts: [],
-        customCurve: [],
-      );
+    test(
+      'returns advisory with full-fallback wording when curve list is empty',
+      () {
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 1),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.custom,
+          selectedProducts: [],
+          customCurve: [],
+        );
 
-      final warning =
-          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+        final warning = detectCustomCurveCoverageWarning(
+          config,
+          config.targetCarbsGPerHr,
+        );
 
-      expect(warning, isNotNull);
-      expect(warning!.severity, Severity.advisory);
-      expect(warning.message, contains('0/60'));
-    });
+        expect(warning, isNotNull);
+        expect(warning!.severity, Severity.advisory);
+        expect(warning.message, contains('0/60'));
+      },
+    );
 
     test('returns null when strategy is not custom', () {
       final config = RaceConfig(
@@ -244,34 +257,40 @@ void main() {
         selectedProducts: [],
       );
 
-      final warning =
-          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+      final warning = detectCustomCurveCoverageWarning(
+        config,
+        config.targetCarbsGPerHr,
+      );
 
       expect(warning, isNull);
     });
 
-    test('returns advisory when customCurve is null (treated as zero coverage)',
-        () {
-      // Edge: strategy=custom but curve is null. The distributor falls back
-      // entirely; surface the same advisory as an empty list.
-      final config = RaceConfig(
-        name: 'Test',
-        duration: Duration(hours: 1),
-        timelineMode: TimelineMode.timeBased,
-        intervalMinutes: 20,
-        targetCarbsGPerHr: 60.0,
-        strategy: Strategy.custom,
-        selectedProducts: [],
-        customCurve: null,
-      );
+    test(
+      'returns advisory when customCurve is null (treated as zero coverage)',
+      () {
+        // Edge: strategy=custom but curve is null. The distributor falls back
+        // entirely; surface the same advisory as an empty list.
+        final config = RaceConfig(
+          name: 'Test',
+          duration: Duration(hours: 1),
+          timelineMode: TimelineMode.timeBased,
+          intervalMinutes: 20,
+          targetCarbsGPerHr: 60.0,
+          strategy: Strategy.custom,
+          selectedProducts: [],
+          customCurve: null,
+        );
 
-      final warning =
-          detectCustomCurveCoverageWarning(config, config.targetCarbsGPerHr);
+        final warning = detectCustomCurveCoverageWarning(
+          config,
+          config.targetCarbsGPerHr,
+        );
 
-      expect(warning, isNotNull);
-      expect(warning!.severity, Severity.advisory);
-      expect(warning.message, contains('0/60'));
-    });
+        expect(warning, isNotNull);
+        expect(warning!.severity, Severity.advisory);
+        expect(warning.message, contains('0/60'));
+      },
+    );
   });
 
   group('distributeCarbs — custom fallback behavior', () {
@@ -291,9 +310,7 @@ void main() {
         targetCarbsGPerHr: 60.0,
         strategy: Strategy.custom,
         selectedProducts: [],
-        customCurve: [
-          CurveSegment(durationMinutes: 60, targetGPerHr: 80.0),
-        ],
+        customCurve: [CurveSegment(durationMinutes: 60, targetGPerHr: 80.0)],
       );
 
       final targets = distributeCarbs(slots, config, config.targetCarbsGPerHr);

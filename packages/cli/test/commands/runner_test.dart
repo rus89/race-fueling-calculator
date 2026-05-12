@@ -25,21 +25,20 @@ void main() {
       expect(result.stdout, contains('Race Fueling Calculator'));
     });
 
-    test('unknown command writes to stderr and exits with usage code',
-        () async {
-      final result = await runFuel(['nonsense-command']);
+    test(
+      'unknown command writes to stderr and exits with usage code',
+      () async {
+        final result = await runFuel(['nonsense-command']);
 
-      expect(result.exitCode, 64);
-      expect(result.stderr, isNotEmpty);
-      // CommandRunner's UsageException typically mentions the bad input.
-      expect(
-        result.stderr,
-        anyOf(
-          contains('nonsense-command'),
-          contains('Could not find'),
-        ),
-      );
-    });
+        expect(result.exitCode, 64);
+        expect(result.stderr, isNotEmpty);
+        // CommandRunner's UsageException typically mentions the bad input.
+        expect(
+          result.stderr,
+          anyOf(contains('nonsense-command'), contains('Could not find')),
+        );
+      },
+    );
 
     test('no args prints usage to stdout and exits 0', () async {
       final result = await runFuel(const []);

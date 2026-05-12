@@ -45,9 +45,7 @@ void _writePrompt(StringSink out, String prompt, String? defaultHint) {
 /// message listing the flags the user could pass instead.
 void requireTerminal({required String flagHint}) {
   if (!stdin.hasTerminal) {
-    throw NoTerminalException(
-      'Interactive input requires a TTY; $flagHint.',
-    );
+    throw NoTerminalException('Interactive input requires a TTY; $flagHint.');
   }
 }
 
@@ -195,8 +193,9 @@ Duration? promptDuration(
 }) {
   final sink = _resolveOut(out);
   final read = _resolveReader(readLine);
-  final defaultHint =
-      defaultValue == null ? null : _formatDuration(defaultValue);
+  final defaultHint = defaultValue == null
+      ? null
+      : _formatDuration(defaultValue);
 
   for (var attempt = 0; attempt < _kPromptRetryCap; attempt++) {
     _writePrompt(sink, prompt, defaultHint);
@@ -286,8 +285,10 @@ T promptChoice<T>(
     if (index != null && index >= 1 && index <= options.length) {
       return options[index - 1];
     }
-    sink.writeln('Invalid choice. Enter a number between 1 and '
-        '${options.length}.');
+    sink.writeln(
+      'Invalid choice. Enter a number between 1 and '
+      '${options.length}.',
+    );
   }
   throw PromptAbortedException(
     'No valid choice after $_kPromptRetryCap attempts.',

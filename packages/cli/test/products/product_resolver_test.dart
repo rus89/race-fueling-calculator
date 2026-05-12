@@ -26,11 +26,7 @@ void main() {
       _p(id: 'maurten-gel-100', name: 'Maurten Gel 100'),
       _p(id: 'maurten-gel-100-caf', name: 'Maurten Gel 100 CAF 100'),
       _p(id: 'sis-gel', name: 'SiS Beta Fuel Gel'),
-      _p(
-        id: 'clif-bar',
-        name: 'Clif Bar',
-        type: ProductType.solid,
-      ),
+      _p(id: 'clif-bar', name: 'Clif Bar', type: ProductType.solid),
     ];
 
     test('returns ProductMatchNone for an empty query', () {
@@ -41,32 +37,28 @@ void main() {
     test('returns ProductMatchSingle for an exact id match', () {
       final match = resolveProduct(products, 'maurten-gel-100');
       expect(match, isA<ProductMatchSingle>());
-      expect(
-        (match as ProductMatchSingle).product.id,
-        'maurten-gel-100',
-      );
+      expect((match as ProductMatchSingle).product.id, 'maurten-gel-100');
     });
 
     test(
-        'returns ProductMatchSingle for an exact name match (case-insensitive)',
-        () {
-      final match = resolveProduct(products, 'clif bar');
-      expect(match, isA<ProductMatchSingle>());
-      expect((match as ProductMatchSingle).product.name, 'Clif Bar');
-    });
-
-    test('returns ProductMatchSingle when substring uniquely matches one name',
-        () {
-      final match = resolveProduct(products, 'Beta');
-      expect(match, isA<ProductMatchSingle>());
-      expect(
-        (match as ProductMatchSingle).product.name,
-        'SiS Beta Fuel Gel',
-      );
-    });
+      'returns ProductMatchSingle for an exact name match (case-insensitive)',
+      () {
+        final match = resolveProduct(products, 'clif bar');
+        expect(match, isA<ProductMatchSingle>());
+        expect((match as ProductMatchSingle).product.name, 'Clif Bar');
+      },
+    );
 
     test(
-        'returns ProductMatchMultiple listing all candidates on ambiguous '
+      'returns ProductMatchSingle when substring uniquely matches one name',
+      () {
+        final match = resolveProduct(products, 'Beta');
+        expect(match, isA<ProductMatchSingle>());
+        expect((match as ProductMatchSingle).product.name, 'SiS Beta Fuel Gel');
+      },
+    );
+
+    test('returns ProductMatchMultiple listing all candidates on ambiguous '
         'substring', () {
       final match = resolveProduct(products, 'Gel');
       expect(match, isA<ProductMatchMultiple>());

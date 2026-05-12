@@ -41,7 +41,9 @@ void main() {
         environmentalNotes: ['Altitude adjustment: +7%'],
         warnings: [
           Warning(
-              severity: Severity.critical, message: 'Gut tolerance exceeded'),
+            severity: Severity.critical,
+            message: 'Gut tolerance exceeded',
+          ),
           Warning(severity: Severity.advisory, message: 'Consider more water'),
         ],
       );
@@ -78,8 +80,9 @@ void main() {
       // Header → totals → no extra trailing blank line before EOF.
       final lines = output.split('\n');
       // Remove the final empty string from the trailing newline.
-      final trimmed =
-          lines.last.isEmpty ? lines.sublist(0, lines.length - 1) : lines;
+      final trimmed = lines.last.isEmpty
+          ? lines.sublist(0, lines.length - 1)
+          : lines;
       expect(trimmed.last.trim(), isNotEmpty);
     });
   });
@@ -96,18 +99,18 @@ void main() {
 
   group('formatSummaryBlock — severity-only variants', () {
     test('only critical: emits CRITICAL block, no ADVISORY block', () {
-      final plan = buildPlan(warnings: [
-        Warning(severity: Severity.critical, message: 'Boom'),
-      ]);
+      final plan = buildPlan(
+        warnings: [Warning(severity: Severity.critical, message: 'Boom')],
+      );
       final output = formatSummaryBlock(plan, useColor: false);
       expect(output, contains('CRITICAL'));
       expect(output, isNot(contains('ADVISORY')));
     });
 
     test('only advisory: emits ADVISORY block, no CRITICAL block', () {
-      final plan = buildPlan(warnings: [
-        Warning(severity: Severity.advisory, message: 'Heads up'),
-      ]);
+      final plan = buildPlan(
+        warnings: [Warning(severity: Severity.advisory, message: 'Heads up')],
+      );
       final output = formatSummaryBlock(plan, useColor: false);
       expect(output, contains('ADVISORY'));
       expect(output, isNot(contains('CRITICAL')));
@@ -118,19 +121,19 @@ void main() {
     test('useColor: false output contains zero ANSI escapes', () {
       final plan = buildPlan(
         environmentalNotes: ['Heat advisory'],
-        warnings: [
-          Warning(severity: Severity.critical, message: 'Test'),
-        ],
+        warnings: [Warning(severity: Severity.critical, message: 'Test')],
       );
       final output = formatSummaryBlock(plan, useColor: false);
       expect(output.contains('\x1B'), isFalse);
     });
 
     test('useColor: true emits red for critical and yellow for advisory', () {
-      final plan = buildPlan(warnings: [
-        Warning(severity: Severity.critical, message: 'Critical thing'),
-        Warning(severity: Severity.advisory, message: 'Advisory thing'),
-      ]);
+      final plan = buildPlan(
+        warnings: [
+          Warning(severity: Severity.critical, message: 'Critical thing'),
+          Warning(severity: Severity.advisory, message: 'Advisory thing'),
+        ],
+      );
       final output = formatSummaryBlock(plan, useColor: true);
       expect(output, contains('\x1B[31m'), reason: 'red for critical');
       expect(output, contains('\x1B[33m'), reason: 'yellow for advisory');

@@ -17,8 +17,9 @@ void main() {
   late FileStorageAdapter storage;
 
   setUp(() {
-    tempDir =
-        Directory.systemTemp.createTempSync('race_fueling_products_test_');
+    tempDir = Directory.systemTemp.createTempSync(
+      'race_fueling_products_test_',
+    );
     storage = FileStorageAdapter(baseDir: tempDir.path);
   });
 
@@ -49,55 +50,61 @@ void main() {
   });
 
   group('products show', () {
-    test('prints details for a built-in match and marks it as built-in',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'show',
-          'Maurten Gel 100',
-        ]);
-      });
+    test(
+      'prints details for a built-in match and marks it as built-in',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'show',
+            'Maurten Gel 100',
+          ]);
+        });
 
-      expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
-      expect(captured.stdout, contains('Maurten Gel 100'));
-      expect(captured.stdout, contains('Source: built-in'));
-    });
+        expect(code, kExitSuccess);
+        expect(captured.stderr, isEmpty);
+        expect(captured.stdout, contains('Maurten Gel 100'));
+        expect(captured.stdout, contains('Source: built-in'));
+      },
+    );
 
-    test('lists candidates name-first with ids in parens and exits kExitUsage',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), ['products', 'show', 'gel']);
-      });
+    test(
+      'lists candidates name-first with ids in parens and exits kExitUsage',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), ['products', 'show', 'gel']);
+        });
 
-      expect(code, kExitUsage);
-      expect(captured.stderr, contains('Did you mean one of:'));
-      expect(captured.stderr, contains('Maurten Gel 100'));
-      expect(captured.stderr, contains('(id: maurten-gel-100)'));
-      expect(
-        captured.stderr,
-        contains('Re-run with the exact name in quotes.'),
-      );
-      expect(captured.stdout, isEmpty);
-    });
+        expect(code, kExitUsage);
+        expect(captured.stderr, contains('Did you mean one of:'));
+        expect(captured.stderr, contains('Maurten Gel 100'));
+        expect(captured.stderr, contains('(id: maurten-gel-100)'));
+        expect(
+          captured.stderr,
+          contains('Re-run with the exact name in quotes.'),
+        );
+        expect(captured.stdout, isEmpty);
+      },
+    );
 
-    test('exits kExitUsage with no-match message when query matches nothing',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'show',
-          'definitely-not-a-product',
-        ]);
-      });
+    test(
+      'exits kExitUsage with no-match message when query matches nothing',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'show',
+            'definitely-not-a-product',
+          ]);
+        });
 
-      expect(code, kExitUsage);
-      expect(captured.stderr, contains('No product matched'));
-    });
+        expect(code, kExitUsage);
+        expect(captured.stderr, contains('No product matched'));
+      },
+    );
   });
 
   group('products add', () {
@@ -138,62 +145,64 @@ void main() {
       expect(saved.first.isBuiltIn, isFalse);
     });
 
-    test('rejects ID collision with a built-in unless --force is passed',
-        () async {
-      // The slug for "Maurten Gel 100" becomes "user-maurten-gel-100"; that
-      // does not collide with a built-in id on its own, so we construct a
-      // user-named product that would collide if --force is absent. Use a
-      // slug that matches an existing user product to assert the guard.
-      await storage.saveUserProducts([
-        Product(
-          id: 'user-collide',
-          name: 'Collide',
-          type: ProductType.gel,
-          carbsPerServing: 20.0,
-        ),
-      ]);
-
-      late final int firstCode;
-      final firstCapture = await captureOutput(() async {
-        firstCode = await runFuel(buildRunner(), [
-          'products',
-          'add',
-          '--name',
-          'Collide',
-          '--type',
-          'gel',
-          '--carbs',
-          '25',
+    test(
+      'rejects ID collision with a built-in unless --force is passed',
+      () async {
+        // The slug for "Maurten Gel 100" becomes "user-maurten-gel-100"; that
+        // does not collide with a built-in id on its own, so we construct a
+        // user-named product that would collide if --force is absent. Use a
+        // slug that matches an existing user product to assert the guard.
+        await storage.saveUserProducts([
+          Product(
+            id: 'user-collide',
+            name: 'Collide',
+            type: ProductType.gel,
+            carbsPerServing: 20.0,
+          ),
         ]);
-      });
 
-      expect(firstCode, kExitUsage);
-      expect(firstCapture.stderr, contains('already exists'));
-      final afterFirst = await storage.loadUserProducts();
-      expect(afterFirst, hasLength(1));
-      expect(afterFirst.first.carbsPerServing, 20.0); // unchanged
+        late final int firstCode;
+        final firstCapture = await captureOutput(() async {
+          firstCode = await runFuel(buildRunner(), [
+            'products',
+            'add',
+            '--name',
+            'Collide',
+            '--type',
+            'gel',
+            '--carbs',
+            '25',
+          ]);
+        });
 
-      late final int secondCode;
-      final secondCapture = await captureOutput(() async {
-        secondCode = await runFuel(buildRunner(), [
-          'products',
-          'add',
-          '--name',
-          'Collide',
-          '--type',
-          'gel',
-          '--carbs',
-          '25',
-          '--force',
-        ]);
-      });
+        expect(firstCode, kExitUsage);
+        expect(firstCapture.stderr, contains('already exists'));
+        final afterFirst = await storage.loadUserProducts();
+        expect(afterFirst, hasLength(1));
+        expect(afterFirst.first.carbsPerServing, 20.0); // unchanged
 
-      expect(secondCode, kExitSuccess);
-      expect(secondCapture.stderr, isEmpty);
-      final afterForce = await storage.loadUserProducts();
-      expect(afterForce, hasLength(1));
-      expect(afterForce.first.carbsPerServing, 25.0);
-    });
+        late final int secondCode;
+        final secondCapture = await captureOutput(() async {
+          secondCode = await runFuel(buildRunner(), [
+            'products',
+            'add',
+            '--name',
+            'Collide',
+            '--type',
+            'gel',
+            '--carbs',
+            '25',
+            '--force',
+          ]);
+        });
+
+        expect(secondCode, kExitSuccess);
+        expect(secondCapture.stderr, isEmpty);
+        final afterForce = await storage.loadUserProducts();
+        expect(afterForce, hasLength(1));
+        expect(afterForce.first.carbsPerServing, 25.0);
+      },
+    );
 
     test('rejects non-numeric --carbs with kExitUsage', () async {
       late final int code;
@@ -256,71 +265,72 @@ void main() {
       expect(await storage.loadUserProducts(), isEmpty);
     });
 
-    test('rejects when glucose + fructose mismatch carbs beyond 1g tolerance',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'add',
-          '--name',
-          'Bad Sum',
-          '--type',
-          'liquid',
-          '--carbs',
-          '45',
-          '--glucose',
-          '10',
-          '--fructose',
-          '10',
-        ]);
-      });
+    test(
+      'rejects when glucose + fructose mismatch carbs beyond 1g tolerance',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'add',
+            '--name',
+            'Bad Sum',
+            '--type',
+            'liquid',
+            '--carbs',
+            '45',
+            '--glucose',
+            '10',
+            '--fructose',
+            '10',
+          ]);
+        });
 
-      expect(code, kExitUsage);
-      expect(captured.stderr, contains('glucose'));
-      expect(await storage.loadUserProducts(), isEmpty);
-    });
+        expect(code, kExitUsage);
+        expect(captured.stderr, contains('glucose'));
+        expect(await storage.loadUserProducts(), isEmpty);
+      },
+    );
 
-    test('a user-slug that mirrors a built-in does not shadow the built-in',
-        () async {
-      // Slug for "MaurtenGel100" is "maurtengel100"; prefixed that becomes
-      // "user-maurtengel100" — this must not collide with "maurten-gel-100".
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'add',
-          '--name',
-          'MaurtenGel100',
-          '--type',
-          'gel',
-          '--carbs',
-          '20',
-        ]);
-      });
+    test(
+      'a user-slug that mirrors a built-in does not shadow the built-in',
+      () async {
+        // Slug for "MaurtenGel100" is "maurtengel100"; prefixed that becomes
+        // "user-maurtengel100" — this must not collide with "maurten-gel-100".
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'add',
+            '--name',
+            'MaurtenGel100',
+            '--type',
+            'gel',
+            '--carbs',
+            '20',
+          ]);
+        });
 
-      expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
+        expect(code, kExitSuccess);
+        expect(captured.stderr, isEmpty);
 
-      final saved = await storage.loadUserProducts();
-      expect(saved, hasLength(1));
-      expect(saved.first.id, 'user-maurtengel100');
+        final saved = await storage.loadUserProducts();
+        expect(saved, hasLength(1));
+        expect(saved.first.id, 'user-maurtengel100');
 
-      final merged = mergeProducts(builtInProducts, saved);
-      // Built-in Maurten Gel 100 still resolves by its exact name.
-      final gel100 = merged.firstWhere(
-        (p) => p.name == 'Maurten Gel 100',
-      );
-      expect(gel100.isBuiltIn, isTrue);
-      expect(gel100.carbsPerServing, 25.0);
-      // And the newly added user product sits alongside the built-in.
-      expect(merged.any((p) => p.id == 'user-maurtengel100'), isTrue);
-    });
+        final merged = mergeProducts(builtInProducts, saved);
+        // Built-in Maurten Gel 100 still resolves by its exact name.
+        final gel100 = merged.firstWhere((p) => p.name == 'Maurten Gel 100');
+        expect(gel100.isBuiltIn, isTrue);
+        expect(gel100.carbsPerServing, 25.0);
+        // And the newly added user product sits alongside the built-in.
+        expect(merged.any((p) => p.id == 'user-maurtengel100'), isTrue);
+      },
+    );
   });
 
   group('products edit', () {
-    test(
-        'creates a user override with the built-in bare id when target is '
+    test('creates a user override with the built-in bare id when target is '
         'built-in', () async {
       late final int code;
       final captured = await captureOutput(() async {
@@ -357,92 +367,98 @@ void main() {
       expect(gel100.isBuiltIn, isFalse);
     });
 
-    test('updates an existing override with "Updated override" wording',
-        () async {
-      // First edit creates the override, second edit updates it in place.
-      await captureOutput(() async {
-        await runFuel(buildRunner(), [
-          'products',
-          'edit',
-          'Maurten Gel 100',
-          '--carbs',
-          '30',
-          '--glucose',
-          '17',
-          '--fructose',
-          '13',
-        ]);
-      });
+    test(
+      'updates an existing override with "Updated override" wording',
+      () async {
+        // First edit creates the override, second edit updates it in place.
+        await captureOutput(() async {
+          await runFuel(buildRunner(), [
+            'products',
+            'edit',
+            'Maurten Gel 100',
+            '--carbs',
+            '30',
+            '--glucose',
+            '17',
+            '--fructose',
+            '13',
+          ]);
+        });
 
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'edit',
-          'Maurten Gel 100',
-          '--caffeine',
-          '25',
-        ]);
-      });
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'edit',
+            'Maurten Gel 100',
+            '--caffeine',
+            '25',
+          ]);
+        });
 
-      expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
-      expect(
-        captured.stdout,
-        contains('Updated override for "Maurten Gel 100".'),
-      );
+        expect(code, kExitSuccess);
+        expect(captured.stderr, isEmpty);
+        expect(
+          captured.stdout,
+          contains('Updated override for "Maurten Gel 100".'),
+        );
 
-      final saved = await storage.loadUserProducts();
-      expect(saved, hasLength(1));
-      expect(saved.first.caffeineMg, 25.0);
-    });
+        final saved = await storage.loadUserProducts();
+        expect(saved, hasLength(1));
+        expect(saved.first.caffeineMg, 25.0);
+      },
+    );
 
-    test('rejects edit when --carbs alone leaves glucose+fructose stale',
-        () async {
-      // Maurten Gel 100 ships with 14g glucose + 11g fructose = 25g. Changing
-      // only --carbs to 30 would leave the sugars stale and violate the
-      // invariant that add enforces.
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'edit',
-          'Maurten Gel 100',
-          '--carbs',
-          '30',
-        ]);
-      });
+    test(
+      'rejects edit when --carbs alone leaves glucose+fructose stale',
+      () async {
+        // Maurten Gel 100 ships with 14g glucose + 11g fructose = 25g. Changing
+        // only --carbs to 30 would leave the sugars stale and violate the
+        // invariant that add enforces.
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'edit',
+            'Maurten Gel 100',
+            '--carbs',
+            '30',
+          ]);
+        });
 
-      expect(code, kExitUsage);
-      expect(captured.stderr, contains('glucose'));
-      expect(await storage.loadUserProducts(), isEmpty);
-    });
+        expect(code, kExitUsage);
+        expect(captured.stderr, contains('glucose'));
+        expect(await storage.loadUserProducts(), isEmpty);
+      },
+    );
 
-    test('accepts edit that only touches unrelated fields (e.g. --caffeine)',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'edit',
-          'Maurten Gel 100',
-          '--caffeine',
-          '50',
-        ]);
-      });
+    test(
+      'accepts edit that only touches unrelated fields (e.g. --caffeine)',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), [
+            'products',
+            'edit',
+            'Maurten Gel 100',
+            '--caffeine',
+            '50',
+          ]);
+        });
 
-      expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
+        expect(code, kExitSuccess);
+        expect(captured.stderr, isEmpty);
 
-      final saved = await storage.loadUserProducts();
-      expect(saved, hasLength(1));
-      expect(saved.first.id, 'maurten-gel-100');
-      expect(saved.first.caffeineMg, 50.0);
-      // Carbs and sugars stay at the built-in's values.
-      expect(saved.first.carbsPerServing, 25.0);
-      expect(saved.first.glucoseGrams, 14.0);
-      expect(saved.first.fructoseGrams, 11.0);
-    });
+        final saved = await storage.loadUserProducts();
+        expect(saved, hasLength(1));
+        expect(saved.first.id, 'maurten-gel-100');
+        expect(saved.first.caffeineMg, 50.0);
+        // Carbs and sugars stay at the built-in's values.
+        expect(saved.first.carbsPerServing, 25.0);
+        expect(saved.first.glucoseGrams, 14.0);
+        expect(saved.first.fructoseGrams, 11.0);
+      },
+    );
 
     test('updates a user product in place', () async {
       await storage.saveUserProducts([
@@ -478,25 +494,27 @@ void main() {
       expect(saved.first.carbsPerServing, 35.0);
     });
 
-    test('accepts edit that only touches --caffeine with an Updated line',
-        () async {
-      // Separate test from the earlier one so we can pin the stdout wording
-      // for the "created override on first edit" path when only --caffeine
-      // is touched.
-      final captured = await captureOutput(() async {
-        await runFuel(buildRunner(), [
-          'products',
-          'edit',
-          'Maurten Gel 100',
-          '--caffeine',
-          '50',
-        ]);
-      });
-      expect(
-        captured.stdout,
-        contains('Override created for "Maurten Gel 100".'),
-      );
-    });
+    test(
+      'accepts edit that only touches --caffeine with an Updated line',
+      () async {
+        // Separate test from the earlier one so we can pin the stdout wording
+        // for the "created override on first edit" path when only --caffeine
+        // is touched.
+        final captured = await captureOutput(() async {
+          await runFuel(buildRunner(), [
+            'products',
+            'edit',
+            'Maurten Gel 100',
+            '--caffeine',
+            '50',
+          ]);
+        });
+        expect(
+          captured.stdout,
+          contains('Override created for "Maurten Gel 100".'),
+        );
+      },
+    );
   });
 
   group('products remove', () {
@@ -589,14 +607,9 @@ void main() {
     required bool isTty,
     required String? Function() readLine,
   }) {
-    return CommandRunner<void>('fuel', 'test')
-      ..addCommand(
-        ProductsCommand(
-          storage,
-          isTty: () => isTty,
-          readLine: readLine,
-        ),
-      );
+    return CommandRunner<void>('fuel', 'test')..addCommand(
+      ProductsCommand(storage, isTty: () => isTty, readLine: readLine),
+    );
   }
 
   group('products reset', () {
@@ -632,11 +645,7 @@ void main() {
 
       late final int code;
       final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'reset',
-          '--yes',
-        ]);
+        code = await runFuel(buildRunner(), ['products', 'reset', '--yes']);
       });
 
       expect(code, kExitSuccess);
@@ -645,21 +654,19 @@ void main() {
       expect(await storage.loadUserProducts(), isEmpty);
     });
 
-    test('with --yes and zero user products reports "No user products"',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(buildRunner(), [
-          'products',
-          'reset',
-          '--yes',
-        ]);
-      });
+    test(
+      'with --yes and zero user products reports "No user products"',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(buildRunner(), ['products', 'reset', '--yes']);
+        });
 
-      expect(code, kExitSuccess);
-      expect(captured.stderr, isEmpty);
-      expect(captured.stdout, contains('No user products to clear.'));
-    });
+        expect(code, kExitSuccess);
+        expect(captured.stderr, isEmpty);
+        expect(captured.stdout, contains('No user products to clear.'));
+      },
+    );
 
     test('with TTY but stdin EOF exits kExitNoInput with --yes hint', () async {
       // bash-launched subprocesses can report hasTerminal=true even when
@@ -689,34 +696,36 @@ void main() {
       expect(await storage.loadUserProducts(), hasLength(1));
     });
 
-    test('with TTY answering "n" exits 0 with stdout "Reset cancelled."',
-        () async {
-      await storage.saveUserProducts([
-        Product(
-          id: 'user-custom',
-          name: 'Custom',
-          type: ProductType.gel,
-          carbsPerServing: 20.0,
-          glucoseGrams: 20.0,
-        ),
-      ]);
-
-      late final int code;
-      final responses = <String?>['n'];
-      final captured = await captureOutput(() async {
-        code = await runFuel(
-          buildRunnerWithStdin(
-            isTty: true,
-            readLine: () => responses.isEmpty ? null : responses.removeAt(0),
+    test(
+      'with TTY answering "n" exits 0 with stdout "Reset cancelled."',
+      () async {
+        await storage.saveUserProducts([
+          Product(
+            id: 'user-custom',
+            name: 'Custom',
+            type: ProductType.gel,
+            carbsPerServing: 20.0,
+            glucoseGrams: 20.0,
           ),
-          ['products', 'reset'],
-        );
-      });
+        ]);
 
-      expect(code, kExitSuccess);
-      expect(captured.stdout, contains('Reset cancelled.'));
-      // User products untouched.
-      expect(await storage.loadUserProducts(), hasLength(1));
-    });
+        late final int code;
+        final responses = <String?>['n'];
+        final captured = await captureOutput(() async {
+          code = await runFuel(
+            buildRunnerWithStdin(
+              isTty: true,
+              readLine: () => responses.isEmpty ? null : responses.removeAt(0),
+            ),
+            ['products', 'reset'],
+          );
+        });
+
+        expect(code, kExitSuccess);
+        expect(captured.stdout, contains('Reset cancelled.'));
+        // User products untouched.
+        expect(await storage.loadUserProducts(), hasLength(1));
+      },
+    );
   });
 }

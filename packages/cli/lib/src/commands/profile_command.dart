@@ -13,10 +13,7 @@ import '../cli/tty.dart';
 import '../prompts/interactive.dart';
 
 class ProfileCommand extends Command<void> {
-  ProfileCommand(
-    StorageAdapter storage, {
-    IsTtyProbe isTty = defaultIsTty,
-  }) {
+  ProfileCommand(StorageAdapter storage, {IsTtyProbe isTty = defaultIsTty}) {
     addSubcommand(_ProfileSetupCommand(storage, isTty: isTty));
     addSubcommand(_ProfileShowCommand(storage));
     addSubcommand(_ProfileSetCommand(storage));
@@ -65,27 +62,22 @@ UnitSystem? _parseUnits(ArgResults results) {
   return switch (raw) {
     'metric' => UnitSystem.metric,
     'imperial' => throw UsageException(
-        'Imperial units are not yet supported; use --units metric for v1.',
-        'Imperial support is planned for a future release.',
-      ),
-    _ => throw UsageException(
-        '--units must be one of: metric',
-        'Got "$raw".',
-      ),
+      'Imperial units are not yet supported; use --units metric for v1.',
+      'Imperial support is planned for a future release.',
+    ),
+    _ => throw UsageException('--units must be one of: metric', 'Got "$raw".'),
   };
 }
 
 class _ProfileSetupCommand extends Command<void> {
   _ProfileSetupCommand(this._storage, {required IsTtyProbe isTty})
-      : _isTty = isTty {
+    : _isTty = isTty {
     argParser
-      ..addOption(
-        'tolerance',
-        help: 'Gut tolerance in g/hr (1–200).',
-      )
+      ..addOption('tolerance', help: 'Gut tolerance in g/hr (1–200).')
       ..addOption(
         'units',
-        help: "Unit system for body weight. Only 'metric' is supported "
+        help:
+            "Unit system for body weight. Only 'metric' is supported "
             'in v1.',
       )
       ..addOption(

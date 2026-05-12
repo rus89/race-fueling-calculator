@@ -31,16 +31,18 @@ void main() {
       expect(captured.stderr, isEmpty);
     });
 
-    test('returns kExitUsage for an unknown command and writes to stderr',
-        () async {
-      late final int code;
-      final captured = await captureOutput(() async {
-        code = await runFuel(_buildRunner(), ['nonsense-command']);
-      });
+    test(
+      'returns kExitUsage for an unknown command and writes to stderr',
+      () async {
+        late final int code;
+        final captured = await captureOutput(() async {
+          code = await runFuel(_buildRunner(), ['nonsense-command']);
+        });
 
-      expect(code, kExitUsage);
-      expect(captured.stderr, contains('nonsense-command'));
-    });
+        expect(code, kExitUsage);
+        expect(captured.stderr, contains('nonsense-command'));
+      },
+    );
 
     test('returns kExitSuccess for no args', () async {
       late final int code;
