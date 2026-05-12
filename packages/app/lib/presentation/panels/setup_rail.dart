@@ -101,10 +101,13 @@ class _RailBody extends ConsumerWidget {
             const _SectionLabel(label: 'RACE'),
             BonkFieldShell(
               label: 'Name',
+              // No labelText: BonkFieldShell renders the canonical label
+              // ("Name") above the input AND exposes it via Semantics. A
+              // floating labelText here would duplicate "Race name" inside
+              // the OutlineInputBorder and truncate on narrow rail widths.
               child: BonkTextInput(
                 key: const Key('setup.race_name'),
                 value: state.raceConfig.name,
-                labelText: 'Race name',
                 maxLength: 100,
                 onChanged: (v) =>
                     notifier.updateRaceConfig((c) => c.copyWith(name: v)),
@@ -331,7 +334,6 @@ class _DurationRow extends ConsumerWidget {
               key: const Key('setup.duration_hours'),
               value: '$h',
               monoFont: true,
-              labelText: 'Hours',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (v) {
@@ -358,7 +360,6 @@ class _DurationRow extends ConsumerWidget {
               key: const Key('setup.duration_minutes'),
               value: '$m',
               monoFont: true,
-              labelText: 'Minutes',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (v) {
@@ -444,7 +445,6 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
                     key: const Key('setup.body_mass'),
                     value: massStr,
                     monoFont: true,
-                    labelText: 'Body mass ($massUnit)',
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -484,7 +484,6 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
                     key: const Key('setup.distance_km'),
                     value: distDisplay,
                     monoFont: true,
-                    labelText: 'Total distance ($distUnit)',
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),

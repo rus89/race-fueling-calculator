@@ -30,6 +30,12 @@ class PlannerPage extends StatelessWidget {
                     return const _MobileBody();
                   }
                   return Row(
+                    // Stretch panels to fill the column's vertical extent.
+                    // Default (CrossAxisAlignment.center) leaves shorter
+                    // content (e.g. the diagnostics rail) vertically centered
+                    // against the taller canvas, producing a visible "rail
+                    // sitting in the middle of the page" misalignment.
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (bp.showsSetupRail)
                         SizedBox(

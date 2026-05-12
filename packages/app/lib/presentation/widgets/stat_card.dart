@@ -75,8 +75,17 @@ class StatCard extends StatelessWidget {
               bottom: const BorderSide(color: BonkTokens.rule),
             ),
           ),
+          // mainAxisAlignment.spaceBetween balances the card visually when
+          // its container is stretched taller than its content — in the
+          // desktop stat-grid the hero card (statHero typography) drives the
+          // row height via IntrinsicHeight, and without spaceBetween the
+          // non-hero cards' content sits at the top with visible whitespace
+          // underneath. In the <880 px Wrap layout the constraint is
+          // unbounded so Column collapses to content and spaceBetween is a
+          // no-op — both layouts read uniformly.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
@@ -93,31 +102,36 @@ class StatCard extends StatelessWidget {
                   Expanded(child: Text(label, style: BonkType.sectionLabel)),
                 ],
               ),
-              const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  text: value,
-                  style: isHero ? BonkType.statHero : BonkType.statValue,
-                  children: [
-                    if (unit != null && unit!.isNotEmpty)
-                      TextSpan(
-                        text: ' $unit',
-                        style: BonkType.mono(
-                          size: isHero ? 14 : 11,
-                        ).copyWith(color: BonkTokens.ink3),
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      text: value,
+                      style: isHero ? BonkType.statHero : BonkType.statValue,
+                      children: [
+                        if (unit != null && unit!.isNotEmpty)
+                          TextSpan(
+                            text: ' $unit',
+                            style: BonkType.mono(
+                              size: isHero ? 14 : 11,
+                            ).copyWith(color: BonkTokens.ink3),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (sub != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      sub!,
+                      style: BonkType.mono(
+                        size: 10,
+                      ).copyWith(color: BonkTokens.ink3),
+                    ),
                   ],
-                ),
+                ],
               ),
-              if (sub != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  sub!,
-                  style: BonkType.mono(
-                    size: 10,
-                  ).copyWith(color: BonkTokens.ink3),
-                ),
-              ],
             ],
           ),
         ),
