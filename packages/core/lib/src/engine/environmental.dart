@@ -40,7 +40,8 @@ double _simpleHeatIndexF(double tempF, double humidity) =>
 /// NWS adjustments for low-humidity (RH<13%) and high-humidity (RH>85%)
 /// regimes that bring the regression in line with Steadman's table.
 double _rothfuszHeatIndexF(double tempF, double humidity) {
-  final hi = -42.379 +
+  final hi =
+      -42.379 +
       2.04901523 * tempF +
       10.14333127 * humidity -
       0.22475541 * tempF * humidity -
@@ -95,7 +96,8 @@ double _heatIndexF(double tempC, double humidity) {
 /// Advisories are exclusive: only the highest active band returns text,
 /// to avoid contradictory guidance.
 (double waterMl, List<String> advisories) _applyHeatThresholds(
-    double hiCelsius) {
+  double hiCelsius,
+) {
   if (hiCelsius < 27) return (0.0, []);
 
   if (hiCelsius >= 54) {
@@ -137,7 +139,7 @@ double _heatIndexF(double tempC, double humidity) {
     50.0 * t,
     [
       'Caution: possible fatigue with prolonged exposure. Extra water '
-          'recommended when consuming gels.'
+          'recommended when consuming gels.',
     ],
   );
 }
@@ -188,8 +190,10 @@ EnvironmentalAdjustments calculateAdjustments({
     final pct = (boost * 100).toStringAsFixed(1);
     final m = altitudeM.round();
     if (altitudeM >= 5500) {
-      advisories.add('$label (${m}m), capped at +20%: '
-          'consult a physiologist for race-specific guidance');
+      advisories.add(
+        '$label (${m}m), capped at +20%: '
+        'consult a physiologist for race-specific guidance',
+      );
     } else {
       advisories.add('$label (${m}m): +$pct% carb target');
     }
@@ -212,7 +216,8 @@ EnvironmentalAdjustments calculateAdjustments({
 
     if (heatAdvisories.isNotEmpty) {
       advisories.add(
-          'Heat index: ${hiCelsius.toStringAsFixed(1)}°C (${hiF.toStringAsFixed(0)}°F)');
+        'Heat index: ${hiCelsius.toStringAsFixed(1)}°C (${hiF.toStringAsFixed(0)}°F)',
+      );
     }
   }
 

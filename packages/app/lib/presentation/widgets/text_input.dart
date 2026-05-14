@@ -40,11 +40,17 @@ class _BonkTextInputState extends State<BonkTextInput> {
   late final TextEditingController _ctrl = TextEditingController(
     text: widget.value,
   );
+  late final FocusNode _focusNode = FocusNode();
 
   @override
   void didUpdateWidget(BonkTextInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value && _ctrl.text != widget.value) {
+      // Cursor-preserving in-focus guard: while the user is typing, an
+      // upstream state echo that rounds the typed value (e.g. "158.7" lb →
+      // 71.989 kg stored → "159" lb rendered) must not clobber the
+      // in-progress text. Resume syncing once the field loses focus.
+      if (_focusNode.hasFocus) return;
       final oldSel = _ctrl.selection;
       _ctrl.value = TextEditingValue(
         text: widget.value,
@@ -57,6 +63,7 @@ class _BonkTextInputState extends State<BonkTextInput> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -65,6 +72,7 @@ class _BonkTextInputState extends State<BonkTextInput> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _ctrl,
+      focusNode: _focusNode,
       onChanged: widget.onChanged,
       keyboardType: widget.keyboardType,
       maxLength: widget.maxLength,

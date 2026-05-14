@@ -140,29 +140,33 @@ void main() {
       );
     });
 
-    test('fromJson throws FormatException when gutToleranceGPerHr is negative',
-        () {
-      expect(
-        () => AthleteProfile.fromJson(const {
-          'gutToleranceGPerHr': -10,
-          'unitSystem': 'metric',
-          'schema_version': 1,
-        }),
-        throwsA(isA<FormatException>()),
-      );
-    });
+    test(
+      'fromJson throws FormatException when gutToleranceGPerHr is negative',
+      () {
+        expect(
+          () => AthleteProfile.fromJson(const {
+            'gutToleranceGPerHr': -10,
+            'unitSystem': 'metric',
+            'schema_version': 1,
+          }),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
-    test('fromJson throws FormatException when gutToleranceGPerHr exceeds 200',
-        () {
-      expect(
-        () => AthleteProfile.fromJson(const {
-          'gutToleranceGPerHr': 250,
-          'unitSystem': 'metric',
-          'schema_version': 1,
-        }),
-        throwsA(isA<FormatException>()),
-      );
-    });
+    test(
+      'fromJson throws FormatException when gutToleranceGPerHr exceeds 200',
+      () {
+        expect(
+          () => AthleteProfile.fromJson(const {
+            'gutToleranceGPerHr': 250,
+            'unitSystem': 'metric',
+            'schema_version': 1,
+          }),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('fromJson throws FormatException when bodyWeightKg is 0', () {
       expect(
@@ -175,6 +179,57 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('fromJson throws FormatException when bodyWeightKg is NaN', () {
+      // F1d MEDIUM#3: NaN bypassed the `<= 0` guard because `NaN <= 0` is
+      // false. The finite check is the canonical defense.
+      expect(
+        () => AthleteProfile.fromJson({
+          'gutToleranceGPerHr': 60,
+          'unitSystem': 'metric',
+          'bodyWeightKg': double.nan,
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException when bodyWeightKg is Infinity', () {
+      expect(
+        () => AthleteProfile.fromJson({
+          'gutToleranceGPerHr': 60,
+          'unitSystem': 'metric',
+          'bodyWeightKg': double.infinity,
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException when gutToleranceGPerHr is NaN', () {
+      expect(
+        () => AthleteProfile.fromJson({
+          'gutToleranceGPerHr': double.nan,
+          'unitSystem': 'metric',
+          'schema_version': 1,
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test(
+      'fromJson throws FormatException when gutToleranceGPerHr is Infinity',
+      () {
+        expect(
+          () => AthleteProfile.fromJson({
+            'gutToleranceGPerHr': double.infinity,
+            'unitSystem': 'metric',
+            'schema_version': 1,
+          }),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('fromJson accepts valid data and round-trips', () {
       final profile = AthleteProfile(
@@ -208,8 +263,10 @@ void main() {
         gutToleranceGPerHr: 60.0,
         unitSystem: UnitSystem.metric,
       );
-      expect(profile.copyWith(unitSystem: UnitSystem.imperial).unitSystem,
-          UnitSystem.imperial);
+      expect(
+        profile.copyWith(unitSystem: UnitSystem.imperial).unitSystem,
+        UnitSystem.imperial,
+      );
     });
   });
 }

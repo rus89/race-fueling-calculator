@@ -27,46 +27,31 @@ void main() {
     test('2000m midpoint of moderate band: +2.5% carbs', () {
       final adj = calculateAdjustments(altitudeM: 2000);
       expect(adj.carbMultiplier, closeTo(1.025, 1e-9));
-      expect(
-        adj.advisories.any((a) => a.contains('Moderate altitude')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('Moderate altitude')), true);
     });
 
     test('2500m at high-altitude band start: +5% carbs', () {
       final adj = calculateAdjustments(altitudeM: 2500);
       expect(adj.carbMultiplier, closeTo(1.05, 1e-9));
-      expect(
-        adj.advisories.any((a) => a.contains('High altitude')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('High altitude')), true);
     });
 
     test('3000m midpoint of high band: +7.5% carbs', () {
       final adj = calculateAdjustments(altitudeM: 3000);
       expect(adj.carbMultiplier, closeTo(1.075, 1e-9));
-      expect(
-        adj.advisories.any((a) => a.contains('High altitude')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('High altitude')), true);
     });
 
     test('4000m midpoint of very-high band: +12.5% carbs', () {
       final adj = calculateAdjustments(altitudeM: 4000);
       expect(adj.carbMultiplier, closeTo(1.125, 1e-9));
-      expect(
-        adj.advisories.any((a) => a.contains('Very high altitude')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('Very high altitude')), true);
     });
 
     test('5000m midpoint of extreme band: +17.5% carbs', () {
       final adj = calculateAdjustments(altitudeM: 5000);
       expect(adj.carbMultiplier, closeTo(1.175, 1e-9));
-      expect(
-        adj.advisories.any((a) => a.contains('Extreme altitude')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('Extreme altitude')), true);
     });
 
     test('6000m above cap: +20% carbs with physiologist advisory', () {
@@ -115,25 +100,16 @@ void main() {
       final adj = calculateAdjustments(temperature: 27, humidity: 45);
       expect(adj.additionalWaterMlPerSlot, greaterThanOrEqualTo(0));
       expect(adj.additionalWaterMlPerSlot, lessThan(50));
-      expect(
-        adj.advisories.any((a) => a.contains('Caution')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('Caution')), true);
     });
 
     test('Extreme Caution band advisory exclusive (no Caution prefix)', () {
       // 32°C / 50% RH → HI ≈ 34°C — Extreme Caution band.
       final adj = calculateAdjustments(temperature: 32, humidity: 50);
-      expect(
-        adj.advisories.any((a) => a.startsWith('Extreme Caution:')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.startsWith('Extreme Caution:')), true);
       // Lower-band advisory (begins with 'Caution:') must NOT appear.
       // Use startsWith to avoid the 'Extreme Caution:' substring overlap.
-      expect(
-        adj.advisories.any((a) => a.startsWith('Caution:')),
-        false,
-      );
+      expect(adj.advisories.any((a) => a.startsWith('Caution:')), false);
     });
 
     test('Danger band (33°C/85%) sits between 100 and 150 ml/slot', () {
@@ -142,37 +118,19 @@ void main() {
       final adj = calculateAdjustments(temperature: 33, humidity: 85);
       expect(adj.additionalWaterMlPerSlot, greaterThan(100));
       expect(adj.additionalWaterMlPerSlot, lessThan(150));
-      expect(
-        adj.advisories.any((a) => a.contains('Danger:')),
-        true,
-      );
-      expect(
-        adj.advisories.any((a) => a.contains('Caution')),
-        false,
-      );
+      expect(adj.advisories.any((a) => a.contains('Danger:')), true);
+      expect(adj.advisories.any((a) => a.contains('Caution')), false);
     });
 
     test('Extreme Danger zone caps water at 150 ml/slot', () {
       // 40°C (104°F), 85% RH → Rothfusz HI well above 54°C cutoff.
       final adj = calculateAdjustments(temperature: 40, humidity: 85);
       expect(adj.additionalWaterMlPerSlot, 150.0);
-      expect(
-        adj.advisories.any((a) => a.contains('EXTREME DANGER')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('EXTREME DANGER')), true);
       // Lower-band advisory phrases must NOT appear at Extreme Danger.
-      expect(
-        adj.advisories.any((a) => a.contains('Caution:')),
-        false,
-      );
-      expect(
-        adj.advisories.any((a) => a.contains('Extreme Caution')),
-        false,
-      );
-      expect(
-        adj.advisories.any((a) => a.contains('Danger:')),
-        false,
-      );
+      expect(adj.advisories.any((a) => a.contains('Caution:')), false);
+      expect(adj.advisories.any((a) => a.contains('Extreme Caution')), false);
+      expect(adj.advisories.any((a) => a.contains('Danger:')), false);
     });
 
     test('extreme heat gives strongest advisory', () {
@@ -192,30 +150,28 @@ void main() {
     test('40°C/90% RH triggers Extreme Danger and caps water', () {
       final adj = calculateAdjustments(temperature: 40, humidity: 90);
       expect(adj.additionalWaterMlPerSlot, 150.0);
-      expect(
-        adj.advisories.any((a) => a.contains('EXTREME DANGER')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('EXTREME DANGER')), true);
     });
 
-    test('dry heat produces less water than humid heat at same temperature',
-        () {
-      // 38°C/20% vs 38°C/80% — humid should add at least as much water.
-      final dryAdj = calculateAdjustments(temperature: 38, humidity: 20);
-      final humidAdj = calculateAdjustments(temperature: 38, humidity: 80);
-      expect(dryAdj.additionalWaterMlPerSlot,
-          lessThanOrEqualTo(humidAdj.additionalWaterMlPerSlot));
-    });
+    test(
+      'dry heat produces less water than humid heat at same temperature',
+      () {
+        // 38°C/20% vs 38°C/80% — humid should add at least as much water.
+        final dryAdj = calculateAdjustments(temperature: 38, humidity: 20);
+        final humidAdj = calculateAdjustments(temperature: 38, humidity: 80);
+        expect(
+          dryAdj.additionalWaterMlPerSlot,
+          lessThanOrEqualTo(humidAdj.additionalWaterMlPerSlot),
+        );
+      },
+    );
 
     test('low humidity Adjustment A still subtracts from HI', () {
       // 32.2°C (90°F), 10% RH → NWS Adjustment A applies (RH<13%, 80–112°F).
       // The adjustment lowers HI vs the bare polynomial output.
       final adj = calculateAdjustments(temperature: 32.2, humidity: 10);
       expect(adj.advisories, isNotEmpty);
-      expect(
-        adj.advisories.any((a) => a.contains('Heat index')),
-        true,
-      );
+      expect(adj.advisories.any((a) => a.contains('Heat index')), true);
     });
 
     test('heat does not change carb multiplier (heat is hydration-only)', () {
@@ -233,8 +189,9 @@ void main() {
 
     test('advisory includes heat index value', () {
       final adj = calculateAdjustments(temperature: 35, humidity: 60);
-      final hasIndex = adj.advisories
-          .any((a) => a.contains('Heat index') && a.contains('°C'));
+      final hasIndex = adj.advisories.any(
+        (a) => a.contains('Heat index') && a.contains('°C'),
+      );
       expect(hasIndex, true);
     });
 
@@ -246,14 +203,8 @@ void main() {
       );
       expect(adj.carbMultiplier, greaterThan(1.0));
       expect(adj.additionalWaterMlPerSlot, greaterThan(0));
-      expect(
-        adj.advisories.where((a) => a.contains('altitude')).length,
-        1,
-      );
-      expect(
-        adj.advisories.where((a) => a.contains('Heat index')).length,
-        1,
-      );
+      expect(adj.advisories.where((a) => a.contains('altitude')).length, 1);
+      expect(adj.advisories.where((a) => a.contains('Heat index')).length, 1);
     });
 
     test('cool conditions produce no heat advisories', () {
@@ -279,11 +230,17 @@ void main() {
         (a) => a.contains('Heat index'),
         orElse: () => '',
       );
-      expect(summary, isNotEmpty,
-          reason: 'expected a "Heat index: …°C (…°F)" summary advisory');
+      expect(
+        summary,
+        isNotEmpty,
+        reason: 'expected a "Heat index: …°C (…°F)" summary advisory',
+      );
       final match = RegExp(r'Heat index:\s*([\d.]+)°C').firstMatch(summary);
-      expect(match, isNotNull,
-          reason: 'could not parse °C from advisory: $summary');
+      expect(
+        match,
+        isNotNull,
+        reason: 'could not parse °C from advisory: $summary',
+      );
       final hiCelsius = double.parse(match!.group(1)!);
       expect(hiCelsius, closeTo(34.4, 0.2));
     });
@@ -302,13 +259,19 @@ void main() {
         (a) => a.contains('Heat index'),
         orElse: () => '',
       );
-      expect(summary, isNotEmpty,
-          reason: 'expected a "Heat index: …°C (…°F)" summary advisory');
+      expect(
+        summary,
+        isNotEmpty,
+        reason: 'expected a "Heat index: …°C (…°F)" summary advisory',
+      );
 
       // Parse the °C value from a string like 'Heat index: 34.0°C (93°F)'.
       final match = RegExp(r'Heat index:\s*([\d.]+)°C').firstMatch(summary);
-      expect(match, isNotNull,
-          reason: 'could not parse °C from advisory: $summary');
+      expect(
+        match,
+        isNotNull,
+        reason: 'could not parse °C from advisory: $summary',
+      );
       final hiCelsius = double.parse(match!.group(1)!);
       expect(hiCelsius, closeTo(34.0, 0.1));
     });

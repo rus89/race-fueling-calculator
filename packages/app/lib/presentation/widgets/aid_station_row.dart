@@ -77,33 +77,44 @@ class AidStationRow extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
+              // No labelText: the active BonkSegControl segment above
+              // ("Time" / "Distance") AND the unit suffix to the right
+              // ("min" / "km") together name the input. A floating
+              // labelText would be a third redundant signal and visually
+              // truncates to ellipsis inside the 80 px input width.
+              // Semantics carries the mode word so AT users still get a
+              // descriptive announcement.
               SizedBox(
                 width: 80,
-                child: BonkTextInput(
-                  value: markValue,
-                  monoFont: true,
-                  labelText: _isDistance ? 'Distance' : 'Time',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: _isDistance
-                      ? [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d*'),
-                          ),
-                        ]
-                      : [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (v) {
-                    if (_isDistance) {
-                      final km = double.tryParse(v);
-                      if (km != null) {
-                        onChanged(station.copyWith(distanceKm: km));
+                child: Semantics(
+                  label: _isDistance
+                      ? 'Aid station distance in km'
+                      : 'Aid station time in minutes',
+                  child: BonkTextInput(
+                    value: markValue,
+                    monoFont: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: _isDistance
+                        ? [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d*'),
+                            ),
+                          ]
+                        : [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (v) {
+                      if (_isDistance) {
+                        final km = double.tryParse(v);
+                        if (km != null) {
+                          onChanged(station.copyWith(distanceKm: km));
+                        }
+                      } else {
+                        final m = int.tryParse(v);
+                        if (m != null) {
+                          onChanged(station.copyWith(timeMinutes: m));
+                        }
                       }
-                    } else {
-                      final m = int.tryParse(v);
-                      if (m != null) {
-                        onChanged(station.copyWith(timeMinutes: m));
-                      }
-                    }
-                  },
+                    },
+                  ),
                 ),
               ),
               const SizedBox(width: 6),

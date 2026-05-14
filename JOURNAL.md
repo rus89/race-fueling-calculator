@@ -1294,4 +1294,62 @@ Each task ran a four-reviewer parallel pass (architecture / test coverage / a11y
 
 9 commits net on `feat/v1.1-phase-e-diagnostics-rail`. All four reviewers signed off across all four tasks (E1–E4), with two HIGH-severity findings (E2 hot threshold, E2 NaN bypass) and two MEDIUM-severity findings (E1 OK-band contrast, E4 `_AllClearCard` dot contrast) addressed in the convergent fix commits before moving to the next task. DiagnosticsRail + RatioBar + CaffeineMeter + FlagCard are fully implemented and tested but **not yet wired into `PlannerPage`** — F1 (Phase F assembly) does the three-pane layout. 242 app + 266 core + 279 cli tests at branch close (full suite verified fresh: `flutter test` 242/0/0; `flutter analyze` 0 issues).
 
+## F1c review fix-up — 2026-05-11
+
+The four-reviewer pass on F1c surfaced two HIGHs and several MEDIUMs/LOWs that the implementer either missed or rejected. Addressed:
+
+- **HIGH#1** Empty-state Reset button removed — it destructively overwrote in-progress work whenever the user temporarily cleared duration. Replaced with explanatory copy pointing at the Setup rail; `_EmptyState` is back to `StatelessWidget`. `PlannerNotifier.resetToSeed()` stays public for a future Start-over affordance (doc-commented), no v1.1 UI consumer.
+- **HIGH#2** TimelineRow aid-station ellipsis now has direct test coverage at 320 px width × 6-item refill list.
+- **MED#4** `BonkBreakpoint.usesEndDrawerForDiagnostics` getter added (`!showsDiagnosticsRail && this != mobile`). Wired into Topbar `_ChecksButton` and pinned by a 5-tier table in `breakpoints_test`. The endDrawer registration on PlannerPage stays unconditional — the button is the only UI affordance to open it, and it's gated.
+- **MED#5/#6** 880-px boundary tests + 2-up Wrap shape assertions (six equal-width SizedBox children) on `_StatsGrid`. Tests address the boundary by inner-pane width (936/935 surface → 880/879 inner) since `LayoutBuilder` sits inside the canvas's 28+28 padding.
+- **MED#8** Topbar TextScaler-200% overflow at 1000 px width fixed by replacing the post-brand `Spacer` with `Expanded(Row(mainAxisAlignment: end))` and wrapping each text node in `Flexible(maxLines: 1, overflow: clip)`. Pinned at `Size(1000, 200)` × 2× scaler.
+- **LOW#9** Magic `880` replaced by `_statsWrapBelow` const with canvas-local doc-comment.
+- **LOW#10** `_emit` vs `_emitForce` invariants documented as inline doc-comments.
+- **LOW#11** Stable `Key('setup-rail.outer')` / `Key('diagnostics-rail.outer')` on the rule-painting Containers; the `showSideRule` tests no longer depend on `find.descendant(...).first` ordering.
+- **LOW#12** `resetToSeed` saveCount delta captured before + after the call so the assertion is robust to chained boot saves.
+- **LOW#14** Mobile-tab integration test verifies side-rule suppression on BOTH Setup and Diagnostics tabs via the new outer Keys.
+- **LOW#15** Parallel `Size(1000, 900)` Checks-drawer test added.
+- **LOW#16** `_ChecksButton` outer Semantics replaced with `Tooltip` — supplies the AT label via `message` and adds a pointer-hover affordance; Material `TextButton.icon` already exposes button semantics.
+- **LOW#17** `debugPrint` in `plan_canvas.dart` `_ErrorFallback` guarded with `kDebugMode` (matches planner_notifier pattern).
+
+Deferred (documented for v1.2): the `showSideRule` invert refactor (parent-paints-divider) and the FlagCard "ADVISORY" / banner "WARNING" severity-vocabulary unification. F1d (sentinel copyWith, imperial) and F2 (debounce) untouched.
+
+`flutter test` 288/0/0; `dart analyze` clean. Test count delta +9 (279 → 288).
+
+## 2026-05-11 — v1.1 Phase F: Assembly + auto-save + recovery + responsive
+
+Phase F closed all six implementation tasks on `feat/v1.1-phase-f-assembly` (F1 three-pane wiring, F1b recovery banner with typed errors, F1c responsive collapse + Checks endDrawer + empty-plan CTA, F1d sentinel-aware distance clear + imperial unit conversion, F2 debounced auto-save, F4 integration smoke test). F3 visual goldens deferred to v1.2 — the `setUpGoogleFontsForTests` test convention disables font fetching and stubs the asset manifest, which fundamentally conflicts with golden capture; the v1.2 retrofit needs Inter Tight + JetBrains Mono bundled as real assets and the manifest stub updated. F6 release tag is pending Milan's merge of this branch onto main.
+
+### Key user-visible features
+
+- Three-pane responsive layout — Setup rail (left), Plan canvas (centre), Diagnostics rail (right) at desktop widths; mobile (<880 px) collapses to tabs with the Diagnostics rail behind a Topbar "Checks" endDrawer button at the noDiagnostics tier.
+- Save indicator wired into the Topbar with stable `liveRegion: true` Semantics so AT users hear all transitions (Saving / Saved / Save failed).
+- Recovery banner with typed-error UI: `PlanStorageException` gets Retry + Discard buttons; engine error gets Retry only; save failure gets Retry save.
+- Imperial unit toggle — body mass and distance display/edit in lb / mi when `AthleteProfile.unitSystem == imperial`, converting at the input boundary; the visible field label embeds the unit so screen readers announce "(lb)" or "(kg)".
+- Debounced auto-save with a 500 ms quiescent window; explicit recovery flows (`discardCorruptedAndUseSeed`, `retrySave`, `resetToSeed`) flush immediately via `_emitForce(flushNow: true)`.
+- Empty-plan CTA replaces the destructive "Reset" button — points users at the Setup rail/tab to set duration instead of overwriting their in-progress work.
+
+### Architectural milestones
+
+- **Sentinel copyWith pattern** on `RaceConfig` for `distanceKm` / `intervalKm` only — a dedicated `_Unset` sentinel object distinguishes "no change" from "clear to null" so the user can empty the distance field. Other nullable fields keep null-as-no-change semantics, documented in the model.
+- **Sticky-failed save semantics** via `SaveStatusController.beginSave({retrying = false})` — edits during a `Failed` state no longer clobber the failure signal; only an explicit retry transitions through `InFlight`. The in-flight counter ensures `markSuccess` only flips to `Idle` after the chain has fully drained.
+- **AT-stable liveRegion via stable wrapper** — `BonkRecoveryBanner` and the save indicator wrap their content in a stable `Semantics(liveRegion: true, container: true)` Widget that survives child rebuilds, so AT announces banner insertion / save-state transitions without re-announcing on every internal update.
+- **Focus-preserving `BonkTextInput`** — the cursor-preserving `didUpdateWidget` guard now also skips overwrite while the field is focused, so external state diffs (e.g. an unrelated auto-save echo) can't reset the user's selection mid-typing.
+- **NaN/Infinity guards in core + UI** — `AthleteProfile.fromJson` rejects non-finite body mass and tolerance; PlannerPage's `totalCarbs.round()` interpolation and the negative-duration code path are both guarded. textScaler 200% support landed via `BoxConstraints(minHeight: 44)` on Topbar action targets.
+- **New public surface in `lib/`:** `loadErrorProvider` (un-unwrapped error intent for the banner branching), `PlannerNotifier.retrySave()`, `PlannerNotifier.resetToSeed()` (no v1.1 UI consumer; reserved for v1.2 Start-over), `BonkBreakpoint.usesEndDrawerForDiagnostics`, `Debouncer<T>` (in `lib/data/`), `SaveStatusController.beginSave({retrying})`, `packages/app/lib/presentation/util/units.dart` with `kgToLb` / `lbToKg` / `kmToMi` / `miToKm`.
+
+### Deferred to v1.2
+
+- **F3 visual goldens** — bundle Inter Tight + JetBrains Mono as real assets, update the `setUpGoogleFontsForTests` manifest stub, then capture goldens for the three-pane + mobile-tabs + recovery-banner snapshots.
+- **Severity-vocabulary unification** — `FlagCard` says ADVISORY while the recovery banner says WARNING for analogous severity. Pick one vocabulary and propagate.
+- **`showSideRule` shape refactor** — invert the current child-paints-side-rule pattern to parent-paints-divider so mobile tabs don't need to pass `showSideRule: false`.
+- **`AidStation.copyWith` sentinel alignment** — same pattern as `RaceConfig.copyWith` for `distanceKm` / `timeMinutes` toggle (currently the toggle clears the active value rather than converting; user re-types fresh, which is fine for v1.1).
+- **beforeunload tab-close warning** — guard against losing unsaved edits when the user closes the tab during an in-flight save.
+- **fake_async migration** — debounce tests currently use real timers (`Future.delayed`); a fake_async refactor would cut test runtime materially.
+- **Distance-clear undo affordance** — clearing the distance field via the sentinel copyWith is now possible but has no undo; either an explicit Clear button with a toast or a Cmd-Z hook would close the loop.
+
+### Branch close
+
+13 commits net on `feat/v1.1-phase-f-assembly`. 326 app + 272 core + 279 cli = 877 tests total. `dart analyze` clean across the workspace. F4's integration test (`packages/app/integration_test/planner_flow_test.dart`) compiles cleanly but isn't runnable in this env (web-only platform target); it loads the seed plan, drives the carb target above the gut-tolerance ceiling, and asserts the validator warning surfaces in the Diagnostics rail.
+
 

@@ -7,17 +7,19 @@ import 'package:race_fueling_core/src/models/product.dart';
 void main() {
   final builtIn = [
     Product(
-        id: 'gel-1',
-        name: 'Built-in Gel',
-        type: ProductType.gel,
-        carbsPerServing: 25,
-        isBuiltIn: true),
+      id: 'gel-1',
+      name: 'Built-in Gel',
+      type: ProductType.gel,
+      carbsPerServing: 25,
+      isBuiltIn: true,
+    ),
     Product(
-        id: 'drink-1',
-        name: 'Built-in Drink',
-        type: ProductType.liquid,
-        carbsPerServing: 40,
-        isBuiltIn: true),
+      id: 'drink-1',
+      name: 'Built-in Drink',
+      type: ProductType.liquid,
+      carbsPerServing: 40,
+      isBuiltIn: true,
+    ),
   ];
 
   group('mergeProducts', () {
@@ -30,10 +32,11 @@ void main() {
     test('user product with same id replaces built-in', () {
       final userProducts = [
         Product(
-            id: 'gel-1',
-            name: 'My Custom Gel',
-            type: ProductType.gel,
-            carbsPerServing: 30),
+          id: 'gel-1',
+          name: 'My Custom Gel',
+          type: ProductType.gel,
+          carbsPerServing: 30,
+        ),
       ];
       final merged = mergeProducts(builtIn, userProducts);
       expect(merged.length, 2);
@@ -45,10 +48,11 @@ void main() {
     test('user product with new id is added', () {
       final userProducts = [
         Product(
-            id: 'custom-1',
-            name: 'My Bar',
-            type: ProductType.solid,
-            carbsPerServing: 35),
+          id: 'custom-1',
+          name: 'My Bar',
+          type: ProductType.solid,
+          carbsPerServing: 35,
+        ),
       ];
       final merged = mergeProducts(builtIn, userProducts);
       expect(merged.length, 3);
@@ -59,10 +63,11 @@ void main() {
       // built-ins when a user product reuses the built-in's exact id.
       final userProducts = [
         Product(
-            id: 'user-gel-1',
-            name: 'Unrelated user product',
-            type: ProductType.gel,
-            carbsPerServing: 30),
+          id: 'user-gel-1',
+          name: 'Unrelated user product',
+          type: ProductType.gel,
+          carbsPerServing: 30,
+        ),
       ];
       final merged = mergeProducts(builtIn, userProducts);
       expect(merged.length, 3);

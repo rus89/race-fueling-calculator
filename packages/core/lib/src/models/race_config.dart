@@ -6,6 +6,18 @@ import 'duration_converter.dart';
 
 part 'race_config.g.dart';
 
+/// Sentinel marker for [RaceConfig.copyWith] to distinguish "argument omitted"
+/// from "argument explicitly passed as null".
+///
+/// Scope rule: applied ONLY to nullable fields that the v1.1 UI needs to clear
+/// via a text input (currently `distanceKm` and `intervalKm`). Other nullable
+/// fields (`intervalMinutes`, `customCurve`, `temperature`, `humidity`,
+/// `altitudeM`, `discipline`) retain the standard null-as-no-change pattern
+/// because v1.1 has no "clear this field" affordance for them. If v1.2 adds
+/// such an affordance, promote the affected field to the sentinel pattern; do
+/// not generalize preemptively.
+const Object _kRaceConfigUnset = Object();
+
 enum TimelineMode {
   @JsonValue('time_based')
   timeBased,
@@ -69,11 +81,12 @@ class AidStation extends Equatable {
 
   /// Returns a copy with the given fields replaced.
   ///
-  /// Null-as-no-change semantics (mirrors [RaceConfig.copyWith]). Callers
-  /// that need to clear `timeMinutes` or `distanceKm` (for example to drop
-  /// the inactive unit when toggling between time and distance) must
-  /// construct a fresh [AidStation] directly — this method cannot express
-  /// "set to null".
+  /// Null-as-no-change semantics — intentionally diverges from
+  /// [RaceConfig.copyWith]'s sentinel pattern. The `AidStationRow` widget at
+  /// `packages/app/lib/presentation/widgets/aid_station_row.dart` constructs a
+  /// fresh [AidStation] rather than using `copyWith` to clear fields. If a
+  /// future UI affordance needs to clear `distanceKm` or `timeMinutes` via
+  /// `copyWith`, promote those fields to the sentinel pattern at that point.
   AidStation copyWith({
     int? timeMinutes,
     double? distanceKm,
@@ -155,13 +168,19 @@ class RaceConfig extends Equatable {
 
   Map<String, dynamic> toJson() => _$RaceConfigToJson(this);
 
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// `distanceKm` and `intervalKm` use a sentinel-aware pattern: omitting the
+  /// argument keeps the existing value; passing `null` explicitly clears the
+  /// field. All other nullable fields use the standard null-as-no-change
+  /// pattern — they cannot be cleared via `copyWith`.
   RaceConfig copyWith({
     String? name,
     Duration? duration,
-    double? distanceKm,
+    Object? distanceKm = _kRaceConfigUnset,
     TimelineMode? timelineMode,
     int? intervalMinutes,
-    double? intervalKm,
+    Object? intervalKm = _kRaceConfigUnset,
     double? targetCarbsGPerHr,
     Strategy? strategy,
     List<CurveSegment>? customCurve,
@@ -175,10 +194,14 @@ class RaceConfig extends Equatable {
     return RaceConfig(
       name: name ?? this.name,
       duration: duration ?? this.duration,
-      distanceKm: distanceKm ?? this.distanceKm,
+      distanceKm: identical(distanceKm, _kRaceConfigUnset)
+          ? this.distanceKm
+          : distanceKm as double?,
       timelineMode: timelineMode ?? this.timelineMode,
       intervalMinutes: intervalMinutes ?? this.intervalMinutes,
-      intervalKm: intervalKm ?? this.intervalKm,
+      intervalKm: identical(intervalKm, _kRaceConfigUnset)
+          ? this.intervalKm
+          : intervalKm as double?,
       targetCarbsGPerHr: targetCarbsGPerHr ?? this.targetCarbsGPerHr,
       strategy: strategy ?? this.strategy,
       customCurve: customCurve ?? this.customCurve,

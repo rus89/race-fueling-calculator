@@ -25,24 +25,32 @@ class AthleteProfile extends Equatable {
     required this.unitSystem,
     this.bodyWeightKg,
     this.schemaVersion = 1,
-  })  : assert(gutToleranceGPerHr > 0 && gutToleranceGPerHr <= 200,
-            'gutToleranceGPerHr must be in (0, 200]'),
-        assert(bodyWeightKg == null || bodyWeightKg > 0,
-            'bodyWeightKg must be positive when provided');
+  }) : assert(
+         gutToleranceGPerHr > 0 && gutToleranceGPerHr <= 200,
+         'gutToleranceGPerHr must be in (0, 200]',
+       ),
+       assert(
+         bodyWeightKg == null || bodyWeightKg > 0,
+         'bodyWeightKg must be positive when provided',
+       );
 
   factory AthleteProfile.fromJson(Map<String, dynamic> json) {
     final gut = (json['gutToleranceGPerHr'] as num?)?.toDouble();
-    if (gut == null || gut <= 0 || gut > 200) {
+    // NaN bypasses `<= 0` because every comparison with NaN is false; the
+    // finite check is the canonical defense for both NaN and Infinity.
+    if (gut == null || !gut.isFinite || gut <= 0 || gut > 200) {
       throw FormatException(
-        'Tolerance must be between 1 and 200 g/hr (got ${_fmt(gut)}).',
+        'Tolerance must be between 1 and 200 g/hr and finite '
+        '(got ${_fmt(gut)}).',
       );
     }
     final weightJson = json['bodyWeightKg'];
     if (weightJson != null) {
       final weight = (weightJson as num).toDouble();
-      if (weight <= 0) {
+      if (!weight.isFinite || weight <= 0) {
         throw FormatException(
-          'Body weight must be positive (got ${_fmt(weight)} kg).',
+          'Body weight must be positive and finite '
+          '(got ${_fmt(weight)} kg).',
         );
       }
     }
@@ -51,6 +59,8 @@ class AthleteProfile extends Equatable {
 
   static String _fmt(num? n) {
     if (n == null) return 'null';
+    // NaN / +∞ / -∞ would crash `.truncateToDouble().toInt()`; render verbatim.
+    if (n is double && !n.isFinite) return n.toString();
     return n == n.truncateToDouble() ? n.toInt().toString() : n.toString();
   }
 

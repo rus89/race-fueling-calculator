@@ -20,3 +20,11 @@ final planProvider = Provider<AsyncValue<FuelingPlan>>((ref) {
     (state) => generatePlan(state.raceConfig, state.athleteProfile, library),
   );
 });
+
+/// The current load/engine error from the planner notifier, BEFORE
+/// planProvider's `unwrapPrevious()` strips it. The recovery banner
+/// reads this to render the right branch even when planProvider has a
+/// preserved prior value. Returns null on the happy path.
+final loadErrorProvider = Provider<Object?>((ref) {
+  return ref.watch(plannerNotifierProvider).error;
+});

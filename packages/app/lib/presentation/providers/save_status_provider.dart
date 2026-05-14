@@ -28,9 +28,24 @@ class SaveStatusController extends Notifier<SaveStatus> {
   @override
   SaveStatus build() => SaveStatus.idle;
 
-  void beginSave() {
+  /// Begin a new save lifecycle.
+  ///
+  /// Sticky-failed contract: while [state] is [SaveStatus.failed], a fresh
+  /// user-edit-driven save MUST NOT clobber the failure signal with
+  /// inFlight. The user mental model is "saves aren't working" — that
+  /// signal stays put until a save actually succeeds (clearing it via
+  /// [endSaveSuccess] once the pending chain drains).
+  ///
+  /// The single exception is the user-explicit retry path
+  /// (`PlannerNotifier.retrySave` → `_emitForce(flushNow: true)`). The
+  /// retry button must confirm the click by briefly transitioning to
+  /// inFlight so the user sees their action was received. Callers on
+  /// that path pass `retrying: true`.
+  void beginSave({bool retrying = false}) {
     _pending++;
-    state = SaveStatus.inFlight;
+    if (retrying || state != SaveStatus.failed) {
+      state = SaveStatus.inFlight;
+    }
   }
 
   void endSaveSuccess() {

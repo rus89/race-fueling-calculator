@@ -1,9 +1,11 @@
 // ABOUTME: Center pane — race title, 6 stat cards, vertical timeline.
 // ABOUTME: Reads plannerNotifierProvider + planProvider; surfaces AsyncError.
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:race_fueling_core/core.dart';
 
+import '../../data/plan_storage.dart';
 import '../../domain/planner_state.dart';
 import '../providers/plan_provider.dart';
 import '../providers/planner_notifier.dart';
@@ -59,6 +61,7 @@ class _Body extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(productLibraryProvider);
     final productsById = {for (final p in library) p.id: p};
+    final isEmpty = plan.entries.isEmpty;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 80),
@@ -82,9 +85,13 @@ class _Body extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 22),
-          _StatsGrid(plan: plan, target: state.raceConfig.targetCarbsGPerHr),
-          const SizedBox(height: 28),
-          _Timeline(plan: plan, state: state, productsById: productsById),
+          if (isEmpty)
+            const _EmptyState()
+          else ...[
+            _StatsGrid(plan: plan, target: state.raceConfig.targetCarbsGPerHr),
+            const SizedBox(height: 28),
+            _Timeline(plan: plan, state: state, productsById: productsById),
+          ],
         ],
       ),
     );
@@ -97,10 +104,17 @@ class _ErrorFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO(F1-ERROR-COPY): F1 will surface typed error bucketing per
-    // PB-DATA-1 hand-off. For now the underlying error reaches devs via
-    // debugPrint while users see a static, screen-reader-friendly copy.
-    debugPrint('PlanCanvas error: $error');
+    // Typed-error bucketing matching BonkRecoveryBanner: PlanStorageException
+    // is a storage-layer failure (saved blob unreadable), anything else is
+    // an engine-layer failure. The banner above the three-pane body is the
+    // canonical recovery affordance — the canvas just signposts it.
+    // PlanStorageException.toString() excludes rawBytes, so debugPrint is
+    // safe for L1 telemetry; users see the static copy. kDebugMode guard
+    // matches the planner_notifier pattern — release builds stay silent.
+    if (kDebugMode) debugPrint('PlanCanvas error: $error');
+    final message = error is PlanStorageException
+        ? 'Saved plan unreadable — see recovery options.'
+        : "Couldn't compute plan — see recovery options.";
     return Center(
       child: Semantics(
         liveRegion: true,
@@ -114,7 +128,7 @@ class _ErrorFallback extends StatelessWidget {
               const SizedBox(width: 12),
               Flexible(
                 child: Text(
-                  'Plan unavailable. Please reload.',
+                  message,
                   style: BonkType.sans(
                     size: 14,
                   ).copyWith(color: BonkTokens.ink),
@@ -132,6 +146,12 @@ class _StatsGrid extends StatelessWidget {
   final FuelingPlan plan;
   final double target;
   const _StatsGrid({required this.plan, required this.target});
+
+  // Canvas-local wrap threshold: NOT the page breakpoint. The canvas sits
+  // inside the three-pane layout, so its own width is what governs whether
+  // six stat cards fit in one row. At sub-880 px canvas widths, drop to a
+  // 2-up Wrap.
+  static const double _statsWrapBelow = 880;
 
   @override
   Widget build(BuildContext context) {
@@ -183,11 +203,77 @@ class _StatsGrid extends StatelessWidget {
     // size 36; non-hero cards use statValue at size 20). A fixed-aspect
     // GridView clips the hero. Row + Expanded + IntrinsicHeight lets the
     // tallest card set the row height and stretches the others to match.
-    // TODO(F1-RESPONSIVE): collapse to Wrap/multi-row layout at <880px.
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [for (final c in cards) Expanded(child: c)],
+    // F1c-RESPONSIVE: below _statsWrapBelow the six-card Row overflows;
+    // switch to a 2-up Wrap so cards stack into three rows at mobile
+    // viewports.
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.maxWidth >= _statsWrapBelow) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final card in cards) Expanded(child: card)],
+            ),
+          );
+        }
+        const spacing = BonkTokens.space4;
+        // 2-up grid: subtract the single inter-card gap from total width and
+        // halve. Floor at 0 so a degenerate maxWidth doesn't blow up.
+        final cardWidth = ((c.maxWidth - spacing) / 2).clamp(
+          0.0,
+          double.infinity,
+        );
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final card in cards) SizedBox(width: cardWidth, child: card),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    // Empty-state fires when plan.entries is empty — in practice when the
+    // user has cleared duration or hasn't started yet. F1c review HIGH#1
+    // removed the destructive "Reset to seed plan" button (it overwrote
+    // healthy in-progress work) and replaced it with copy that points the
+    // user at the Setup rail/tab where they can actually fix the cause.
+    const subhead =
+        'Set a duration and add at least one product in Setup to compute '
+        'your plan.';
+    return Semantics(
+      container: true,
+      label: 'No plan yet. $subhead',
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: Text(
+                'No plan yet.',
+                style: BonkType.sans(
+                  size: 20,
+                  w: FontWeight.w600,
+                ).copyWith(color: BonkTokens.ink),
+              ),
+            ),
+            const SizedBox(height: 6),
+            ExcludeSemantics(
+              child: Text(
+                subhead,
+                style: BonkType.sans(size: 13).copyWith(color: BonkTokens.ink2),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -205,7 +291,6 @@ class _Timeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO(F1-EMPTY-PLAN): add empty-state CTA when entries.isEmpty.
     final stepHrs = (state.raceConfig.intervalMinutes ?? 15) / 60.0;
     final perStepTarget = state.raceConfig.targetCarbsGPerHr * stepHrs;
     final peak = plan.entries.isEmpty

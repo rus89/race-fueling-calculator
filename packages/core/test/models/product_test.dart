@@ -42,9 +42,17 @@ void main() {
 
     test('supports value equality', () {
       final a = Product(
-          id: 'x', name: 'X', type: ProductType.gel, carbsPerServing: 25);
+        id: 'x',
+        name: 'X',
+        type: ProductType.gel,
+        carbsPerServing: 25,
+      );
       final b = Product(
-          id: 'x', name: 'X', type: ProductType.gel, carbsPerServing: 25);
+        id: 'x',
+        name: 'X',
+        type: ProductType.gel,
+        carbsPerServing: 25,
+      );
       expect(a, equals(b));
     });
 
@@ -134,18 +142,22 @@ void main() {
       expect(product.copyWith(brand: null).brand, 'Acme');
     });
 
-    test('copyWith preserves servingDescription when null is passed explicitly',
-        () {
-      final product = Product(
-        id: 'gel-1',
-        name: 'Gel',
-        type: ProductType.gel,
-        carbsPerServing: 25.0,
-        servingDescription: '1 gel',
-      );
-      expect(product.copyWith(servingDescription: null).servingDescription,
-          '1 gel');
-    });
+    test(
+      'copyWith preserves servingDescription when null is passed explicitly',
+      () {
+        final product = Product(
+          id: 'gel-1',
+          name: 'Gel',
+          type: ProductType.gel,
+          carbsPerServing: 25.0,
+          servingDescription: '1 gel',
+        );
+        expect(
+          product.copyWith(servingDescription: null).servingDescription,
+          '1 gel',
+        );
+      },
+    );
 
     test('copyWith updates brand', () {
       final product = Product(
@@ -165,7 +177,9 @@ void main() {
         carbsPerServing: 25.0,
       );
       expect(
-          product.copyWith(type: ProductType.liquid).type, ProductType.liquid);
+        product.copyWith(type: ProductType.liquid).type,
+        ProductType.liquid,
+      );
     });
 
     test('copyWith updates glucoseGrams', () {
@@ -205,8 +219,10 @@ void main() {
         type: ProductType.gel,
         carbsPerServing: 25.0,
       );
-      expect(product.copyWith(servingDescription: 'bottle').servingDescription,
-          'bottle');
+      expect(
+        product.copyWith(servingDescription: 'bottle').servingDescription,
+        'bottle',
+      );
     });
 
     test('copyWith updates sipMinutes', () {
@@ -318,24 +334,25 @@ void main() {
   group('ProductType', () {
     test('has all expected values', () {
       expect(
-          ProductType.values,
-          containsAll([
-            ProductType.gel,
-            ProductType.liquid,
-            ProductType.solid,
-            ProductType.chew,
-            ProductType.realFood,
-          ]));
+        ProductType.values,
+        containsAll([
+          ProductType.gel,
+          ProductType.liquid,
+          ProductType.solid,
+          ProductType.chew,
+          ProductType.realFood,
+        ]),
+      );
     });
   });
 
   group('Product carbsPerServing validation', () {
     Product build({required double carbsPerServing}) => Product(
-          id: 'p',
-          name: 'P',
-          type: ProductType.gel,
-          carbsPerServing: carbsPerServing,
-        );
+      id: 'p',
+      name: 'P',
+      type: ProductType.gel,
+      carbsPerServing: carbsPerServing,
+    );
 
     test('constructor rejects zero carbsPerServing', () {
       expect(() => build(carbsPerServing: 0), throwsArgumentError);
@@ -351,7 +368,9 @@ void main() {
 
     test('constructor rejects infinite carbsPerServing', () {
       expect(
-          () => build(carbsPerServing: double.infinity), throwsArgumentError);
+        () => build(carbsPerServing: double.infinity),
+        throwsArgumentError,
+      );
     });
 
     test('fromJson rejects zero carbsPerServing', () {

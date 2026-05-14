@@ -223,10 +223,7 @@ class _ProductsAddCommand extends Command<void> {
     final rawName = results['name'] as String?;
     final rawType = results['type'] as String?;
     if (rawName == null || rawName.trim().isEmpty) {
-      throw UsageException(
-        'Missing --name.',
-        'Pass --name "<product name>".',
-      );
+      throw UsageException('Missing --name.', 'Pass --name "<product name>".');
     }
     if (rawType == null) {
       throw UsageException(
@@ -296,10 +293,7 @@ class _ProductsAddCommand extends Command<void> {
         );
         return;
       }
-      final updated = [
-        ...existing.where((p) => p.id != newId),
-        product,
-      ];
+      final updated = [...existing.where((p) => p.id != newId), product];
       await _storage.saveUserProducts(updated);
       stdout.writeln(
         'Added "${product.name}" (custom ${product.type.name}, '
@@ -482,8 +476,9 @@ class _ProductsRemoveCommand extends Command<void> {
             return;
           }
           final isRevert = _isOverrideOfBuiltIn(product.id);
-          final updated =
-              userProducts.where((p) => p.id != product.id).toList();
+          final updated = userProducts
+              .where((p) => p.id != product.id)
+              .toList();
           await _storage.saveUserProducts(updated);
           if (isRevert) {
             stdout.writeln(
@@ -502,8 +497,8 @@ class _ProductsResetCommand extends Command<void> {
     this._storage, {
     required IsTtyProbe isTty,
     LineReader? readLine,
-  })  : _isTty = isTty,
-        _readLine = readLine {
+  }) : _isTty = isTty,
+       _readLine = readLine {
     argParser.addFlag(
       'yes',
       abbr: 'y',

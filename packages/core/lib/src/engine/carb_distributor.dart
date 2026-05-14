@@ -5,7 +5,10 @@ import '../models/warning.dart';
 import 'timeline_builder.dart';
 
 List<double> distributeCarbs(
-    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
+  List<TimeSlot> slots,
+  RaceConfig config,
+  double targetCarbsGPerHr,
+) {
   switch (config.strategy) {
     case Strategy.steady:
       return _distributeSteady(slots, targetCarbsGPerHr);
@@ -24,37 +27,46 @@ List<double> _distributeSteady(List<TimeSlot> slots, double targetCarbsGPerHr) {
 }
 
 List<double> _distributeFrontLoad(
-    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
+  List<TimeSlot> slots,
+  RaceConfig config,
+  double targetCarbsGPerHr,
+) {
   final totalMin = config.duration.inMinutes;
   final gPerMin = targetCarbsGPerHr / 60.0;
 
   return _distributeByGapMinutes(
-      slots,
-      slots.map((slot) {
-        final progress = slot.timeMark.inMinutes / totalMin;
-        final multiplier =
-            progress < 0.33 ? 1.1 : (progress < 0.67 ? 1.0 : 0.9);
-        return gPerMin * multiplier;
-      }).toList());
+    slots,
+    slots.map((slot) {
+      final progress = slot.timeMark.inMinutes / totalMin;
+      final multiplier = progress < 0.33 ? 1.1 : (progress < 0.67 ? 1.0 : 0.9);
+      return gPerMin * multiplier;
+    }).toList(),
+  );
 }
 
 List<double> _distributeBackLoad(
-    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
+  List<TimeSlot> slots,
+  RaceConfig config,
+  double targetCarbsGPerHr,
+) {
   final totalMin = config.duration.inMinutes;
   final gPerMin = targetCarbsGPerHr / 60.0;
 
   return _distributeByGapMinutes(
-      slots,
-      slots.map((slot) {
-        final progress = slot.timeMark.inMinutes / totalMin;
-        final multiplier =
-            progress < 0.33 ? 0.9 : (progress < 0.67 ? 1.0 : 1.1);
-        return gPerMin * multiplier;
-      }).toList());
+    slots,
+    slots.map((slot) {
+      final progress = slot.timeMark.inMinutes / totalMin;
+      final multiplier = progress < 0.33 ? 0.9 : (progress < 0.67 ? 1.0 : 1.1);
+      return gPerMin * multiplier;
+    }).toList(),
+  );
 }
 
 List<double> _distributeCustom(
-    List<TimeSlot> slots, RaceConfig config, double targetCarbsGPerHr) {
+  List<TimeSlot> slots,
+  RaceConfig config,
+  double targetCarbsGPerHr,
+) {
   final curve = config.customCurve ?? [];
   final gPerMinRates = <double>[];
 
@@ -86,12 +98,16 @@ List<double> _distributeCustom(
 /// the uncovered portion. The advisory tells the user how many minutes
 /// were covered, the gap, and the fallback rate.
 Warning? detectCustomCurveCoverageWarning(
-    RaceConfig config, double baseGPerHr) {
+  RaceConfig config,
+  double baseGPerHr,
+) {
   if (config.strategy != Strategy.custom) return null;
 
   final totalMin = config.duration.inMinutes;
-  final coveredMin = (config.customCurve ?? const <CurveSegment>[])
-      .fold<int>(0, (sum, segment) => sum + segment.durationMinutes);
+  final coveredMin = (config.customCurve ?? const <CurveSegment>[]).fold<int>(
+    0,
+    (sum, segment) => sum + segment.durationMinutes,
+  );
 
   if (coveredMin >= totalMin) return null;
 
@@ -104,9 +120,13 @@ Warning? detectCustomCurveCoverageWarning(
 }
 
 List<double> _distributeByGapMinutes(
-    List<TimeSlot> slots, List<double> gPerMinRates) {
-  assert(slots.length == gPerMinRates.length,
-      '_distributeByGapMinutes: slots and gPerMinRates must have equal length');
+  List<TimeSlot> slots,
+  List<double> gPerMinRates,
+) {
+  assert(
+    slots.length == gPerMinRates.length,
+    '_distributeByGapMinutes: slots and gPerMinRates must have equal length',
+  );
   final targets = <double>[];
   var prevMin = 0;
 

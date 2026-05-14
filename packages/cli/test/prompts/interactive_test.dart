@@ -104,11 +104,7 @@ void main() {
     test('returns empty string when input and default both absent (EOF)', () {
       final out = StringBuffer();
 
-      final result = promptString(
-        'Name',
-        readLine: () => null,
-        out: out,
-      );
+      final result = promptString('Name', readLine: () => null, out: out);
 
       expect(result, '');
     });
@@ -382,11 +378,7 @@ void main() {
       // silently picking the default and proceeding with a destructive op.
       final out = StringBuffer();
       expect(
-        () => promptBool(
-          'Continue?',
-          readLine: () => null,
-          out: out,
-        ),
+        () => promptBool('Continue?', readLine: () => null, out: out),
         throwsA(isA<NoTerminalException>()),
       );
     });

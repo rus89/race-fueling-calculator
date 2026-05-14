@@ -37,8 +37,9 @@ ProductMatch resolveProduct(List<Product> products, String query) {
   for (final p in products) {
     if (p.name.toLowerCase() == q) return ProductMatchSingle(p);
   }
-  final substringMatches =
-      products.where((p) => p.name.toLowerCase().contains(q)).toList();
+  final substringMatches = products
+      .where((p) => p.name.toLowerCase().contains(q))
+      .toList();
   if (substringMatches.isEmpty) return const ProductMatchNone();
   if (substringMatches.length == 1) {
     return ProductMatchSingle(substringMatches.first);

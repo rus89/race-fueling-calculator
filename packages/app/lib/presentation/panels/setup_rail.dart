@@ -10,6 +10,7 @@ import '../providers/planner_notifier.dart';
 import '../providers/product_library_provider.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
+import '../util/units.dart';
 import '../widgets/aid_station_row.dart';
 import '../widgets/field_shell.dart';
 import '../widgets/inventory_row.dart';
@@ -17,7 +18,12 @@ import '../widgets/seg_control.dart';
 import '../widgets/text_input.dart';
 
 class SetupRail extends ConsumerWidget {
-  const SetupRail({super.key});
+  /// Whether to paint the right-side rule that separates the rail from the
+  /// canvas in the desktop three-pane layout. Mobile TabBarView places the
+  /// rail as a tab child; suppressing the rule prevents a stray vertical
+  /// line at the tab content's edge.
+  final bool showSideRule;
+  const SetupRail({super.key, this.showSideRule = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,36 +34,45 @@ class SetupRail extends ConsumerWidget {
         label: 'Loading planner',
         child: const Center(child: CircularProgressIndicator()),
       ),
-      // PC-ERROR-UI: stub. F1 replaces with actionable banner per
-      // PB-DATA-1 (JOURNAL Phase B Round 3 closeout). Exception details
-      // are intentionally not interpolated — they could leak stack hints.
+      // The actionable recovery affordance lives in the BonkRecoveryBanner
+      // (F1b). The rail signposts the banner rather than duplicating its
+      // retry/discard controls. Exception details are intentionally not
+      // interpolated — the banner carries typed-error bucketing; the rail
+      // just stays non-empty. Layout-agnostic copy: the banner may render
+      // above or beside the rail depending on viewport.
       error: (e, _) => Semantics(
         liveRegion: true,
+        container: true,
+        label: 'Setup unavailable — see recovery options.',
         child: Center(
-          child: Text(
-            'Failed to load planner state. Please reload.',
-            style: BonkType.sans(),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Setup unavailable — see recovery options.',
+              style: BonkType.sans().copyWith(color: BonkTokens.ink2),
+            ),
           ),
         ),
       ),
-      data: (state) => _RailBody(state: state),
+      data: (state) => _RailBody(state: state, showSideRule: showSideRule),
     );
   }
 }
 
 class _RailBody extends ConsumerWidget {
   final PlannerState state;
-  const _RailBody({required this.state});
+  final bool showSideRule;
+  const _RailBody({required this.state, required this.showSideRule});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(plannerNotifierProvider.notifier);
     return Container(
-      // PC-RESPONSIVE: F1 will swap this hardcoded width for
-      // BonkBreakpoint.setupRailWidth driven by MediaQuery.sizeOf(context).
-      width: 320,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: BonkTokens.rule)),
+      key: const Key('setup-rail.outer'),
+      decoration: BoxDecoration(
+        border: showSideRule
+            ? const Border(right: BorderSide(color: BonkTokens.rule))
+            : null,
         color: BonkTokens.bg,
       ),
       child: SingleChildScrollView(
@@ -86,10 +101,13 @@ class _RailBody extends ConsumerWidget {
             const _SectionLabel(label: 'RACE'),
             BonkFieldShell(
               label: 'Name',
+              // No labelText: BonkFieldShell renders the canonical label
+              // ("Name") above the input AND exposes it via Semantics. A
+              // floating labelText here would duplicate "Race name" inside
+              // the OutlineInputBorder and truncate on narrow rail widths.
               child: BonkTextInput(
                 key: const Key('setup.race_name'),
                 value: state.raceConfig.name,
-                labelText: 'Race name',
                 maxLength: 100,
                 onChanged: (v) =>
                     notifier.updateRaceConfig((c) => c.copyWith(name: v)),
@@ -316,7 +334,6 @@ class _DurationRow extends ConsumerWidget {
               key: const Key('setup.duration_hours'),
               value: '$h',
               monoFont: true,
-              labelText: 'Hours',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (v) {
@@ -343,7 +360,6 @@ class _DurationRow extends ConsumerWidget {
               key: const Key('setup.duration_minutes'),
               value: '$m',
               monoFont: true,
-              labelText: 'Minutes',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (v) {
@@ -371,46 +387,82 @@ class _DurationRow extends ConsumerWidget {
 
 class _BodyMassAndDistanceRow extends ConsumerWidget {
   const _BodyMassAndDistanceRow();
+
+  // End-anchored: single optional decimal point, no trailing characters. The
+  // anchor makes the intent self-documenting.
+  static final _decimalFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'^\d*\.?\d*$'),
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(plannerNotifierProvider).requireValue;
     final notifier = ref.read(plannerNotifierProvider.notifier);
-    // PC-UNIT-CONVERSION: hardcoded to canonical SI units until F1 wires real
-    // conversion. Imperial users see 'kg' / 'km' — accurate to the stored
-    // value even if the user's unitSystem preference says otherwise. See
-    // JOURNAL PB-Phase-C for the F1 follow-up.
-    const unit = 'kg';
-    const distUnit = 'km';
+    final isImperial = state.athleteProfile.unitSystem == UnitSystem.imperial;
+    final massUnit = isImperial ? 'lb' : 'kg';
+    final distUnit = isImperial ? 'mi' : 'km';
+
+    // Storage stays canonical SI; convert at the I/O boundary only.
+    // Defensive finite-positive guard: even if a non-finite or non-positive
+    // bodyWeightKg slips past the model invariants (release-mode assert
+    // elision, legacy blob loaded pre-finite guard), fall back to a safe
+    // default rather than rendering "NaN" or crashing.
+    final rawKg = state.athleteProfile.bodyWeightKg;
+    final safeKg = (rawKg != null && rawKg.isFinite && rawKg > 0)
+        ? rawKg
+        : 70.0;
+    final massDisplay = isImperial ? kgToLb(safeKg) : safeKg;
+    // Imperial keeps one decimal so the field doesn't overwrite the user's
+    // typed mid-edit precision (e.g. "158.7" lb round-trips to "158.7", not
+    // "159"). Metric uses integer display because kg granularity is coarse
+    // and one-decimal noise would clutter the rail.
+    final massStr = isImperial
+        ? massDisplay.toStringAsFixed(1)
+        : '${massDisplay.round()}';
+
+    final rawKm = state.raceConfig.distanceKm;
+    final safeKm = (rawKm != null && rawKm.isFinite && rawKm > 0)
+        ? rawKm
+        : null;
+    final String distDisplay;
+    if (safeKm == null) {
+      distDisplay = '';
+    } else {
+      final shown = isImperial ? kmToMi(safeKm) : safeKm;
+      distDisplay = isImperial ? shown.toStringAsFixed(1) : '${shown.round()}';
+    }
+
     return Row(
       children: [
         Expanded(
           child: BonkFieldShell(
-            label: 'Body mass',
+            label: 'Body mass ($massUnit)',
             child: Row(
               children: [
                 SizedBox(
                   width: 64,
                   child: BonkTextInput(
                     key: const Key('setup.body_mass'),
-                    value: '${state.athleteProfile.bodyWeightKg ?? 70}',
+                    value: massStr,
                     monoFont: true,
-                    labelText: 'Body mass',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [_decimalFormatter],
                     onChanged: (v) {
-                      final w = double.tryParse(v);
-                      if (w != null && w > 0) {
-                        notifier.updateAthleteProfile(
-                          (p) => p.copyWith(bodyWeightKg: w),
-                        );
-                      }
+                      final typed = double.tryParse(v);
+                      if (typed == null || typed <= 0) return;
+                      final kg = isImperial ? lbToKg(typed) : typed;
+                      notifier.updateAthleteProfile(
+                        (p) => p.copyWith(bodyWeightKg: kg),
+                      );
                     },
                   ),
                 ),
                 const SizedBox(width: 4),
                 ExcludeSemantics(
                   child: Text(
-                    unit,
+                    massUnit,
                     style: BonkType.mono(
                       size: 11,
                     ).copyWith(color: BonkTokens.ink3),
@@ -423,30 +475,31 @@ class _BodyMassAndDistanceRow extends ConsumerWidget {
         const SizedBox(width: 10),
         Expanded(
           child: BonkFieldShell(
-            label: 'Total distance',
-            // PC-PRESERVE-DIST: RaceConfig.copyWith treats a null `distanceKm`
-            // argument as "no change" (standard Dart pattern), so a user who
-            // empties the field cannot clear the stored distance via this
-            // input — the previous value is preserved. F1 will introduce
-            // an explicit "clear distance" affordance or a sentinel-aware
-            // copyWith if product needs the cleared state.
+            label: 'Total distance ($distUnit)',
             child: Row(
               children: [
                 SizedBox(
                   width: 64,
                   child: BonkTextInput(
                     key: const Key('setup.distance_km'),
-                    value: state.raceConfig.distanceKm == null
-                        ? ''
-                        : '${state.raceConfig.distanceKm!.round()}',
+                    value: distDisplay,
                     monoFont: true,
-                    labelText: 'Total distance',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                    ],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [_decimalFormatter],
                     onChanged: (v) {
-                      final km = double.tryParse(v);
+                      if (v.isEmpty) {
+                        // Sentinel-aware copyWith: passing null clears the
+                        // field so the user can drop the distance entirely.
+                        notifier.updateRaceConfig(
+                          (c) => c.copyWith(distanceKm: null),
+                        );
+                        return;
+                      }
+                      final typed = double.tryParse(v);
+                      if (typed == null) return;
+                      final km = isImperial ? miToKm(typed) : typed;
                       notifier.updateRaceConfig(
                         (c) => c.copyWith(distanceKm: km),
                       );

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:race_fueling_app/data/plan_storage.dart';
 import 'package:race_fueling_app/domain/planner_state.dart';
 import 'package:race_fueling_app/presentation/panels/plan_canvas.dart';
 import 'package:race_fueling_app/presentation/providers/plan_storage_provider.dart';
@@ -184,26 +185,151 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    // TODO(F1-RESPONSIVE): the 6-card stat grid is a fixed Row; at 200%
-    // text scale on narrow surfaces it can overflow. F1 owns the Wrap
-    // collapse. On this 2400×3200 surface the canvas builds without
-    // throwing — pin that contract so a future regression that flips
-    // it shows up here.
+    // F1c-RESPONSIVE: the stat grid collapses to Wrap below 880px so the
+    // 200% text-scale surface doesn't overflow. 2400×3200 with 2× scale
+    // exercises the wide branch — pin that contract.
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('renders an error state when storage load fails', (tester) async {
-    await sizeCanvas(tester);
-    final fake = FakePlanStorage()..loadError = StateError('boom');
+  testWidgets(
+    'stat grid collapses to wrap layout below 880px without overflow',
+    (tester) async {
+      // Pump at a narrow viewport so _StatsGrid takes the Wrap branch.
+      // The six cards must all remain findable and no horizontal overflow
+      // can occur (RenderFlex overflow throws an Exception during paint).
+      await tester.binding.setSurfaceSize(const Size(600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final fake = FakePlanStorage();
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Avg carbs / hr'), findsOneWidget);
+      expect(find.text('Total carbs'), findsOneWidget);
+      expect(find.text('Glu : Fru'), findsOneWidget);
+      expect(find.text('Caffeine'), findsOneWidget);
+      expect(find.text('Fluid w/ fuel'), findsOneWidget);
+      expect(find.text('Items'), findsOneWidget);
+
+      // F1c-WRAP-SHAPE: the 2-up Wrap composes exactly one Wrap with six
+      // SizedBox children sized to (innerWidth - space4) / 2. Pin the
+      // shape so a regression to GridView or three-column Row shows here.
+      final wrapFinder = find.byType(Wrap);
+      expect(wrapFinder, findsOneWidget);
+      final wrapWidget = tester.widget<Wrap>(wrapFinder);
+      final sizedBoxes = wrapWidget.children.whereType<SizedBox>().toList();
+      expect(sizedBoxes.length, 6);
+      // Each SizedBox width = (innerWidth - 16) / 2 and all are equal.
+      // Probe the LayoutBuilder's effective inner width via the first card
+      // and assert the others are within 1px (rounding).
+      final firstWidth = sizedBoxes.first.width!;
+      expect(firstWidth, greaterThan(0));
+      for (final box in sizedBoxes) {
+        expect(box.width, closeTo(firstWidth, 1.0));
+      }
+    },
+  );
+
+  testWidgets('stat grid uses Row layout at exactly 880px inner width', (
+    tester,
+  ) async {
+    // Boundary check: 880px is the wrap-below threshold INSIDE _StatsGrid's
+    // LayoutBuilder. The canvas applies 28+28 horizontal padding, so a
+    // 936px surface yields exactly 880px inner. At >= 880px inner the grid
+    // uses IntrinsicHeight + Row, NOT Wrap.
+    await tester.binding.setSurfaceSize(const Size(936, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fake = FakePlanStorage();
     await tester.pumpWidget(wrap(fake));
     await tester.pumpAndSettle();
-    // PB-DATA-1: the panel surfaces the error rather than silently
-    // showing seed data. F1 will replace this with the recovery banner;
-    // for now, a static fallback proves planProvider's AsyncError reaches
-    // the consumer.
-    expect(find.text('Plan unavailable. Please reload.'), findsOneWidget);
-    // The raw error message must NOT be interpolated into UI text — users
-    // see the static copy, devs see the underlying error in debugPrint.
-    expect(find.textContaining('boom'), findsNothing);
+    expect(find.byType(IntrinsicHeight), findsOneWidget);
+    expect(find.byType(Wrap), findsNothing);
   });
+
+  testWidgets('stat grid uses Wrap layout at 879px inner width', (
+    tester,
+  ) async {
+    // Boundary check: 879px inner (935px surface) is just below the
+    // threshold; Wrap branch.
+    await tester.binding.setSurfaceSize(const Size(935, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fake = FakePlanStorage();
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    expect(find.byType(Wrap), findsOneWidget);
+    expect(find.byType(IntrinsicHeight), findsNothing);
+  });
+
+  testWidgets('empty plan renders empty-state CTA and hides stat grid', (
+    tester,
+  ) async {
+    await sizeCanvas(tester);
+    // Zero-duration race produces no timeline slots → FuelingPlan.entries
+    // is empty. This is the path the empty-state CTA catches (the user
+    // cleared duration or hasn't set one yet).
+    final seed = PlannerState.seed();
+    final fake = FakePlanStorage()
+      ..loaded = seed.copyWith(
+        raceConfig: seed.raceConfig.copyWith(
+          duration: Duration.zero,
+          selectedProducts: const [],
+          aidStations: const [],
+        ),
+      );
+    await tester.pumpWidget(wrap(fake));
+    await tester.pumpAndSettle();
+    // Empty-state CTA copy is visible.
+    expect(find.text('No plan yet.'), findsOneWidget);
+    expect(
+      find.text(
+        'Set a duration and add at least one product in Setup to compute '
+        'your plan.',
+      ),
+      findsOneWidget,
+    );
+    // The empty-state explanatory copy is the entire affordance — no button
+    // that destroys in-progress work. F1c review HIGH#1.
+    expect(find.byType(FilledButton), findsNothing);
+    // The stat grid is replaced, not stacked above — labels must not appear.
+    expect(find.text('Avg carbs / hr'), findsNothing);
+    expect(find.text('Total carbs'), findsNothing);
+    // Race-name header at the top of _Body stays visible.
+    expect(find.text('Andalucía Bike Race — Stage 3'), findsOneWidget);
+  });
+
+  testWidgets(
+    'PlanStorageException → "Saved plan unreadable — see recovery options."',
+    (tester) async {
+      await sizeCanvas(tester);
+      final fake = FakePlanStorage()
+        ..loadError = const PlanStorageException('corrupt blob');
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      // F1b: storage-layer failures get the "Saved plan unreadable" copy
+      // and signpost the banner (layout-agnostic copy — banner may be
+      // above or beside the canvas depending on viewport). Raw error text
+      // must not leak into UI.
+      expect(
+        find.text('Saved plan unreadable — see recovery options.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('corrupt blob'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'non-storage error → "Couldn\'t compute plan — see recovery options."',
+    (tester) async {
+      await sizeCanvas(tester);
+      final fake = FakePlanStorage()..loadError = StateError('boom');
+      await tester.pumpWidget(wrap(fake));
+      await tester.pumpAndSettle();
+      // F1b: anything other than PlanStorageException reads as an engine
+      // failure — the canvas surfaces the generic compute-failed copy.
+      expect(
+        find.text("Couldn't compute plan — see recovery options."),
+        findsOneWidget,
+      );
+      expect(find.textContaining('boom'), findsNothing);
+    },
+  );
 }

@@ -191,14 +191,17 @@ class TimelineRow extends StatelessWidget {
                               color: BonkTokens.warn,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              'Aid station — refill '
-                              '${entry.aidStation!.refill.length} '
-                              'item${entry.aidStation!.refill.length == 1 ? "" : "s"}',
-                              style: BonkType.mono(
-                                size: 11,
-                                w: FontWeight.w600,
-                              ).copyWith(color: BonkTokens.ink),
+                            Flexible(
+                              child: Text(
+                                'Aid station — refill '
+                                '${entry.aidStation!.refill.length} '
+                                'item${entry.aidStation!.refill.length == 1 ? "" : "s"}',
+                                style: BonkType.mono(
+                                  size: 11,
+                                  w: FontWeight.w600,
+                                ).copyWith(color: BonkTokens.ink),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),

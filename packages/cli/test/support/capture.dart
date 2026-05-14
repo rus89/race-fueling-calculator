@@ -17,9 +17,7 @@ class CapturedOutput {
 /// `stdout` and `stderr` to in-memory buffers. Only writes performed via
 /// the overridden `IOOverrides.current` accessors are captured — direct
 /// writes to the original `stdioType` file descriptors are not.
-Future<CapturedOutput> captureOutput(
-  Future<void> Function() action,
-) async {
+Future<CapturedOutput> captureOutput(Future<void> Function() action) async {
   final outBuffer = StringBuffer();
   final errBuffer = StringBuffer();
 

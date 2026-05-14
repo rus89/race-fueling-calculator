@@ -16,7 +16,13 @@ class DiagnosticsRail extends ConsumerWidget {
   // F1-RAIL-MIN-WIDTH: this panel needs ≥360px outer (320px inner after the
   // 20px horizontal padding) so RatioBar's 200% textScaler bound is honored.
   // F1's responsive layout must allocate ≥360px for this rail.
-  const DiagnosticsRail({super.key});
+
+  /// Whether to paint the left-side rule that separates the rail from the
+  /// canvas in the desktop three-pane layout. Mobile TabBarView places the
+  /// rail as a tab child; suppressing the rule prevents a stray vertical
+  /// line at the tab content's edge.
+  final bool showSideRule;
+  const DiagnosticsRail({super.key, this.showSideRule = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,9 +31,12 @@ class DiagnosticsRail extends ConsumerWidget {
     final warnings = ref.watch(warningsProvider);
 
     return Container(
-      decoration: const BoxDecoration(
+      key: const Key('diagnostics-rail.outer'),
+      decoration: BoxDecoration(
         color: BonkTokens.bg,
-        border: Border(left: BorderSide(color: BonkTokens.rule)),
+        border: showSideRule
+            ? const Border(left: BorderSide(color: BonkTokens.rule))
+            : null,
       ),
       child: asyncPlan.when(
         loading: () => Center(

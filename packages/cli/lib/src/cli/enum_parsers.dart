@@ -14,14 +14,14 @@ Strategy parseStrategyFlag(String raw) {
     'front-load' => Strategy.frontLoad,
     'back-load' => Strategy.backLoad,
     'custom' => throw UsageException(
-        'The custom strategy requires curve segments and is not available '
-            'via the CLI.',
-        'Use --strategy steady, front-load, or back-load.',
-      ),
+      'The custom strategy requires curve segments and is not available '
+          'via the CLI.',
+      'Use --strategy steady, front-load, or back-load.',
+    ),
     _ => throw UsageException(
-        '--strategy must be one of: steady, front-load, back-load',
-        'Got "$raw".',
-      ),
+      '--strategy must be one of: steady, front-load, back-load',
+      'Got "$raw".',
+    ),
   };
 }
 
@@ -32,9 +32,9 @@ TimelineMode parseModeFlag(String raw) {
     'time' => TimelineMode.timeBased,
     'distance' => TimelineMode.distanceBased,
     _ => throw UsageException(
-        '--mode must be one of: time, distance',
-        'Got "$raw".',
-      ),
+      '--mode must be one of: time, distance',
+      'Got "$raw".',
+    ),
   };
 }
 
@@ -48,8 +48,8 @@ ProductType parseProductTypeFlag(String raw) {
     'chew' => ProductType.chew,
     'real_food' => ProductType.realFood,
     _ => throw UsageException(
-        '--type must be one of: gel, liquid, solid, chew, real_food',
-        'Got "$raw".',
-      ),
+      '--type must be one of: gel, liquid, solid, chew, real_food',
+      'Got "$raw".',
+    ),
   };
 }

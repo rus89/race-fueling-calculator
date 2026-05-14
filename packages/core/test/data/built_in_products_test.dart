@@ -13,11 +13,16 @@ void main() {
     test('all products have valid data', () {
       for (final p in builtInProducts) {
         expect(p.carbsPerServing, greaterThan(0), reason: '${p.name} carbs');
-        expect(p.glucoseGrams + p.fructoseGrams,
-            lessThanOrEqualTo(p.carbsPerServing + 0.1),
-            reason: '${p.name} glucose+fructose <= total');
-        expect(p.caffeineMg, greaterThanOrEqualTo(0),
-            reason: '${p.name} caffeine');
+        expect(
+          p.glucoseGrams + p.fructoseGrams,
+          lessThanOrEqualTo(p.carbsPerServing + 0.1),
+          reason: '${p.name} glucose+fructose <= total',
+        );
+        expect(
+          p.caffeineMg,
+          greaterThanOrEqualTo(0),
+          reason: '${p.name} caffeine',
+        );
         expect(p.isBuiltIn, true, reason: '${p.name} isBuiltIn');
         expect(p.id, isNotEmpty, reason: '${p.name} id');
       }
@@ -31,33 +36,42 @@ void main() {
     test('covers all product types', () {
       final types = builtInProducts.map((p) => p.type).toSet();
       expect(
-          types,
-          containsAll([
-            ProductType.gel,
-            ProductType.liquid,
-            ProductType.solid,
-            ProductType.chew,
-            ProductType.realFood,
-          ]));
+        types,
+        containsAll([
+          ProductType.gel,
+          ProductType.liquid,
+          ProductType.solid,
+          ProductType.chew,
+          ProductType.realFood,
+        ]),
+      );
     });
 
     test('every liquid built-in has sipMinutes set', () {
-      final liquids =
-          builtInProducts.where((p) => p.type == ProductType.liquid);
+      final liquids = builtInProducts.where(
+        (p) => p.type == ProductType.liquid,
+      );
       expect(liquids, isNotEmpty);
       for (final p in liquids) {
         expect(p.sipMinutes, isNotNull, reason: '${p.id} missing sipMinutes');
-        expect(p.sipMinutes, greaterThan(0),
-            reason: '${p.id} has invalid sipMinutes');
+        expect(
+          p.sipMinutes,
+          greaterThan(0),
+          reason: '${p.id} has invalid sipMinutes',
+        );
       }
     });
 
     test('non-liquid built-ins have null sipMinutes', () {
-      final nonLiquids =
-          builtInProducts.where((p) => p.type != ProductType.liquid);
+      final nonLiquids = builtInProducts.where(
+        (p) => p.type != ProductType.liquid,
+      );
       for (final p in nonLiquids) {
-        expect(p.sipMinutes, isNull,
-            reason: '${p.id} should not have sipMinutes');
+        expect(
+          p.sipMinutes,
+          isNull,
+          reason: '${p.id} should not have sipMinutes',
+        );
       }
     });
   });
